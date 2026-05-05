@@ -2,7 +2,7 @@ import axios from 'axios';
 import useTokenStore from '../store/tokenStore'; 
 
 const api = axios.create({
-  baseURL: 'https://smartbinbe-production.up.railway.app/api/v1',
+  baseURL: 'https://smartbinbe-production.up.railway.app/api/v1/',
 });
 
 api.interceptors.request.use((config) => {
