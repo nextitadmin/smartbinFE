@@ -85,7 +85,7 @@ const KYCApplication = () => {
 
     const checkStatus = async () => {
         try {
-            const { data } = await api.get(`/ResidentKYC/check-resident-kyc-status?residentID=${useAuthStore.getState().token}`)
+            const { data } = await api.get('/facility-manager/kyc/status')
             if (data.succeeded) {
                 navigate('/newkycapplication');
             }
@@ -258,7 +258,7 @@ const KYCApplication = () => {
             };
 
             const { data } = await api.post(
-                '/ResidentKYC/new-kyc-reg',
+                '/facility-manager/kyc',
                 payload
             );
 

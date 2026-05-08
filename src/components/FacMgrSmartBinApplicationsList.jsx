@@ -45,7 +45,7 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
     const fetchData = async () => {
         try {
             const { data } = await api.get(`/facility-managers/smart-bin/applications?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
-            if (data.success) {
+            if (data.success && Array.isArray(data.data?.data)) {
                 const newData = data.data.data.map((item, index) => ({
                     id: item.id,
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
@@ -60,12 +60,17 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
                     customerType: item.customerType,
                 }));
                 setApplications(newData);
-                setTotalPages(data.data.totalPages);
-                setTotalItems(data.data.totalCount);
+                setTotalPages(data.data.totalPages || 0);
+                setTotalItems(data.data.totalCount || 0);
+            } else {
+                setApplications([]);
+                setTotalPages(0);
+                setTotalItems(0);
             }
         } catch (error) {
             console.error("Error fetching applications:", error);
             setNotification({ type: 'error', message: 'Failed to load applications.' });
+            setApplications([]);
         }
     };
 

@@ -27,7 +27,7 @@ const PaymentReceipts = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/Wallet/my-transaction-history?AccountNo=${useResidentStore.getState().residentInfo.accountNo}&PageNo=${currentPage}&PageSize=${itemsPerPage}`);
+            const { data } = await api.get('/wallets/');
             if (data.succeeded) {
                 const newData = data.data.data.map((item, index) => ({
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
@@ -54,9 +54,11 @@ const PaymentReceipts = () => {
 
     const fetchBalance = async () => {
         try {
-            const { data } = await api.get("/Resident/resident-dashboard");
-            if (data.succeeded) {
-                setWalletBalance(data.data.acctNSubs.walletBalance);
+            const { data } = await api.get("/residents/dashboard");
+            console.log("Dashboard response:", data); 
+            if (data.success) {
+                const dashboard = data.data;
+                setWalletBalance(dashboard.walletBalance);
             }
 
         } catch (error) {
@@ -253,7 +255,7 @@ const PaymentReceipts = () => {
             return;
         }
         try {
-            const { data } = await api.post('/Wallet/wallet-topup',
+            const { data } = await api.post('/wallets/topup',
                 {
                     userId: useAuthStore.getState().token,
                     walletAcctNo: "",

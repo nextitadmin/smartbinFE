@@ -50,7 +50,7 @@ const ReceiptPage = () => {
     const fetchData = async () => {
         const currentId = localStorage.getItem('receiptId');
         try {
-            const { data } = await api.get(`/Wallet/transaction-receipt?transacitonId=${currentId}`);
+            const { data } = await api.get(`/api/v1/facility-manager/payment/receipt/${currentId}`);
             if (data.succeeded) {
                 const date = new Date(data.data.transDate);
                 const newData = {

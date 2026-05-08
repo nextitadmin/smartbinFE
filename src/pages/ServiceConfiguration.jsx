@@ -154,10 +154,10 @@ function ProfilePage() {
             // --- Actual API call using axios ---
             // Use PUT or POST depending on your API design for updates
             console.log('Sending data to API:', dataToSend); // Log data being sent
-            const { data } = await api.post('/Resident/edit-resident', dataToSend); // Or axios.post // Log successful response
+            const { data } = await api.put('/residents/profile', dataToSend); // Or axios.post // Log successful response
 
             // Assuming API returns { success: true, message: '...' } on success
-            if (data.succeeded) {
+            if (data.succeess) {
                 setNotification({ type: 'success', message: data.message || 'Profile updated successfully!' });
                 fetchResident();
             }

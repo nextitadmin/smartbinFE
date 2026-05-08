@@ -96,9 +96,9 @@ const Dashboard = () => {
                 // Update state mapping based on new response structure
                 setDashboardDetails({
                     outstandingBill: `₦${data.data.totalOutstandingBill.toLocaleString()}`,
-                    binApplications: data.data.smartBinApplicationCount.length, // Assuming count
-                    walletBalance: `₦${data.data.avaliableBalance.toLocaleString()}`, // Note: API typo 'avaliable'
-                    estimatedSubscriptionFee: `₦${data.data.estimatedAnnualSubscriptionFee.toLocaleString()}`,
+                    binApplications: data.data.smartbinApplicationsCount, // Assuming count
+                    walletBalance: `₦${data.data.walletBalance}`, // Note: API typo 'avaliable'
+                    estimatedSubscriptionFee: `₦${data.data.estimatedAnnualSubscriptionFee}`,
                     nextPickupDate: data.data.nextPickUpDate === "N/A" ? "N/A" : new Date().toISOString() // Simplified, adjust if date is provided
                 });
                 // Chart data is not in the new response, so leaving chartDetails as empty array

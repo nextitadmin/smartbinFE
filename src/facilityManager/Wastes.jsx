@@ -214,17 +214,17 @@ const SmartBinApplication = () => {
     const fetchPickUpAmount = async () => {
 
         try {
-            const response = await api.get("/Wallet/fetch-amount?paymentType=waste");
+            const response = await api.get("/wallets");
 
             console.log("Response from fetch-amount:", response);
-            const data = response.data.data;
-            if (response.data.succeeded) {
-                setPickUpAmount(data.amountToDebit);
-                setDebitType(data.debitType);
-                console.log(debitType, " debit type");
-                console.log("Smart bin amount fetched:", data.amountToDebit);
+            const data = response.data?.data;
+            if (response.data?.success && data) {
+                setPickUpAmount(data.balance ?? data.amountToDebit);
+                setDebitType(data.debitType || data.status || 'standard');
+                console.log(data.status || data.debitType, " debit type");
+                console.log("Smart bin amount fetched:", data.balance ?? data.amountToDebit);
             } else {
-                console.error("Failed to fetch smart bin amount:", response.message);
+                console.error("Failed to fetch smart bin amount:", response.data?.message || 'Unknown error');
             }
         } catch (error) {
             console.error("Error fetching smart bin amount:", error);

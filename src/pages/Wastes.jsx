@@ -328,7 +328,7 @@ const Wastes = () => {
 
 
         try {
-            const response = await api.post("/Wallet/debit-wallet", {
+            const response = await api.post("/wallets/charge", {
                 userId: useAuthStore.getState().token, // Assuming you have a userId in your auth store
                 drAccountNo: Resident.accountNo,
                 amount: pickUpAmount,

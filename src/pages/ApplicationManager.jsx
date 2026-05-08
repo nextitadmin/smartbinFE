@@ -23,8 +23,9 @@ function AppManager() {
     }
 
     useEffect(() => {
+        console.log("Order Details:",orderDetails);
         setCurrentId(localStorage.getItem("appId"));
-    }, []);
+    }, [orderDetails]);
 
     useEffect(() => {
         if (currentId) {
@@ -37,17 +38,17 @@ function AppManager() {
         try {
             const { data } = await api.get(`/residents/smart-bin-applications/${currentId}`);
             if (data.success) {
-                const enhancedTrackingInfos = data.data.applicationHistory.map((event, index, arr) => ({
+                const enhancedTrackingInfos = data.data.data.applicationHistory.map((event, index, arr) => ({
                     ...event,
                     isCurrent: index === arr.length - 1,
                     isCompleted: event.status?.toLowerCase() === 'delivered'
                 }));
 
                 setOrderDetails({
-                    ...data.data,
+                    ...data.data.data,
                     trackInfos: enhancedTrackingInfos
                 });
-                console.log(orderDetails);
+                
             }
         } catch (error) {
             console.log("error", error);
@@ -224,11 +225,11 @@ function AppManager() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-zinc-500 font-normal">Date Processed</p>
-                                    <p className="font-medium text-zinc-900">{formatDate(orderDetails?.updatedAt)}</p>
+                                    <p className="font-medium text-zinc-900">{formatDate(orderDetails?.datePending)}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-zinc-500 font-normal">Customer</p>
-                                    <p className="font-medium text-zinc-900">{orderDetails?._doc?.firstName + " " + orderDetails?._doc?.lastName }</p>
+                                    <p className="font-medium text-zinc-900">{orderDetails?.customerName }</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-zinc-500 font-normal">Destination</p>

@@ -76,9 +76,9 @@ const KYCApplication = () => {
 
     const fetchLga = async () => {
         try {
-            const { data } = await api.get("/Utility/fetch-lga");
-            if (data.succeeded) {
-                const lgas = data.data.map((item) => item.text);
+            const { data } = await api.get("/utility/get-lgas");
+            if (data.success) {
+                const lgas = data.data;
                 setLocalGovernmentOptions(lgas);
             }
         } catch (error) {
@@ -89,7 +89,7 @@ const KYCApplication = () => {
 
     const checkStatus = async () => {
         try {
-            const { data } = await api.get(`/ResidentKYC/check-resident-kyc-status?residentID=${useAuthStore.getState().token}`)
+            const { data } = await api.get('/resident/kyc/status')
             if (data.succeeded) {
                 navigate('/newkycapplication');
             }
@@ -263,11 +263,11 @@ const KYCApplication = () => {
             };
 
             const { data } = await api.post(
-                '/ResidentKYC/new-kyc-reg',
+                '/resident/kyc',
                 payload
             );
 
-            if (data.succeeded) {
+            if (data.success) {
                 setNotification({ type: 'success', message: 'Submitted successfully!' });
                 setCurrentStage(4); // Move to confirmation stage
             } else {

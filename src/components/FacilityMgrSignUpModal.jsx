@@ -252,7 +252,7 @@ const SignUpModal = ({ show, onClose }) => {
             };
 
             const response = await api.post(
-                `/FacilityMgr/new-Facility-tenant`,
+                `/facility-managers/user`,
                 payload
             );
             console.log(response.data.succeeded)
@@ -307,29 +307,21 @@ const SignUpModal = ({ show, onClose }) => {
             "Semi-Detached",
             "Other",
         ],
-        lgas: ["eko"],
+        lgas: [],
         lawmaCustomerTypes: ["New", "Existing"],
     });
 
     const fetchLga = async () => {
         try {
-            let response = await api.get("/Utility/fetch-lga");
+            const response = await api.get("/utility/get-lgas");
 
-            if (response.data.succeeded) {
-                console.log(response.data.data);
-                setOptions({
-                    buildingTypes: [
-                        "Duplex",
-                        "Bungalow",
-                        "Block of Flats",
-                        "Terrace",
-                        "Detached",
-                        "Semi-Detached",
-                        "Other",
-                    ],
+            if (response.data?.success && Array.isArray(response.data.data)) {
+                setOptions((prevOptions) => ({
+                    ...prevOptions,
                     lgas: response.data.data,
-                    lawmaCustomerTypes: ["New", "Existing"],
-                });
+                }));
+            } else {
+                console.warn("Unable to load LGAs:", response.data?.message);
             }
         } catch (error) {
             console.log(error);
@@ -599,8 +591,8 @@ const SignUpModal = ({ show, onClose }) => {
                                             Select Local Government
                                         </option>
                                         {options.lgas.map((option) => (
-                                            <option key={option.text} value={option.text}>
-                                                {option.text}
+                                            <option key={option} value={option}>
+                                                {option}
                                             </option>
                                         ))}
                                     </select>

@@ -84,7 +84,7 @@ const SmartBinTableCard = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/FacilityMgr/all-agent-bin-applications?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
+            const { data } = await api.get(`/Facility-managers/smart-bin/applications?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
             if (data.succeeded) {
                 const newData = data.data.data.map((item, index) => ({
                     id: item.id,
@@ -305,7 +305,7 @@ const SmartBinTableCard = () => {
         const isResident = formData.customerType === 'Resident';
         const isCorporate = formData.customerType === 'Corporate';
         try {
-            const { data } = await api.get(`/FacilityMgr/fetch-customer-name?resident=${isResident}&corporate=${isCorporate}`);
+            const { data } = await api.get(`/Facility-managers/fetch-customer-name?resident=${isResident}&corporate=${isCorporate}`);
             if (data.succeded) {
                 setCustomerNameList(data.data);
             }
@@ -319,7 +319,7 @@ const SmartBinTableCard = () => {
     }, [formData.customerType])
     const fetchLga = async () => {
         try {
-            const { data } = await api.get("/Utility/fetch-lga");
+            const { data } = await api.get("/utility/get-lgas");
             if (data.succeeded) {
                 setOptions((prev) => ({
                     ...prev,
@@ -520,17 +520,17 @@ const SmartBinTableCard = () => {
     const fetchSmartBinAmount = async () => {
 
         try {
-            const response = await api.get("/Wallet/fetch-amount?paymentType=smartbin");
+            const response = await api.get("/wallets");
 
             console.log("Response from fetch-amount:", response);
-            const data = response.data.data;
-            if (response.data.succeeded) {
-                setSmartbinAmount(data.amountToDebit);
-                setDebitType(data.debitType);
-                console.log(debitType, " debit type");
-                console.log("Smart bin amount fetched:", data.amountToDebit);
+            const data = response.data?.data;
+            if (response.data?.success && data) {
+                setSmartbinAmount(data.balance ?? data.amountToDebit);
+                setDebitType(data.debitType || data.status || 'standard');
+                console.log(data.status || data.debitType, " debit type");
+                console.log("Smart bin amount fetched:", data.balance ?? data.amountToDebit);
             } else {
-                console.error("Failed to fetch smart bin amount:", response.message);
+                console.error("Failed to fetch smart bin amount:", response.data?.message || 'Unknown error');
             }
         } catch (error) {
             console.error("Error fetching smart bin amount:", error);
@@ -607,7 +607,7 @@ const SmartBinTableCard = () => {
 
 
         try {
-            const response = await api.post("/Wallet/debit-wallet", {
+            const response = await api.post("/wallets/charge", {
                 userId: useAuthStore.getState().token, // Assuming you have a userId in your auth store
                 drAccountNo: FacilityMgr.accountNo,
                 amount: smartBinAmount,

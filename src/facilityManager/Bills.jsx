@@ -105,9 +105,10 @@ const Bills = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/Wallet/bill-list?ResidentID=${useAuthStore.getState().token}&PageNo=${currentPage}&PageSize=${itemsPerPage}`);
-            if (data.succeeded) {
-                const newData = data.data.data.map((item, index) => ({
+            const { data } = await api.get('/facility-manager/bill');
+            if (data.success && Array.isArray(data.data)) {
+                const newData = data.data.map((item, index) => ({
+                    id: `${item.wasteID}-${index}`,
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
                     billId: item.wasteID,
                     customerName: item.customerName || '', // Add customer name
@@ -118,8 +119,8 @@ const Bills = () => {
                     amount: item.amount,
                 }));
                 setApplications(newData);
-                setTotalPages(data.data.totalPages);
-                setTotalItems(data.data.totalCount);
+                setTotalPages(data.totalPages || 1);
+                setTotalItems(data.totalCount || newData.length);
             } else {
                 // If API call fails, use demo data in dev mode
                 if (devMode) {
@@ -450,7 +451,7 @@ const Bills = () => {
                                                 </tr>
                                             ) : (
                                                 sortedApplications.map(app => (
-                                                    <tr key={app.billId} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
+                                                    <tr key={app.id} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
                                                         <td className="px-4 py-3 font-medium text-zinc-900">{app.sn}</td>
                                                         <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.billId}</td>
                                                         <td className="px-4 py-3">{app.customerName}</td>

@@ -27,9 +27,9 @@ const PaymentReceipts = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/Wallet/my-transaction-history?AccountNo=${useFacilityMgrStore.getState().facilityMgrInfo.accountNo}&PageNo=${currentPage}&PageSize=${itemsPerPage}`);
-            if (data.succeeded) {
-                const newData = data.data.data.map((item, index) => ({
+            const { data } = await api.get('/facility-managers/wallets');
+            if (data.success && Array.isArray(data.data)) {
+                const newData = data.data.map((item, index) => ({
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
                     id: item.id,
                     transactionRef: item.transactionReference,
@@ -54,9 +54,9 @@ const PaymentReceipts = () => {
 
     const fetchBalance = async () => {
         try {
-            const { data } = await api.get("/Resident/resident-dashboard");
-            if (data.succeeded) {
-                setWalletBalance(data.data.acctNSubs.walletBalance);
+            const { data } = await api.get("/wallets");
+            if (data.success && data.data) {
+                setWalletBalance(data.data.balance);
             }
 
         } catch (error) {

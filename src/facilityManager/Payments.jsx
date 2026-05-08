@@ -20,9 +20,9 @@ const PaymentReceipts = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/Wallet/my-transaction-history?AccountNo=${useFacilityMgrStore.getState().facilityMgrInfo.accountNo}&PageNo=${currentPage}&PageSize=${itemsPerPage}`);
-            if (data.succeeded) {
-                const newData = data.data.data.map((item) => ({
+            const { data } = await api.get('/facility-manager/payment');
+            if (data.success && Array.isArray(data.data)) {
+                const newData = data.data.map((item) => ({
                     id: item.id,
                     transactionId: item.transactionReference,
                     date: item.transactionDate?.slice(0, 10),

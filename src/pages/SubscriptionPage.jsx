@@ -97,7 +97,7 @@ function SubscriptionPage() {
     useEffect(() => {
         const fetchSubscriptions = async () => {
             try {
-                const { data } = await api.get('/Wallet/fetch-monthly-subscriptions');
+                const { data } = await api.get('/subscription/plans');
                 if (data.succeeded) {
                     const plans = data.data.map((item) => ({
                         id: item.month.toString(),
@@ -116,7 +116,7 @@ function SubscriptionPage() {
 
     const fetchSubscription = async () => {
         try {
-            const response = await api.get(`/Wallet/my-subscription?residentId=${useAuthStore.getState().token}`);
+            const response = await api.get('/subscription/plans');
             const { data } = response;
             if (data.succeeded && data.data) {
                 const item = data.data;

@@ -74,22 +74,24 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
     // --- Fetch Data ---
     const fetchTenants = async () => {
         try {
-            const { data } = await api.get("FacilityMgr/tenant-list");
-            if (data.data?.succeeded) {
-                setTenantsList(data.data.data);
+            const { data } = await api.get("/facility-managers/user/tenants");
+            if (data.success) {
+                setTenantsList(data.data || []);
             } else {
                 console.error("Failed to fetch tenants:", data);
+                setTenantsList([]);
             }
         } catch (error) {
             console.error("Error fetching tenants:", error);
+            setTenantsList([]);
         }
     };
 
     const fetchTenantDetails = async (id) => {
         if (!id) return; // Prevent call if no ID
         try {
-            const { data } = await api.get(`FacilityMgr/tenant-by-id?tenantId=${id}`);
-            if (data.succeeded) {
+            const { data } = await api.get(`/facility-managers/user/tenants/${id}`);
+            if (data.success) {
                 const tenantData = data.data;
                 setFormData(prev => ({
                     ...prev,
@@ -115,11 +117,11 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
 
     const fetchLga = async () => {
         try {
-            const { data } = await api.get("/facilityMgr/fetch-lgas");
-            if (data.succeeded || data.success) {
+            const { data } = await api.get("/utility/get-lgas");
+            if ((data.succeeded || data.success) && Array.isArray(data.data)) {
                 setOptions(prev => ({
                     ...prev,
-                    lgas: data.data.map(item => item.text)
+                    lgas: data.data.map(item => typeof item === 'string' ? item : item.text || item.name || '' ).filter(Boolean)
                 }));
             }
         } catch (error) {
@@ -129,7 +131,7 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
 
     const fetchSmartBinAmount = async () => {
         try {
-            const response = await api.get("/Wallet/fetch-amount?paymentType=smartbin");
+            const response = await api.get("/facility-managers/wallets");
             const data = response.data.data;
             if (response.data.succeeded) {
                 setSmartbinAmount(data.amountToDebit);
@@ -283,7 +285,7 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                     transRef: ref,
                 };
                 console.log("Submitting application with payload:", payload);
-                const { data } = await api.post("/FacilityMgr/agent-new-bin-application", payload);
+                const { data } = await api.post("/facility-managers/smart-bin/applications", payload);
 
                 if (data.succeeded) {
                     setNotification({ type: 'success', message: 'Submitted successfully!' });
@@ -507,8 +509,8 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                                         className="form-select w-full border border-zinc-300 p-3 rounded-xl"
                                     >
                                         <option disabled value="">Select Local Government</option>
-                                        {options.lgas.map(option => (
-                                            <option key={option} value={option}>{option}</option>
+                                        {options.lgas.map((option, index) => (
+                                            <option key={`${option}-${index}`} value={option}>{option}</option>
                                         ))}
                                     </select>
                                 </div>

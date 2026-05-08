@@ -153,7 +153,7 @@ const Dashboard = () => {
             if (data.succeeded || data.success) {
               setChartDetails(data.data.disposalChart || []);
               setDashboardDetails(data.data);
-              log("Dashboard Details:", data.data);
+              console.log("Dashboard Details:", data.data);
               console.log("chartDetails", data.data.disposalChart);
             }
           } catch (error) {
@@ -177,7 +177,7 @@ const Dashboard = () => {
         const selectedPlan = subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan);
 
         try {
-            const response = await api.post("/Wallet/debit-wallet", {
+            const response = await api.post("/wallets/charge", {
                 userId: useAuthStore.getState().token, // Assuming you have a userId in your auth store
                 drAccountNo: facilityMgr.accountNo,
                 amount: parseInt(selectedPlan.price.replace(/[^\d]/g, '')),
@@ -297,7 +297,7 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchSubscriptions = async () => {
             try {
-                const { data } = await api.get('/Wallet/fetch-monthly-subscriptions');
+                const { data } = await api.get('/subscription/plans');
                 if (data.succeeded) {
                     const newPlans = data.data.map((item) => ({
                         id: item.month,
@@ -371,7 +371,7 @@ const Dashboard = () => {
             return;
         }
         try {
-            const { data } = await api.post('/Wallet/wallet-topup',
+            const { data } = await api.post('/wallets/topup',
                 {
                     userId: useAuthStore.getState().token,
                     walletAcctNo: "",
@@ -465,7 +465,7 @@ const Dashboard = () => {
                                         <div className='flex flex-row justify-between items-center w-full mb-4'>
                                             <div>
                                                 <p className="text-zinc-700 font-light">Total registered users</p>
-                                                <h2 className="text-green-700 text-3xl mt-1">{dashboardDetails.totalRegisteredUsers}</h2>
+                                                <h2 className="text-green-700 text-3xl mt-1">{dashboardDetails.totalResidentsRegistered}</h2>
                                             </div>
 
                                             <a href="#" className="text-zinc-800 underline text-sm">See all</a>
@@ -493,7 +493,7 @@ const Dashboard = () => {
                                             </div>
                                         </div>
                                         <p className="text-zinc-700 font-light">Smart Bin Applications</p>
-                                        <h2 className="text-green-700 text-3xl  mt-1 mb-4">{dashboardDetails.totalBinApplications}</h2>
+                                        <h2 className="text-green-700 text-3xl  mt-1 mb-4">{dashboardDetails?.smartbinApplicationsCount ?? 0}</h2>
                                     </div>
                                 </div>
                             </div>
@@ -505,7 +505,7 @@ const Dashboard = () => {
                                         <div className="w-full">
                                             <p className="text-white text-xs font-light ">Available Balance</p>
                                             <div className="flex items-center ">
-                                                <h2 className="text-white text-3xl font-sans mt-1 mr-20">{dashboardDetails?.walletBalance ?? ''}
+                                                <h2 className="text-white text-3xl font-sans mt-1 mr-20">{dashboardDetails.walletBalance ?? ''}
                                                 </h2>
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="text-white opacity-75" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
@@ -580,7 +580,7 @@ const Dashboard = () => {
                                         <div className='flex flex-row justify-between items-center w-full mb-4'>
                                             <div>
                                                 <p className="text-zinc-700 font-light">Total Outstanding Bill</p>
-                                                <h2 className="text-green-700 text-3xl mt-1">{dashboardDetails.totalOutstandingBills}</h2>
+                                                <h2 className="text-green-700 text-3xl mt-1">{dashboardDetails.totalOutstandingBill}</h2>
                                             </div>
 
                                             <a href="#" className="text-zinc-800 underline text-sm">See all</a>

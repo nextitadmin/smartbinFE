@@ -25,22 +25,6 @@ const initialBins = [
     { id: 20, binId: '#123475', status: 'Unassigned', assignedTo: '-', buildingName: 'Badagry Heights' },
 ];
 
-// get bins from api function
-
-async function getbinslist() {
-    try {
-        let response = await api.post('FacilityMgr/bin-directory-list')
-        if (response) {
-            console.log(response)
-        }
-
-    } catch (error) {
-        console.log(error)
-
-    }
-}
-
-
 // --- SVG ICONS (Heroicons) ---
 const SearchIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-zinc-400">
@@ -72,6 +56,28 @@ export default function AssignBinTable() {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
 
+    const fetchApprovedBins = async (page = 1) => {
+        try {
+            const response = await api.get(`/facility-managers/user/approved-bins?page=${page}&limit=${binsPerPage}`);
+            if (response.data?.success && Array.isArray(response.data.data)) {
+                const newBins = response.data.data.map((item, index) => ({
+                    id: item.id ?? item._id ?? `${item.binId ?? item.binID ?? index}-${page}`,
+                    binId: item.binId ?? item.binID ?? item.wasteID ?? item.id ?? `#${index + 1}`,
+                    status: item.status ?? item.binStatus ?? 'Approved',
+                    assignedTo: item.assignedTo ?? item.tenantName ?? item.userName ?? '-',
+                    buildingName: item.buildingName ?? item.location ?? item.propertyName ?? '-',
+                }));
+                setBins(newBins);
+            } else {
+                console.warn('Approved bins API returned no data:', response.data?.message);
+                setBins([]);
+            }
+        } catch (error) {
+            console.error('Error fetching approved bins:', error);
+            setBins([]);
+        }
+    };
+
     // Dummy data for demonstration
     const binToAssign = { id: 3, binId: '#123458', status: 'Unassigned' };
     const availableTenants = [
@@ -102,13 +108,9 @@ export default function AssignBinTable() {
 
 
     useEffect(() => {
-        setBins(initialBins)
-        getbinslist()
-
-
-    }, []
-
-    )
+        setBins(initialBins);
+        fetchApprovedBins(currentPage);
+    }, [currentPage]);
 
 
 

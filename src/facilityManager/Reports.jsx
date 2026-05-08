@@ -266,26 +266,40 @@ const ReportsPage = () => {
     const [newReportStartDate, setNewReportStartDate] = useState('');
     const [newReportEndDate, setNewReportEndDate] = useState('');
 
-    // const fetchReportsAPI = async() =>{
-    //     try {
-    //         const { data } = await api.get(`/AuditReport/my-report-logs`);
-    //         if(data.succeeded){
-    //             const reportList =data.data.data.map((item) => ({                    
-    //                 id : item.id,
-    //                 reportType : item.type,
-    //                 reportTitle : item.title,
-    //                 period : item.period,
-    //                 generationDate : item.generationDate
-    //             }
-    //             ));
-    //             setReports(reportList);
-    //         }
-    //     } catch (error) {
+    const fetchReportsAPI = async() =>{
+        try {
+            const params = new URLSearchParams();
+            if (filterReportType && filterReportType !== 'All') {
+                params.append('type', filterReportType.toLowerCase());
+            }
+            if (searchTerm) {
+                params.append('search', searchTerm);
+            }
+            if (filterDate) {
+                // Assuming filterDate is startDate, you might need to add endDate filter
+                params.append('startDate', filterDate);
+            }
+            params.append('page', '1'); // Default page, implement pagination later
+            params.append('limit', '10'); // Default limit
 
-    //     }
-    // }
+            const queryString = params.toString();
+            const url = `/facility-manager/reports${queryString ? `?${queryString}` : ''}`;
+            const { data } = await api.get(url);
+            if(data.success){
+                setReports(data.data.reports || []);
+                // Optionally set paging info if needed
+                // setPaging(data.data.paging);
+            } else {
+                console.error("Failed to fetch reports:", data.message);
+                setReports([]);
+            }
+        } catch (error) {
+            console.error("Error fetching reports:", error);
+            setReports([]);
+        }
+    }
     useEffect(() => {
-        // fetchReportsAPI();
+        fetchReportsAPI();
         setIsLoading(false);
     }, []);
 

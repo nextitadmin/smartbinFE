@@ -48,6 +48,15 @@ const TeamMembers = () => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState(null);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [userToEdit, setUserToEdit] = useState(null);
+    const [editData, setEditData] = useState({
+        name: '',
+        email: '',
+        phoneNumber: '',
+        location: '',
+        branch: ''
+    });
 
 
 
@@ -76,32 +85,86 @@ const TeamMembers = () => {
         setActiveActionMenu(null);
     };
 
-    const confirmDelete = () => {
-        setApplications(applications.filter(u => u.id !== userToDelete.id));
-        setIsDeleteModalOpen(false);
-        setUserToDelete(null);
-        setIsSuccessModalOpen(true);
+    const confirmDelete = async () => {
+        try {
+            const { data } = await api.delete(`/team-members/${userToDelete.id}`);
+            if (data.success) {
+                setNotification({ type: 'success', message: data.message || 'Deleted successfully!' });
+                setIsDeleteModalOpen(false);
+                setUserToDelete(null);
+                setIsSuccessModalOpen(true);
+                fetchData(); // refresh the list
+            } else {
+                setNotification({ type: 'error', message: data.message || "Error deleting" });
+                setIsDeleteModalOpen(false);
+                setUserToDelete(null);
+            }
+        } catch (error) {
+            setNotification({ type: 'error', message: "Error deleting team member" });
+            console.log("API Error:", error);
+            setIsDeleteModalOpen(false);
+            setUserToDelete(null);
+        }
+    };
+
+    const handleEditClick = (user) => {
+        setUserToEdit(user);
+        setEditData({
+            name: user.name,
+            email: user.emailAddress,
+            phoneNumber: user.phoneNo,
+            location: '', // assuming not in current data
+            branch: user.branch
+        });
+        setIsEditModalOpen(true);
+        setActiveActionMenu(null);
+    };
+
+    const handleEditDataChange = (e) => {
+        const { id, value } = e.target;
+        setEditData(prev => ({
+            ...prev,
+            [id]: value
+        }));
+    };
+
+    const handleSubmitEdit = async () => {
+        if (editData.name && editData.email && editData.phoneNumber && editData.branch) {
+            try {
+                const { data } = await api.put(`/team-members/${userToEdit.id}`, editData);
+                if (data.success) {
+                    setNotification({ type: 'success', message: data.message || 'Updated successfully!' });
+                    setIsEditModalOpen(false);
+                    fetchData(); // refresh the list
+                } else {
+                    setNotification({ type: 'error', message: data.message || "Error updating" });
+                }
+            } catch (error) {
+                setNotification({ type: 'error', message: "Error updating" });
+                console.log("API Error:", error);
+            }
+        } else {
+            setNotification({ type: 'error', message: "Fill all fields" });
+        }
     };
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/FacilityMgr/facility-member-list?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
-            if (data.succeeded) {
-                const newData = data.data.data.map((item, index) => ({
+            const { data } = await api.get(`/team-members?page=${currentPage}&limit=${itemsPerPage}`);
+            if (data.success) {
+                const newData = data.data.map((item, index) => ({
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
-                    id: item.id,
+                    id: item._id,
                     name: item.name,
-                    dateAdded: item.loggedDate?.slice(0, 10),
-                    emailAddress: item.emailAddress,
-                    phoneNo: item.phoneNo,
+                    dateAdded: item.createdAt?.slice(0, 10),
+                    emailAddress: item.email,
+                    phoneNo: item.phoneNumber,
                     branch: item.branch,
-                    isDeleted: itemsPerPage.isDeleted
-
-
-                }));;
+                    isDeleted: false
+                }));
                 setApplications(newData);
-                setTotalPages(data.data.totalPages);
-                setTotalItems(data.data.totalCount);
+                setTotalPages(data.meta.paging.pages);
+                setTotalItems(data.meta.paging.total);
             }
         } catch (error) {
             console.log(error);
@@ -212,6 +275,7 @@ const TeamMembers = () => {
         name: '',
         email: '',
         phone: '',
+        location: '',
         branch: ''
     });
 
@@ -230,21 +294,37 @@ const TeamMembers = () => {
                 name: '',
                 email: '',
                 phone: '',
+                location: '',
                 branch: ''
             });
-        };
+        }
+        if (modalName === 'editMember') {
+            setIsEditModalOpen(true);
+        }
     };
 
     const closeModal = (modalName) => {
         if (modalName === 'newMember') {
             setIsAddMemberModalOpen(false);
-            // setNewMemberData({
-            //     name: '',
-            //     email: '',
-            //     phone: '',
-            //     branch: ''
-            // });
-        };
+            setNewMemberData({
+                name: '',
+                email: '',
+                phone: '',
+                location: '',
+                branch: ''
+            });
+        }
+        if (modalName === 'editMember') {
+            setIsEditModalOpen(false);
+            setUserToEdit(null);
+            setEditData({
+                name: '',
+                email: '',
+                phoneNumber: '',
+                location: '',
+                branch: ''
+            });
+        }
     };
 
     // Action handlers
@@ -266,15 +346,15 @@ const TeamMembers = () => {
         if (newMemberData.name && newMemberData.email && newMemberData.phone && newMemberData.branch) {
 
             try {
-                const { data } = await api.post("/FacilityMgr/new-facility-team-member", {
+                const { data } = await api.post("/team-members/add-member", {
                     name: newMemberData.name,
-                    emailAddress: newMemberData.email,
-                    phoneNo: newMemberData.phone,
-                    branch: newMemberData.branch,
-                    agencyType: "member"
+                    email: newMemberData.email,
+                    phoneNumber: newMemberData.phone,
+                    location: newMemberData.location,
+                    branch: newMemberData.branch
                 });
 
-                if (data.succeeded) {
+                if (data.success) {
                     setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
                     setIsAddMemberModalOpen(false);
 
@@ -422,7 +502,7 @@ const TeamMembers = () => {
                                                             <DotsVerticalIcon onClick={() => handleActionMenuToggle(app.id)} />
                                                             {activeActionMenu === app.id && (
                                                                 <div className="absolute right-8 top-0 z-10 w-48 bg-white rounded-xl shadow-lg border border-zinc-200">
-                                                                    <a href="#" className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Edit</a>
+                                                                    <a href="#" onClick={(e) => { e.preventDefault(); handleEditClick(app); }} className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Edit</a>
                                                                     <a href="#" onClick={(e) => { e.preventDefault(); handleDeleteClick(app); }} className="block px-4 py-2 text-sm text-red-600 hover:bg-zinc-100">Delete</a>
                                                                 </div>
                                                             )}
@@ -566,6 +646,19 @@ const TeamMembers = () => {
                                 />
                             </div>
                             <div>
+                                <label htmlFor="location" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Location
+                                </label>
+                                <input
+                                    type="text"
+                                    id="location"
+                                    value={newMemberData.location}
+                                    onChange={handleNewMemberDataChange}
+                                    className="form-input"
+                                    placeholder="Location"
+                                />
+                            </div>
+                            <div>
                                 <label htmlFor="branch" className="block text-sm font-medium text-zinc-700 mb-1">
                                     Branch
                                 </label>
@@ -589,6 +682,110 @@ const TeamMembers = () => {
                                 className="btn btn-primary w-full text-sm rounded-xl"
                             >
                                 Add member
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Member Modal */}
+            {isEditModalOpen && (
+                <div className="modal-overlay">
+                    <div className="modal-content lg:py-12 lg:px-8 p-4">
+                        <div className="flex justify-between items-center pb-6">
+                            <div>
+                                <h3 className="text-2xl font-semibold text-zinc-800">Edit team member</h3>
+                                <p className="text-zinc-500 mt-1">Edit team member details</p>
+                            </div>
+                            <button
+                                onClick={() => closeModal('editMember')}
+                                aria-label="Close"
+                                className="text-zinc-700 hover:text-red-600 self-start"
+                            >
+                                <CloseIcon className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <form className="py-6 space-y-5">
+
+                            <div>
+                                <label htmlFor="name" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Name
+                                </label>
+                                <input
+                                    type="text"
+                                    id="name"
+                                    value={editData.name}
+                                    onChange={handleEditDataChange}
+                                    required
+                                    className="form-input"
+                                    placeholder="Name"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Email Address
+                                </label>
+                                <input
+                                    type="email"
+                                    id="email"
+                                    value={editData.email}
+                                    onChange={handleEditDataChange}
+                                    required
+                                    className="form-input"
+                                    placeholder="Email address"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="phoneNumber" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Phone number
+                                </label>
+                                <input
+                                    type="text"
+                                    id="phoneNumber"
+                                    value={editData.phoneNumber}
+                                    onChange={handleEditDataChange}
+                                    required
+                                    className="form-input"
+                                    placeholder="Phone number"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="location" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Location
+                                </label>
+                                <input
+                                    type="text"
+                                    id="location"
+                                    value={editData.location}
+                                    onChange={handleEditDataChange}
+                                    className="form-input"
+                                    placeholder="Location"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="branch" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Branch
+                                </label>
+                                <input
+                                    type="text"
+                                    id="branch"
+                                    value={editData.branch}
+                                    onChange={handleEditDataChange}
+                                    required
+                                    className="form-input"
+                                    placeholder="Enter branch"
+                                />
+                            </div>
+                        </form>
+
+                        <div className="py-4 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={handleSubmitEdit}
+                                className="btn btn-primary w-full text-sm rounded-xl"
+                            >
+                                Update member
                             </button>
                         </div>
                     </div>

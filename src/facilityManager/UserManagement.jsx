@@ -215,7 +215,7 @@ const fetchUsers = async () => {
 
     try {
 
-        let { data } = await api.get("FacilityMgr/tenant-list")
+        let { data } = await api.get("/facility-managers/user/tenants")
         if (data.succeeded) {
             return data.data.data
         } else {
