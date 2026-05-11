@@ -64,6 +64,26 @@ const KYCApplication = () => {
     const clearNotification = () => {
         setNotification(null);
     };
+
+    useEffect(() => {
+        const checkKycStatus = async () => {
+            try {
+                const { data } = await api.get('/agent/kyc/status');
+                if (data.success && data.data) {
+                    const { hasSubmittedPersonalInformation, hasSubmittedAddress, hasSubmittedIdentity } = data.data;
+                    const hasStartedKyc = hasSubmittedPersonalInformation || hasSubmittedAddress || hasSubmittedIdentity;
+                    if (hasStartedKyc) {
+                        navigate('/newkycapplication');
+                    }
+                }
+            } catch (error) {
+                console.log('KYC status check failed:', error);
+            }
+        };
+
+        checkKycStatus();
+    }, [navigate]);
+
     useEffect(() => {
         if (notification) {
             const timer = setTimeout(() => {
@@ -232,10 +252,10 @@ const KYCApplication = () => {
             };
             console.log("Submitting KYC with payload:", payload);
             const { data } = await api.post(
-                '/ResidentKYC/new-kyc-reg',
+                '/agent/kyc',
                 payload
             );
-            if (data.succeeded) {
+            if (data.succeeded || data.success) {
                 setNotification({ type: 'success', message: 'Submitted successfully!' });
                 setCurrentStage(4); // Move to confirmation stage
             } else {

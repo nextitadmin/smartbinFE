@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Sidebar from '../components/AgentSidebar';
 import Topbar from '../components/AgentTopBar';
 import api from '../api/axiosConfig';
@@ -76,42 +76,63 @@ const TeamMembers = () => {
         setActiveActionMenu(null);
     };
 
-    const confirmDelete = () => {
-        setApplications(applications.filter(u => u.id !== userToDelete.id));
-        setIsDeleteModalOpen(false);
-        setUserToDelete(null);
-        setIsSuccessModalOpen(true);
+    const confirmDelete = async () => {
+        if (!userToDelete) return;
+
+        try {
+            const { data } = await api.delete(`/team-members/${userToDelete.id}`);
+            if (data.succeeded || data.success) {
+                setNotification({ type: 'success', message: data.message || 'Member deleted successfully!' });
+                setIsDeleteModalOpen(false);
+                setUserToDelete(null);
+                setIsSuccessModalOpen(true);
+                fetchData();
+            } else {
+                const message = Array.isArray(data.message) ? data.message[0] : data.message || 'Error deleting member';
+                setNotification({ type: 'error', message });
+            }
+        } catch (error) {
+            console.log('Delete API Error:', error);
+            const errorMsg = error.response?.data?.message;
+            setNotification({ type: 'error', message: Array.isArray(errorMsg) ? errorMsg[0] : errorMsg || 'Error deleting member. Please try again.' });
+        }
     };
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
-            const { data } = await api.get(`/Agent/team-member-list?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
-            if (data.succeeded) {
-                const newData = data.data.data.map((item, index) => ({
-                    sn: index + 1 + (currentPage - 1) * itemsPerPage,
-                    id: item.id,
-                    name : item.name,
-                    dateAdded: item.loggedDate?.slice(0, 10),
-                    emailAddress: item.emailAddress,
-                    phoneNo: item.phoneNo,
-                    branch: item.branch,
-                        isDeleted : itemsPerPage.isDeleted
+            const { data } = await api.get(`/team-members?page=${currentPage}&limit=${itemsPerPage}`);
+            if (data.success) {
+                const items = Array.isArray(data.data)
+                    ? data.data
+                    : Array.isArray(data.data?.data)
+                        ? data.data.data
+                        : [];
 
-                   
-                }));;
+                const newData = items.map((item, index) => ({
+                    sn: index + 1 + (currentPage - 1) * itemsPerPage,
+                    id: item.id || item._id,
+                    name: item.name || '',
+                    dateAdded: (item.loggedDate || item.createdAt || '').slice(0, 10),
+                    emailAddress: item.emailAddress || item.email || '',
+                    phoneNo: item.phoneNo || item.phoneNumber || '',
+                    branch: item.branch || '',
+                    location: item.location || '',
+                    isDeleted: item.isDeleted ?? false
+                }));
+
                 setApplications(newData);
-                setTotalPages(data.data.totalPages);
-                setTotalItems(data.data.totalCount);
+                setTotalPages(data.meta?.paging?.pages ?? data.data?.totalPages ?? 1);
+                setTotalItems(data.meta?.paging?.total ?? data.data?.totalCount ?? items.length);
             }
         } catch (error) {
             console.log(error);
         }
-    }
+    }, [currentPage]);
 
     useEffect(() => {
         // Add serial numbers to wastes data
         fetchData()
-    }, [currentPage]);
+    }, [currentPage, fetchData]);
 
 
 
@@ -203,6 +224,10 @@ const TeamMembers = () => {
 
     // Modal states
     const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+    const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
+    const [newMemberErrors, setNewMemberErrors] = useState({});
+    const [editMemberErrors, setEditMemberErrors] = useState({});
+    const [editingMemberId, setEditingMemberId] = useState(null);
 
     // Payment modal data
     
@@ -214,11 +239,66 @@ const TeamMembers = () => {
         phone: '',
         branch: ''
     });
+    const [editMemberData, setEditMemberData] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        branch: '',
+        location: ''
+    });
 
     // Subscription modal data
 
 
-    // Helper functions
+    // Helper functions - Validation
+    const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const validatePhone = (phone) => {
+        // Allow phone numbers with digits, spaces, dashes, parentheses, and + sign
+        const phoneRegex = /^[\d\s\-+()]{7,}$/;
+        return phoneRegex.test(phone.trim());
+    };
+
+    const validateMember = (memberData) => {
+        const errors = {};
+
+        if (!memberData.name || !memberData.name.trim()) {
+            errors.name = 'Name is required';
+        }
+
+        if (!memberData.email || !memberData.email.trim()) {
+            errors.email = 'Email is required';
+        } else if (!validateEmail(memberData.email)) {
+            errors.email = 'Please enter a valid email address';
+        }
+
+        if (!memberData.phone || !memberData.phone.trim()) {
+            errors.phone = 'Phone number is required';
+        } else if (!validatePhone(memberData.phone)) {
+            errors.phone = 'Please enter a valid phone number';
+        }
+
+        if (!memberData.branch || !memberData.branch.trim()) {
+            errors.branch = 'Branch is required';
+        }
+
+        return errors;
+    };
+
+    const validateNewMember = () => {
+        const errors = validateMember(newMemberData);
+        setNewMemberErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    const validateEditMember = () => {
+        const errors = validateMember(editMemberData);
+        setEditMemberErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
    
 
     // Modal handlers
@@ -232,18 +312,45 @@ const TeamMembers = () => {
                 phone: '',
                 branch: ''
             });
+            setNewMemberErrors({});
         };
+    };
+
+    const openEditModal = (member) => {
+        setEditingMemberId(member.id);
+        setEditMemberData({
+            name: member.name || '',
+            email: member.emailAddress || '',
+            phone: member.phoneNo || '',
+            branch: member.branch || '',
+            location: member.location || ''
+        });
+        setEditMemberErrors({});
+        setIsEditMemberModalOpen(true);
+        setActiveActionMenu(null);
     };
 
     const closeModal = (modalName) => {
         if (modalName === 'newMember') {
             setIsAddMemberModalOpen(false);
-            // setNewMemberData({
-            //     name: '',
-            //     email: '',
-            //     phone: '',
-            //     branch: ''
-            // });
+            setNewMemberData({
+                name: '',
+                email: '',
+                phone: '',
+                branch: ''
+            });
+            setNewMemberErrors({});
+        } else if (modalName === 'editMember') {
+            setIsEditMemberModalOpen(false);
+            setEditingMemberId(null);
+            setEditMemberData({
+                name: '',
+                email: '',
+                phone: '',
+                branch: '',
+                location: ''
+            });
+            setEditMemberErrors({});
         };
     };
 
@@ -256,37 +363,99 @@ const TeamMembers = () => {
                 [id]: value
             }));
         };
+
+    const handleEditMemberDataChange = (e) => {
+        const { id, value } = e.target;
+        setEditMemberData(prev => ({
+            ...prev,
+            [id]: value
+        }));
+    };
   
 
 
 
 
     const handleSubmitNewMember = async () => {
+        // Validate form data before submission
+        if (!validateNewMember()) {
+            setNotification({ type: 'error', message: 'Please fix the errors in the form' });
+            return;
+        }
 
-        if (newMemberData.name && newMemberData.email && newMemberData.phone && newMemberData.branch) {
-           
-            try {
-                const { data } = await api.post("/Agent/new-team-member", {
-                    name : newMemberData.name,
-                    emailAddress : newMemberData.email,
-                    phoneNo : newMemberData.phone,
-                    branch : newMemberData.branch
+        try {
+            const { data } = await api.post("/team-members/add-member", {
+                name: newMemberData.name.trim(),
+                email: newMemberData.email.trim(),
+                phoneNumber: newMemberData.phone.trim(),
+                branch: newMemberData.branch.trim()
+            });
+
+            if (data.succeeded || data.success) {
+                setNotification({ type: 'success', message: data.message || 'Member added successfully!' });
+                setIsAddMemberModalOpen(false);
+                setNewMemberData({
+                    name: '',
+                    email: '',
+                    phone: '',
+                    branch: ''
                 });
-
-                if (data.succeeded) {
-                    setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
-                    setIsAddMemberModalOpen(false);
-
-                }
-                else {
-                    setNotification({ type: 'error', message: data.message || "Error submitting" });
-                }
-            } catch (error) {
-                setNotification({ type: 'error', message: "Error submitting" });
-                console.log("API Error:", error);
+                setNewMemberErrors({});
+                fetchData(); // Refresh the table
+            } else {
+                const message = Array.isArray(data.message)
+                    ? data.message[0]
+                    : data.message || 'Error submitting form';
+                setNotification({ type: 'error', message });
             }
-        } else {
-            setNotification({ type: 'error', message: "Fill all fields" });
+        } catch (error) {
+            console.log("API Error:", error);
+            if (error.response?.data?.message) {
+                const errorMsg = error.response.data.message;
+                if (Array.isArray(errorMsg)) {
+                    setNotification({ type: 'error', message: errorMsg[0] || 'Error submitting form' });
+                } else {
+                    setNotification({ type: 'error', message: errorMsg });
+                }
+            } else {
+                setNotification({ type: 'error', message: 'Error submitting form. Please try again.' });
+            }
+        }
+    };
+
+    const handleSubmitEditMember = async () => {
+        if (!validateEditMember()) {
+            setNotification({ type: 'error', message: 'Please fix the errors in the edit form' });
+            return;
+        }
+
+        try {
+            const { data } = await api.put(`/team-members/${editingMemberId}`, {
+                name: editMemberData.name.trim(),
+                email: editMemberData.email.trim(),
+                phoneNumber: editMemberData.phone.trim(),
+                branch: editMemberData.branch.trim(),
+                location: editMemberData.location.trim()
+            });
+
+            if (data.succeeded || data.success) {
+                setNotification({ type: 'success', message: data.message || 'Member updated successfully!' });
+                closeModal('editMember');
+                fetchData();
+            } else {
+                const message = Array.isArray(data.message)
+                    ? data.message[0]
+                    : data.message || 'Error updating member';
+                setNotification({ type: 'error', message });
+            }
+        } catch (error) {
+            console.log("API Error:", error);
+            if (error.response?.data?.message) {
+                const errorMsg = error.response.data.message;
+                setNotification({ type: 'error', message: Array.isArray(errorMsg) ? errorMsg[0] : errorMsg });
+            } else {
+                setNotification({ type: 'error', message: 'Error updating member. Please try again.' });
+            }
         }
     };
 
@@ -421,7 +590,7 @@ const TeamMembers = () => {
                                                             <DotsVerticalIcon onClick={() => handleActionMenuToggle(app.id)} />
                                                             {activeActionMenu === app.id && (
                                                                 <div className="absolute right-8 top-0 z-10 w-48 bg-white rounded-xl shadow-lg border border-zinc-200">
-                                                                    <a href="#" className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Edit</a>
+                                                                    <a href="#" onClick={(e) => { e.preventDefault(); openEditModal(app); }} className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Edit</a>
                                                                     <a href="#" onClick={(e) => { e.preventDefault(); handleDeleteClick(app); }} className="block px-4 py-2 text-sm text-red-600 hover:bg-zinc-100">Delete</a>
                                                                 </div>
                                                             )}
@@ -524,60 +693,60 @@ const TeamMembers = () => {
                                     Name
                                 </label>
                                 <input
-                                    type = "text"
+                                    type="text"
                                     id="name"
                                     value={newMemberData.name}
                                     onChange={handleNewMemberDataChange}
                                     required
-                                    rows="3"
-                                    className="form-input"
+                                    className={`form-input ${newMemberErrors.name ? 'border-red-500' : ''}`}
                                     placeholder="Name"
                                 />
+                                {newMemberErrors.name && <p className="text-red-500 text-xs mt-1">{newMemberErrors.name}</p>}
                             </div>
                             <div>
                                 <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1">
                                     Email Address
                                 </label>
                                 <input
-                                    type = "text"
+                                    type="email"
                                     id="email"
                                     value={newMemberData.email}
                                     onChange={handleNewMemberDataChange}
                                     required
-                                    rows="3"
-                                    className="form-input"
+                                    className={`form-input ${newMemberErrors.email ? 'border-red-500' : ''}`}
                                     placeholder="Email address"
                                 />
+                                {newMemberErrors.email && <p className="text-red-500 text-xs mt-1">{newMemberErrors.email}</p>}
                             </div>
                             <div>
                                 <label htmlFor="phone" className="block text-sm font-medium text-zinc-700 mb-1">
                                     Phone number
                                 </label>
                                 <input
-                                    type = "text"
+                                    type="tel"
                                     id="phone"
                                     value={newMemberData.phone}
                                     onChange={handleNewMemberDataChange}
                                     required
-                                    rows="3"
-                                    className="form-input"
+                                    className={`form-input ${newMemberErrors.phone ? 'border-red-500' : ''}`}
                                     placeholder="Phone number"
                                 />
+                                {newMemberErrors.phone && <p className="text-red-500 text-xs mt-1">{newMemberErrors.phone}</p>}
                             </div>
                             <div>
                                 <label htmlFor="branch" className="block text-sm font-medium text-zinc-700 mb-1">
                                     Branch
                                 </label>
                                 <input
-                                    type = "text"
+                                    type="text"
                                     id="branch"
                                     value={newMemberData.branch}
                                     onChange={handleNewMemberDataChange}
                                     required
-                                    rows="3"
-                                    className="form-input"
+                                    className={`form-input ${newMemberErrors.branch ? 'border-red-500' : ''}`}
                                     placeholder="Enter branch"
                                 />
+                                {newMemberErrors.branch && <p className="text-red-500 text-xs mt-1">{newMemberErrors.branch}</p>}
                             </div>
                         </form>
 
@@ -588,6 +757,112 @@ const TeamMembers = () => {
                                 className="btn btn-primary w-full text-sm rounded-xl"
                             >
                                 Add member
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isEditMemberModalOpen && (
+                <div className="modal-overlay">
+                    <div className="modal-content lg:py-12 lg:px-8">
+                        <div className="flex justify-between items-center pb-6">
+                            <div>
+                                <h3 className="text-2xl font-semibold text-zinc-800">Edit team member</h3>
+                                <p className="text-zinc-500 mt-1">Update agent details</p>
+                            </div>
+                            <button
+                                onClick={() => closeModal('editMember')}
+                                aria-label="Close"
+                                className="text-zinc-700 hover:text-red-600 self-start"
+                            >
+                                <CloseIcon className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <form className="py-6 space-y-5">
+                            <div>
+                                <label htmlFor="name" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Name
+                                </label>
+                                <input
+                                    type="text"
+                                    id="name"
+                                    value={editMemberData.name}
+                                    onChange={handleEditMemberDataChange}
+                                    required
+                                    className={`form-input ${editMemberErrors.name ? 'border-red-500' : ''}`}
+                                    placeholder="Name"
+                                />
+                                {editMemberErrors.name && <p className="text-red-500 text-xs mt-1">{editMemberErrors.name}</p>}
+                            </div>
+                            <div>
+                                <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Email Address
+                                </label>
+                                <input
+                                    type="email"
+                                    id="email"
+                                    value={editMemberData.email}
+                                    onChange={handleEditMemberDataChange}
+                                    required
+                                    className={`form-input ${editMemberErrors.email ? 'border-red-500' : ''}`}
+                                    placeholder="Email address"
+                                />
+                                {editMemberErrors.email && <p className="text-red-500 text-xs mt-1">{editMemberErrors.email}</p>}
+                            </div>
+                            <div>
+                                <label htmlFor="phone" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Phone number
+                                </label>
+                                <input
+                                    type="tel"
+                                    id="phone"
+                                    value={editMemberData.phone}
+                                    onChange={handleEditMemberDataChange}
+                                    required
+                                    className={`form-input ${editMemberErrors.phone ? 'border-red-500' : ''}`}
+                                    placeholder="Phone number"
+                                />
+                                {editMemberErrors.phone && <p className="text-red-500 text-xs mt-1">{editMemberErrors.phone}</p>}
+                            </div>
+                            <div>
+                                <label htmlFor="branch" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Branch
+                                </label>
+                                <input
+                                    type="text"
+                                    id="branch"
+                                    value={editMemberData.branch}
+                                    onChange={handleEditMemberDataChange}
+                                    required
+                                    className={`form-input ${editMemberErrors.branch ? 'border-red-500' : ''}`}
+                                    placeholder="Enter branch"
+                                />
+                                {editMemberErrors.branch && <p className="text-red-500 text-xs mt-1">{editMemberErrors.branch}</p>}
+                            </div>
+                            <div>
+                                <label htmlFor="location" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Location
+                                </label>
+                                <input
+                                    type="text"
+                                    id="location"
+                                    value={editMemberData.location}
+                                    onChange={handleEditMemberDataChange}
+                                    className="form-input"
+                                    placeholder="Location"
+                                />
+                            </div>
+                        </form>
+
+                        <div className="py-4 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={handleSubmitEditMember}
+                                className="btn btn-primary w-full text-sm rounded-xl"
+                            >
+                                Save changes
                             </button>
                         </div>
                     </div>

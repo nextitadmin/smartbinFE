@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
-import axios from 'axios'; // For making API requests
+import api from '../api/axiosConfig';
 
 // Tailwind CSS only Circular Loader Component
 const CircularLoader = ({ size = 50, color = 'blue-500' }) => (
@@ -41,7 +41,7 @@ const UploadIcon = () => (
 );
 
 
-const CsvUploader = ({ uploadEndpoint }) => {
+const CsvUploader = ({ uploadEndpoint = 'user-management/upload-user', onUploadComplete }) => {
     // --- State Variables ---
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isFileDropped, setIsFileDropped] = useState(false);
@@ -198,18 +198,24 @@ const CsvUploader = ({ uploadEndpoint }) => {
         setUploadError(null); // Clear any previous upload errors
 
         try {
-            // Make a POST request to the upload endpoint with the parsed data
-            const response = await axios.post(uploadEndpoint, parsedData, {
+            // Prepare payload in the expected API format.
+            const requestUrl = uploadEndpoint.startsWith('http') ? uploadEndpoint : uploadEndpoint.replace(/^\/+/, '');
+            const payload = { users: parsedData };
+            const response = await api.post(requestUrl, payload, {
                 headers: {
                     'Content-Type': 'application/json', // Indicate that the body is JSON
-                    // Add any other necessary headers, e.g., authorization tokens
-                    // 'Authorization': `Bearer ${yourAuthToken}`,
                 },
             });
 
-            console.log('Upload successful:', response.data);
+            const uploadedUsers = response.data?.data || response.data || parsedData;
+            console.log('Upload successful:', uploadedUsers);
+
             setUploadStatus('success'); // Set status to success
             setLoadingMessage('Upload complete!'); // Update message
+            if (typeof onUploadComplete === 'function') {
+                onUploadComplete(uploadedUsers);
+            }
+
             // Close the modal after a short delay to allow the user to see the success message
             setTimeout(() => {
                 handleCloseModal();

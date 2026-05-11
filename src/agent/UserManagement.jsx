@@ -3,6 +3,7 @@ import Sidebar from '../components/AgentSidebar';
 import Topbar from '../components/AgentTopBar';
 import SignUpModal from '../components/AgentSignUpModal';
 import EditUserModal from '../components/AgentEditUser';
+import CsvUploader from '../components/CsvUploader';
 
 // --- DUMMY DATA ---
 const initialUsers = [
@@ -108,7 +109,6 @@ const UserManagement = () => {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [activeActionMenu, setActiveActionMenu] = useState(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
@@ -207,6 +207,32 @@ const UserManagement = () => {
         setIsFilterOpen(false);
     };
 
+    const handleUploadComplete = (uploadedUsers) => {
+        if (!Array.isArray(uploadedUsers) || uploadedUsers.length === 0) return;
+
+        const today = new Date();
+        const dateAdded = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getFullYear()).slice(-2)}`;
+
+        const normalizedUsers = uploadedUsers.map((user, index) => {
+            const name = (user.name || `${user.firstName || ''} ${user.lastName || ''}`).trim() || 'Unknown User';
+            const customerTypeRaw = user.customerType || user.customer_type || 'resident';
+            const customerType = `${String(customerTypeRaw).charAt(0).toUpperCase()}${String(customerTypeRaw).slice(1).toLowerCase()}`;
+
+            return {
+                id: user.id ?? `uploaded-${Date.now()}-${index}`,
+                name,
+                email: user.email || user.companyEmail || '',
+                customerType,
+                phoneNumber: user.phoneNumber || user.companyPhoneNumber || '',
+                dateAdded: user.dateAdded || dateAdded,
+                ...user,
+            };
+        });
+
+        setUsers(prevUsers => [...normalizedUsers, ...prevUsers]);
+        setNotification({ type: 'success', message: `${normalizedUsers.length} users uploaded successfully.`, duration: 3000 });
+    };
+
     const activeFilterCount = Object.values(customerTypeFilter).filter(Boolean).length;
 
 
@@ -231,14 +257,7 @@ const UserManagement = () => {
                                             <span className="ml-2 bg-green-700 text-zinc-100 text-xs font-bold p-2 rounded-full">{filteredUsers.length}</span>
                                         </div>
                                         <div className="flex items-center space-x-2">
-                                            <button onClick={() => setIsUploadModalOpen(true)} className="flex items-center space-x-2 px-4 py-2 text-sm font-medium  rounded-xl hover:bg-zinc-50 text-green-700">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                                                </svg>
-
-
-                                                <span>Import</span>
-                                            </button>
+                                            <CsvUploader uploadEndpoint="user-management/upload-user" onUploadComplete={handleUploadComplete} />
                                             <button onClick={() => setIsAddUserModalOpen(true)} className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-green-700 rounded-xl hover:bg-green-800">
                                                 <PlusIcon />
                                                 <span>Sign up new user</span>
@@ -373,77 +392,6 @@ const UserManagement = () => {
                                             <div className="flex justify-center space-x-4">
                                                 <button onClick={() => setIsDeleteModalOpen(false)} className="px-6 py-2 rounded-xl text-zinc-700 border border-zinc-300 hover:bg-zinc-100">Cancel</button>
                                                 <button onClick={confirmDelete} className="px-6 py-2 rounded-xl text-white bg-red-600 hover:bg-red-700">Delete</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Delete Confirmation Modal */}
-                                {isUploadModalOpen && (
-                                    <div>
-                                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                                            <div className="bg-white rounded-2xl shadow-xl  max-w-lg w-full text-center">
-                                                <div className="flex items-center justify-between mb-2 border-b border-zinc-200 py-4 px-6">
-                                                    <h2 className="text-xl font-light text-zinc-800 mb-2">
-                                                        Import Users
-                                                    </h2>
-                                                    <span
-                                                        className="text-4xl"
-                                                        onClick={() => setIsUploadModalOpen(false)}
-                                                    >
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            strokeWidth={1.5}
-                                                            stroke="currentColor"
-                                                            className="h-6 w-6"
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M6 18 18 6M6 6l12 12"
-                                                            />
-                                                        </svg>
-                                                    </span>
-                                                </div>
-                                                <div className="flex flex-col justify-center space-x-4 rounded-lg border-dashed border-2 border-zinc-300  items-center m-6 mt-24">
-
-                                                    <UploadIcon />
-
-                                                    <h2 className="text-xl  text-green-700 mt-4 ">Drag CSV here</h2>
-                                                    <h2 className="text-sm  text-zinc-500 font-thin pb-12">
-                                                        or click to browse file - 5mb
-                                                    </h2>
-                                                </div>
-                                                <div className='w-full flex justify-start px-6 flex-row items-center'>
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        strokeWidth={1.5}
-                                                        stroke="currentColor"
-                                                        className="size-4 text-green-800"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
-                                                        />
-                                                    </svg>
-                                                    <h2 className="text-sm font-light text-green-800 px-2">
-                                                        Import Users
-                                                    </h2>
-                                                </div>
-
-                                                <div className="flex justify-end mt-4 p-4">
-                                                    <button onClick={() => { setIsUploadModalOpen(false) }} className="px-6 mx-4 py-2 rounded-lg text-green-700 border border-green-700 hover:bg-zinc-100">
-                                                        Cancel
-                                                    </button>
-                                                    <button className="px-6 py-2 rounded-lg text-white bg-green-700 hover:bg-green-800">
-                                                        import
-                                                    </button>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>

@@ -20,7 +20,7 @@ const PaymentReceipts = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/Wallet/my-transaction-history?AccountNo=${useAgentStore.getState().agentInfo.accountNo}&PageNo=${currentPage}&PageSize=${itemsPerPage}`);
+            const { data } = await api.get('/agents/payment');
             if (data.succeeded) {
                 const newData = data.data.data.map((item) => ({
                     id: item.id,

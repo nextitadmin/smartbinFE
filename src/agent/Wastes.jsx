@@ -214,11 +214,11 @@ const SmartBinApplication = () => {
     const fetchPickUpAmount = async () => {
 
         try {
-            const response = await api.get("/Wallet/fetch-amount?paymentType=waste");
+            const response = await api.get("/agents/wallets");
 
             console.log("Response from fetch-amount:", response);
             const data = response.data.data;
-            if (response.data.succeeded) {
+            if (response.data.success) {
                 setPickUpAmount(data.amountToDebit);
                 setDebitType(data.debitType);
                 console.log(debitType, " debit type");

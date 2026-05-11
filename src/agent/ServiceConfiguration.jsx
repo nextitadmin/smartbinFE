@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 import api from '../api/axiosConfig';
 import Sidebar from '../components/AgentSidebar';
 import Topbar from '../components/AgentTopBar';
 import ServiceConfigNav from '../components/AgentServiceConfigNav';
 import useAgentStore from '../store/useAgentStore';
-import useAuthStore from '../store/authStore';
+import useAuthStore from '../store/authStore'; // eslint-disable-line no-unused-vars
 import { useNavigate } from 'react-router-dom';
 // --- Default Data Layer ---
 const defaultProfileData = {
     payerId: '',
+    agencyName: '',
     firstName: '',
     lastName: "",
     email: '',
@@ -37,9 +38,9 @@ const InlineLoader = () => (
 function ProfilePage() {
     // --- State Management ---
     const [profileData, setProfileData] = useState(defaultProfileData);
-    const [passwordData, setPasswordData] = useState(defaultPasswordData);
-    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [passwordData, setPasswordData] = useState(defaultPasswordData); // eslint-disable-line no-unused-vars
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false); // eslint-disable-line no-unused-vars
+    const [isChangingPassword, setIsChangingPassword] = useState(false); // eslint-disable-line no-unused-vars
     const [isLoading, setIsLoading] = useState(false);
     const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: string } | null
     const Agent = useAgentStore.getState().agentInfo;
@@ -51,17 +52,17 @@ function ProfilePage() {
 
     useEffect(() => {
         setProfileData({
-            payerId: Agent.payerID,
+            payerId: Agent.payerId,
+            agencyName: Agent.agencyName || '',
             firstName: Agent.firstName,
             lastName: Agent.lastName,
-            email: Agent.emailAddress,
-            phone: Agent.phoneNo,
-            profileImageUrl: Agent.passport
-                ? Agent.passport
+            email: Agent.email,
+            phone: Agent.phoneNo || '',
+            profileImageUrl: Agent.profilePicture
+                ? Agent.profilePicture
                 : "/images/emptyimage.png",
         });
-    }, []);
-
+    }, [Agent.firstName, Agent.lastName, Agent.email, Agent.phoneNo, Agent.profilePicture, Agent.payerId, Agent.agencyName]);
 
     const handleProfileChange = (e) => {
         const { name, value } = e.target;
@@ -115,69 +116,62 @@ function ProfilePage() {
 
     // --- Form Submission ---
 
-    const fetchResident = async () => {
+    const fetchAgentProfile = useCallback(async () => {
         try {
-            const { data } = await api.get("/Resident/resident-dashboard");
-            if (data.succeeded) {
-                setDashboard(data.data.residentInfo);
+            const { data } = await api.get("/agents/profile");
+            if (data.success) {
+                const profile = data.data;
+                setDashboard({
+                    ...profile,
+                    phoneNo: profile.phoneNumber || '' // Map phoneNumber to phoneNo for consistency
+                });
+                setProfileData({
+                    payerId: profile.payerId || '',
+                    agencyName: profile.agencyName || '',
+                    firstName: profile.firstName || '',
+                    lastName: profile.lastName || '',
+                    email: profile.email || '',
+                    phone: profile.phoneNumber || '',
+                    profileImageUrl: profile.profilePicture || "/images/emptyimage.png",
+                });
             }
-
         } catch (error) {
             console.log(error);
+            setNotification({ type: 'error', message: 'Failed to fetch profile data' });
         }
-    }
+    }, [setDashboard]);
+
+    // Fetch profile data on component mount
+    useEffect(() => {
+        fetchAgentProfile();
+    }, [fetchAgentProfile]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         clearNotification();
 
-        // Prepare data to send
-        // You might want to send profileImageUrl separately if it's a file upload
+        // Prepare data to send according to API specification
         const dataToSend = {
+            agencyName: profileData.agencyName,
             firstName: profileData.firstName,
             lastName: profileData.lastName,
-            phoneNo: profileData.phone,
-            passport: profileData.profileImageUrl
-                ? profileData.profileImageUrl.replace(/^data:image\/[a-z]+;base64,/, '')
-                : null,
-            residentID: useAuthStore.getState().token
+            email: profileData.email,
+            phoneNumber: profileData.phone,
         };
 
-
-        // if (isChangingPassword && passwordData.currentPassword && passwordData.newPassword) {
-        //     dataToSend.currentPassword = passwordData.currentPassword;
-        //     dataToSend.newPassword = passwordData.newPassword;
-        // }
-
         try {
-            // --- Actual API call using axios ---
-            // Use PUT or POST depending on your API design for updates
-            console.log('Sending data to API:', dataToSend); // Log data being sent
-            const { data } = await api.post('/Resident/edit-resident', dataToSend); // Or axios.post // Log successful response
+            const { data } = await api.put('/agents/profile', dataToSend);
 
-            // Assuming API returns { success: true, message: '...' } on success
-            if (data.succeeded) {
-                setNotification({ type: 'success', message: data.message || 'Profile updated successfully!' });
-                fetchResident();
+            if (data.success) {
+                setNotification({ type: 'success', message: 'Profile updated successfully!' });
+                fetchAgentProfile(); // refresh the profile data
+            } else {
+                setNotification({ type: 'error', message: data.message || 'Failed to update profile' });
             }
-            else {
-                setNotification({ type: 'error', message: data.message || 'Error updating profile' });
-            }
-
-            // if (isChangingPassword) {
-            //     setPasswordData(defaultPasswordData);
-            //     setIsChangingPassword(false);
-            // }
-            // Optionally update initial data state or re-fetch user data
-
         } catch (error) {
-            console.error("Update failed:", error);
-            // Extract error message from Axios response if available
-            const errorMessage = error.data?.message || // Check for message in response data
-                error.message || // Fallback to generic error message
-                'Failed to update profile. Please try again.';
-            setNotification({ type: 'error', message: errorMessage });
+            console.error('Error updating profile:', error);
+            setNotification({ type: 'error', message: 'Error updating profile' });
         } finally {
             setIsLoading(false);
         }
@@ -285,6 +279,20 @@ function ProfilePage() {
                                                         value={profileData.payerId}
                                                         readOnly
                                                         className="w-full p-4 border border-zinc-300 rounded-md  bg-zinc-100 cursor-not-allowed focus:outline-none"
+                                                    />
+                                                </div>
+
+                                                {/* Agency Name */}
+                                                <div className="mb-5">
+                                                    <label htmlFor="agencyName" className="block text-sm font-medium text-zinc-700 mb-1">Agency Name</label>
+                                                    <input
+                                                        type="text"
+                                                        id="agencyName"
+                                                        name="agencyName"
+                                                        value={profileData.agencyName}
+                                                        onChange={handleProfileChange}
+                                                        required
+                                                        className="w-full p-4 border border-zinc-300 rounded-md  focus:ring-indigo-500 focus:border-indigo-500"
                                                     />
                                                 </div>
 

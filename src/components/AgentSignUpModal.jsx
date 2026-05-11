@@ -419,92 +419,70 @@ const SignUpModal = ({ show, onClose }) => {
         try {
             const dataToSend = { ...userData };
             console.log("Data to send:", dataToSend);
-            if (userData.customerType === 'corporate') {
-                dataToSend.branches = branches;
-            }
+
             if (dataToSend.customerType === 'resident') {
-
-
-
-                let payload = {
-                    lastName: dataToSend.lastName,
+                const payload = {
                     firstName: dataToSend.firstName,
-                    middleName: dataToSend.middleName || '',
+                    surname: dataToSend.lastName,
                     email: dataToSend.email,
-                    phoneNo: dataToSend.phoneNo,
-                    password: dataToSend.password,
-                    payerID: dataToSend.payerId,
-                    lawmaCustomerType: dataToSend.lawmaCustomerType,
+                    phoneNumber: dataToSend.phoneNo,
+                    payerId: dataToSend.payerId,
                     buildingType: dataToSend.buildingType,
-                    houseNo: dataToSend.houseNo,
-                    flatNo: dataToSend.flatNumber,
+                    useYourAddress: true,
+                    houseNumber: dataToSend.houseNo || '',
+                    flatNumber: dataToSend.flatNumber,
                     address: dataToSend.address,
-                    lga: dataToSend.lga,
-                    closestLandMark: dataToSend.closestLandmark,
+                    closestLandmark: dataToSend.closestLandmark,
+                    localGovernmentArea: dataToSend.lga,
+                    lawmaCustomerType: dataToSend.lawmaCustomerType,
+                    binType: 'smart',
+                    agentId: localStorage.getItem('agentId') || '',
                 };
 
+                const response = await api.post('smartbin-applications/resident', payload);
+                const isSuccess = response.data?.success || response.data?.succeeded || false;
 
-                const response = await api.post(`/agent/new-agent-resident-user`, payload);
-
-
-                if (response.succeseeded) {
-                    setSuccessMessage(response.message);
+                if (isSuccess) {
+                    setSuccessMessage(response.data?.message || 'Resident application submitted successfully!');
                     setShowSuccessModal(true);
                 } else {
-                    // Handle API error
-                    console.error("API Error:", response.message);
-                    alert("Failed to add user: " + response.message); // Replace with custom modal
+                    console.error("API Error:", response.data?.message);
+                    alert("Failed to submit application: " + (response.data?.message || 'Unknown error'));
                 }
-
-            }
-            if (dataToSend.customerType === 'corporate') {
-
-
-
-                let payload = {
-
+            } else if (dataToSend.customerType === 'corporate') {
+                const payload = {
                     firstName: dataToSend.corporateFirstName,
-                    lastName: dataToSend.corporateLastName,
-                    phoneNo: dataToSend.corporatePhoneNumber,
-                    emailAddress: dataToSend.corporateEmailAddress,
-                    lawmaCustomerType: "existing",
-                    companyPhoneNo: dataToSend.companyTelephone,
-                    businessName: dataToSend.businessName,
-                    companyEmailAddress: dataToSend.companyEmailAddress,
-                    companyTelephone: dataToSend.companyTelephone,
-                    corporateFirstName: dataToSend.corporateFirstName,
-                    corporateLastName: dataToSend.corporateLastName,
-                    corporatePhoneNumber: dataToSend.corporatePhoneNumber,
-                    corporateEmailAddress: dataToSend.corporateEmailAddress,
-                    password: dataToSend.password,
-                    branches: branches.map(branch => ({
-                        branchName: branch.branchName,
-                        lawmaCustomerType: branch.lawmaCustomerType,
-                        lga: branch.lga,
-                        closestLandmark: branch.closestLandmark,
-                        address: branch.address
-                    }))
-                    ,
-
+                    surname: dataToSend.corporateLastName,
+                    email: dataToSend.corporateEmailAddress,
+                    phoneNumber: dataToSend.corporatePhoneNumber,
+                    payerId: dataToSend.payerId,
+                    buildingType: dataToSend.buildingType,
+                    useYourAddress: true,
+                    houseNumber: dataToSend.houseNo || '',
+                    flatNumber: dataToSend.flatNumber,
+                    address: dataToSend.address,
+                    closestLandmark: dataToSend.closestLandmark,
+                    localGovernmentArea: dataToSend.lga,
+                    lawmaCustomerType: dataToSend.lawmaCustomerType,
+                    binType: 'smart',
+                    buildingName: dataToSend.businessName,
+                    agentId: localStorage.getItem('agentId') || '',
                 };
 
-                const response = await api.post(`/agent/new-agent-corporate-user`, payload);
+                const response = await api.post('smartbin-applications/corporate', payload);
+                const isSuccess = response.data?.success || response.data?.succeeded || false;
 
-                if (response.succeseeded) {
-                    setSuccessMessage(response.message);
+                if (isSuccess) {
+                    setSuccessMessage(response.data?.message || 'Corporate application submitted successfully!');
                     setShowSuccessModal(true);
                 } else {
-                    // Handle API error
-                    console.error("API Error:", response.message);
-                    alert("Failed to add user: " + response.message); // Replace with custom modal
+                    console.error("API Error:", response.data?.message);
+                    alert("Failed to submit application: " + (response.data?.message || 'Unknown error'));
                 }
             }
-
-
-
         } catch (error) {
             console.error("Submission error:", error);
-            alert("An error occurred during submission."); // Replace with custom modal
+            alert("An error occurred during submission: " + (error.response?.data?.message || error.message));
         } finally {
             setIsSubmitting(false);
         }

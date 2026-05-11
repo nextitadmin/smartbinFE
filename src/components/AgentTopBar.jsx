@@ -23,7 +23,7 @@ const AgentTopBar = () => {
 
     const fetchResident = async () => {
         try {
-            const { data } = await api.get("/Agent/agent-dashboard");
+            const { data } = await api.get("/agents/dashboard");
             if (data.succeeded) {
                 setDashboard(data.data.agentInfo);
             }
@@ -70,7 +70,7 @@ const AgentTopBar = () => {
         const fetchNotifications = async () => {
 
             try {
-                const { data } = await api.get("/Notification/resident-msg-list");
+                const { data } = await api.get("/notifications");
 
                 if (data.succeeded) {
                     const formattedNotifications = data.data.data.map(notification => ({
