@@ -187,7 +187,7 @@ const AgentTopBar = () => {
                         </p>
                         <p className="text-xs text-zinc-900 flex items-center gap-1">
                             <span className="w-3 h-3 bg-green-600 border border-white rounded-full"></span>
-                            {Agent.userType}
+                            {Agent.userType || "Agent"}
                         </p>
 
                     </div>

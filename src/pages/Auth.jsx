@@ -270,7 +270,14 @@ export default function Login() {
                         {/* Forgot password */}
                         <NavLink to="/resetpassword">
                             <div className="text-sm text-green-700  cursor-pointer hover:underline">
-                                I forgot my Password
+                                Forgot Password?
+                            </div>
+                        </NavLink>
+
+                        {/* Signup */}
+                        <NavLink to="/signup">
+                            <div className="text-sm text-green-700  cursor-pointer hover:underline">
+                                Don't have an account? Sign up
                             </div>
                         </NavLink>
                     </form>
