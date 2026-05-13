@@ -102,7 +102,7 @@ function SubscriptionPage() {
             console.log(" API endpoint:", `/wallets/mock-verify?reference=${reference}`);
             
             const { data } = await api.get(
-                `/wallets/mock-verify?reference=${reference}`
+                `/corporate/wallets`
             );
             console.log(" AlatPay verification API response:", data);
             console.log(" Response success status:", data?.success || data?.succeeded);

@@ -80,7 +80,7 @@ const Topbar = () => {
         const fetchNotifications = async () => {
 
             try {
-                const { data } = await api.get("/Notification/corporate-msg-list");
+                const { data } = await api.get("/notifications");
 
                 if (data.succeeded) {
                     const formattedNotifications = data.data.data.map(notification => ({

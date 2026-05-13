@@ -126,7 +126,7 @@ const Dashboard = () => {
   const fetchCorporate = async () => {
     try {
       // Updated API endpoint
-      const { data } = await api.get("/dashboard/corporate");
+      const { data } = await api.get("/corporates/dashboard");
       console.log("API call succeeded", data); // <-- Add this line
       if (data.success) {
         setDashboardDetails({
