@@ -113,9 +113,14 @@ export default function CorporateOnbordForm() {
                 setNotification({ type: 'error', message: 'Passwords don\'t match' });
                 return;
             }
-            const { data } = await api.post('/corporate/register',
-                { ...formData }
-            );
+            const payload = {
+                ...formData,
+                lgaId: String(formData.lgaId || ''),
+            };
+
+            console.log('Corporate payload:', payload);
+
+            const { data } = await api.post('/corporate/register', payload);
 
             if (data.success) {
                 setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
