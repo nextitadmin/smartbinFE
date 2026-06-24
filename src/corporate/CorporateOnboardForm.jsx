@@ -25,7 +25,11 @@ export default function CorporateOnbordForm() {
         password: '',
         confirmPassword: '',
         businessName: '',
+        lgaId: '',
     });
+    const [lgas, setLgas] = useState([]);
+    const [loadingLgas, setLoadingLgas] = useState(false);
+    const [lgaError, setLgaError] = useState(null);
 
     const navigate = useNavigate();
 
@@ -43,6 +47,31 @@ export default function CorporateOnbordForm() {
             return () => clearTimeout(timer); // Cleanup timer on component unmount or notification change
         }
     }, [notification]);
+
+    useEffect(() => {
+        const fetchLgas = async () => {
+            setLoadingLgas(true);
+            try {
+                const { data } = await api.get('/utility/get-lgas');
+                if (Array.isArray(data)) {
+                    setLgas(data);
+                    setLgaError(null);
+                } else if (data?.success && Array.isArray(data.data)) {
+                    setLgas(data.data);
+                    setLgaError(null);
+                } else {
+                    setLgaError('Unable to load LGAs.');
+                }
+            } catch (error) {
+                console.error('Error fetching LGAs:', error);
+                setLgaError('Unable to load LGAs.');
+            } finally {
+                setLoadingLgas(false);
+            }
+        };
+
+        fetchLgas();
+    }, []);
     // State for submitted data
     // const [submittedData, setSubmittedData] = useState(null);
 
@@ -118,6 +147,7 @@ export default function CorporateOnbordForm() {
             payerId: '',
             password: '',
             confirmPassword: '',
+            lgaId: '',
         });
         // setSubmittedData(null);
     };
@@ -278,6 +308,38 @@ export default function CorporateOnbordForm() {
                                         required
                                         className="w-full p-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-700 focus:border-transparent outline-none transition duration-150 ease-in-out"
                                     />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="lgaId" className="block text-sm font-medium text-zinc-700 mb-1">
+                                        LGA
+                                    </label>
+                                    <select
+                                        id="lgaId"
+                                        name="lgaId"
+                                        value={formData.lgaId}
+                                        onChange={handleInputChange}
+                                        required
+                                        className="w-full p-3 border border-zinc-300 rounded-lg bg-white focus:ring-2 focus:ring-green-700 focus:border-transparent outline-none transition duration-150 ease-in-out"
+                                    >
+                                        <option value="" disabled>
+                                            {loadingLgas ? 'Loading LGAs...' : 'Select LGA'}
+                                        </option>
+                                        {lgas.map((item) => {
+                                            const value = typeof item === 'string'
+                                                ? item
+                                                : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                            const label = typeof item === 'string'
+                                                ? item
+                                                : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                            return (
+                                                <option key={value || label} value={value}>
+                                                    {label}
+                                                </option>
+                                            );
+                                        })}
+                                    </select>
+                                    {lgaError && <p className="text-sm text-red-600 mt-1">{lgaError}</p>}
                                 </div>
 
 
