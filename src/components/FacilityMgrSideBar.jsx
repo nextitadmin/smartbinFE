@@ -10,6 +10,7 @@ const Sidebar = ({ addkey }) => {
     const navItems = [
         { label: 'Dashboard', icon: DashboardIcon, route: { routes: ['/dashboard'], main: '/dashboard' } },
         { label: 'User Management', icon: PersonIcon, route: { routes: ['/user-management'], main: '/user-management' } },
+        { label: 'My Facilities', icon: PersonIcon, route: { routes: ['/my-facilities'], main: '/my-facilities' } },
         { label: 'Application Manager', icon: DocumentIcon, route: { routes: ['/appmanager', '/applyforsmartbin'], main: '/applyforsmartbin' } },
         { label: 'Waste Management', icon: WasteIcon, route: { routes: ['/wm', "/wastes"], main: '/wastes' } },
         { label: 'Bills', icon: BillIcon, route: { routes: ['/billconfirm', "/bills"], main: '/bills' } },

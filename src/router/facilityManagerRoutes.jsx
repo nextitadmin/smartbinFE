@@ -25,6 +25,7 @@ const PaymentsReport = lazy(() => import('../facilityManager/PaymentsReport'))
 const SmartBinReport = lazy(() => import('../facilityManager/SmartBinReport'))
 const Receipt = lazy(() => import('../facilityManager/Receipt'))
 const UserManagement = lazy(() => import('../facilityManager/UserManagement'));
+const MyFacilities = lazy(() => import('../facilityManager/MyFacilities'));
 const TeamMembers = lazy(() => import('../facilityManager/TeamMembers'));
 const ViewBill = lazy(() => import('../facilityManager/BillView'));
 const agentRoutes = [
@@ -250,6 +251,16 @@ const agentRoutes = [
             <Suspense fallback={<LoadingComponent />}>
                 <ProtectedRoute>
                     <UserManagement />
+                </ProtectedRoute>
+            </Suspense>
+        ),
+    },
+    {
+        path: "/my-facilities",
+        element: (
+            <Suspense fallback={<LoadingComponent />}>
+                <ProtectedRoute>
+                    <MyFacilities />
                 </ProtectedRoute>
             </Suspense>
         ),
