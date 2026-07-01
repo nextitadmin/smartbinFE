@@ -47,6 +47,31 @@ export default function FacilityMgrOnbordForm() {
             return () => clearTimeout(timer); // Cleanup timer on component unmount or notification change
         }
     }, [notification]);
+
+    useEffect(() => {
+        const fetchLgas = async () => {
+            setLoadingLgas(true);
+            try {
+                const { data } = await api.get('/utility/get-lgas');
+                if (Array.isArray(data)) {
+                    setLgas(data);
+                    setLgaError(null);
+                } else if (data?.success && Array.isArray(data.data)) {
+                    setLgas(data.data);
+                    setLgaError(null);
+                } else {
+                    setLgaError('Unable to load LGAs.');
+                }
+            } catch (error) {
+                console.error('Error fetching LGAs:', error);
+                setLgaError('Unable to load LGAs.');
+            } finally {
+                setLoadingLgas(false);
+            }
+        };
+
+        fetchLgas();
+    }, []);
     // State for submitted data
     // const [submittedData, setSubmittedData] = useState(null);
 
@@ -124,7 +149,7 @@ export default function FacilityMgrOnbordForm() {
                 phoneNumber: formData.phoneNo,
                 password: formData.password,
                 confirmPassword: formData.cpassword,
-                lgaId: formData.lgaId,
+                lgaId: String(formData.lgaId || ''),
             };
 
             const { data } = await api.post('/facility-managers/account', payload);

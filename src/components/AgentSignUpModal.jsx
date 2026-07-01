@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; // Corrected import statement
+import React, { useState, useEffect } from 'react'; // Corrected import statement
 import api from "../api/axiosConfig"
 
 
@@ -73,7 +73,7 @@ const CheckCircleIcon = ({ className = 'w-6 h-6' }) => (
 // };
 
 // Branch Form Component (Collapsible)
-const BranchForm = ({ branch, index, onUpdate, onRemove, onToggleCollapse, isCollapsed }) => {
+const BranchForm = ({ branch, index, onUpdate, onRemove, onToggleCollapse, isCollapsed, lgas = [] }) => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         onUpdate(index, { ...branch, [name]: value });
@@ -127,8 +127,19 @@ const BranchForm = ({ branch, index, onUpdate, onRemove, onToggleCollapse, isCol
                             className="mt-1 block w-full rounded-xl border border-zinc-300  focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14 bg-white"
                         >
                             <option value="">Local Government</option>
-                            <option value="ikeja">Ikeja</option>
-                            <option value="eti-osa">Eti-Osa</option>
+                            {lgas.map((item) => {
+                                const value = typeof item === 'string'
+                                    ? item
+                                    : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                const label = typeof item === 'string'
+                                    ? item
+                                    : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                return (
+                                    <option key={value || label} value={value}>
+                                        {label}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
                     <div>
@@ -322,6 +333,9 @@ const SignUpModal = ({ show, onClose }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [lgas, setLgas] = useState([]);
+    const [loadingLgas, setLoadingLgas] = useState(false);
+    const [lgaError, setLgaError] = useState(null);
 
 
     // Handle input changes for main user data
@@ -412,6 +426,31 @@ const SignUpModal = ({ show, onClose }) => {
         setShowConfirmationModal(true);
     };
 
+    useEffect(() => {
+        const fetchLgas = async () => {
+            setLoadingLgas(true);
+            try {
+                const { data } = await api.get('/utility/get-lgas');
+                if (Array.isArray(data)) {
+                    setLgas(data);
+                    setLgaError(null);
+                } else if (data?.success && Array.isArray(data.data)) {
+                    setLgas(data.data);
+                    setLgaError(null);
+                } else {
+                    setLgaError('Unable to load LGAs.');
+                }
+            } catch (error) {
+                console.error('Error fetching LGAs:', error);
+                setLgaError('Unable to load LGAs.');
+            } finally {
+                setLoadingLgas(false);
+            }
+        };
+
+        fetchLgas();
+    }, []);
+
     // Confirm and proceed with API call
     const handleConfirmAddUser = async () => {
         setShowConfirmationModal(false);
@@ -433,7 +472,7 @@ const SignUpModal = ({ show, onClose }) => {
                     flatNumber: dataToSend.flatNumber,
                     address: dataToSend.address,
                     closestLandmark: dataToSend.closestLandmark,
-                    localGovernmentArea: dataToSend.lga,
+                    localGovernmentArea: String(dataToSend.lga || ''),
                     lawmaCustomerType: dataToSend.lawmaCustomerType,
                     binType: 'smart',
                     agentId: localStorage.getItem('agentId') || '',
@@ -462,7 +501,7 @@ const SignUpModal = ({ show, onClose }) => {
                     flatNumber: dataToSend.flatNumber,
                     address: dataToSend.address,
                     closestLandmark: dataToSend.closestLandmark,
-                    localGovernmentArea: dataToSend.lga,
+                    localGovernmentArea: String(dataToSend.lga || ''),
                     lawmaCustomerType: dataToSend.lawmaCustomerType,
                     binType: 'smart',
                     buildingName: dataToSend.businessName,
@@ -859,8 +898,19 @@ const SignUpModal = ({ show, onClose }) => {
                                                 className="mt-1 block w-full rounded-xl border border-zinc-300  focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14 bg-white"
                                             >
                                                 <option value="">Local Government</option>
-                                                <option value="ikeja">Ikeja</option>
-                                                <option value="eti-osa">Eti-Osa</option>
+                                                {lgas.map((item) => {
+                                                    const value = typeof item === 'string'
+                                                        ? item
+                                                        : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                                    const label = typeof item === 'string'
+                                                        ? item
+                                                        : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                                    return (
+                                                        <option key={value || label} value={value}>
+                                                            {label}
+                                                        </option>
+                                                    );
+                                                })}
                                             </select>
                                         </div>
                                         <div>
@@ -894,6 +944,7 @@ const SignUpModal = ({ show, onClose }) => {
                                             onRemove={removeBranch}
                                             onToggleCollapse={toggleBranchCollapse}
                                             isCollapsed={branch.isCollapsed}
+                                            lgas={lgas}
                                         />
                                     ))}
                                     <button

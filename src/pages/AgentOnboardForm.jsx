@@ -25,18 +25,22 @@ export default function AgentOnbordForm() {
         payerId: '',
         password: '',
         confirmPassword: '',
+        lgaId: '',
     });
+    const [lgas, setLgas] = useState([]);
+    const [loadingLgas, setLoadingLgas] = useState(false);
+    const [lgaError, setLgaError] = useState(null);
 
     const navigate = useNavigate();
 
     const clearNotification = () => {
         setNotification(null);
     };
-    
+
     const fetchData = async () => {
         try {
             const { data } = await api.get(`/payer/${formData.payerId}`);
-            if(data.success){
+            if (data.success) {
                 setFormData({
                     ...formData,
                     firstName: data.data.firstName,
@@ -49,10 +53,35 @@ export default function AgentOnbordForm() {
             console.log("Error fetching data")
         }
     }
-    
+
     useEffect(() => {
         fetchData();
     }, [formData.payerId])
+
+    useEffect(() => {
+        const fetchLgas = async () => {
+            setLoadingLgas(true);
+            try {
+                const { data } = await api.get('/utility/get-lgas');
+                if (Array.isArray(data)) {
+                    setLgas(data);
+                    setLgaError(null);
+                } else if (data?.success && Array.isArray(data.data)) {
+                    setLgas(data.data);
+                    setLgaError(null);
+                } else {
+                    setLgaError('Unable to load LGAs.');
+                }
+            } catch (error) {
+                console.error('Error fetching LGAs:', error);
+                setLgaError('Unable to load LGAs.');
+            } finally {
+                setLoadingLgas(false);
+            }
+        };
+
+        fetchLgas();
+    }, []);
 
     useEffect(() => {
         if (notification) {
@@ -82,9 +111,13 @@ export default function AgentOnbordForm() {
                 setNotification({ type: 'error', message: 'Passwords don\'t match' });
                 return;
             }
-            const { data } = await api.post('/agents/register',
-                { ...formData }
-            );
+            const payload = {
+                ...formData,
+                lgaId: String(formData.lgaId || ''),
+            };
+            console.log('Posting agent payload:', payload);
+
+            const { data } = await api.post('/agents/register', payload);
 
             if (data.success) {
                 setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
@@ -117,6 +150,7 @@ export default function AgentOnbordForm() {
             payerId: '',
             password: '',
             confirmPassword: '',
+            lgaId: '',
         });
         // setSubmittedData(null);
     };
@@ -279,6 +313,38 @@ export default function AgentOnbordForm() {
                                         required
                                         className="w-full p-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-700 focus:border-transparent outline-none transition duration-150 ease-in-out"
                                     />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="lgaId" className="block text-sm font-medium text-zinc-700 mb-1">
+                                        LGA
+                                    </label>
+                                    <select
+                                        id="lgaId"
+                                        name="lgaId"
+                                        value={formData.lgaId}
+                                        onChange={handleInputChange}
+                                        required
+                                        className="w-full p-3 border border-zinc-300 rounded-lg bg-white focus:ring-2 focus:ring-green-700 focus:border-transparent outline-none transition duration-150 ease-in-out"
+                                    >
+                                        <option value="" disabled>
+                                            {loadingLgas ? 'Loading LGAs...' : 'Select LGA'}
+                                        </option>
+                                        {lgas.map((item) => {
+                                            const value = typeof item === 'string'
+                                                ? item
+                                                : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                            const label = typeof item === 'string'
+                                                ? item
+                                                : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                            return (
+                                                <option key={value || label} value={value}>
+                                                    {label}
+                                                </option>
+                                            );
+                                        })}
+                                    </select>
+                                    {lgaError && <p className="text-sm text-red-600 mt-1">{lgaError}</p>}
                                 </div>
 
 
