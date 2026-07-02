@@ -355,7 +355,7 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
     const AlatIcon = () => (
         <span className="font-medium text-zinc-800 flex items-center gap-1">
             <img
-                src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg"
+                src="/images/alat-logo.png"
                 alt="Alat Logo"
                 className="w-10 h-10 mx-2 inline-block rounded-sm"
             />
@@ -584,10 +584,20 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
                             required
                             className="form-select w-full border border-zinc-300 p-4 rounded-xl"
                         >
-                            <option value="">Select Local Government</option>
-                            {options.lgas.map(option => (
-                                <option key={option} value={option}>{option}</option>
-                            ))}
+                             <option value="">Select Local Government</option>
+                             {options.lgas.map((item) => {
+                                 const value = typeof item === 'string'
+                                     ? item
+                                     : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                 const label = typeof item === 'string'
+                                     ? item
+                                     : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                 return (
+                                     <option key={value || label} value={value}>
+                                         {label}
+                                     </option>
+                                 );
+                             })}
                         </select>
                     </div>
                     <div className="md:col-span-2">

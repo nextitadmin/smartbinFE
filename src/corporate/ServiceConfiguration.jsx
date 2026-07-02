@@ -117,7 +117,7 @@ function ProfilePage() {
 
     const fetchCorporate = async () => {
         try {
-            const { data } = await api.get("/Corporate/corporate-dashboard");
+            const { data } = await api.get("/corporates/dashboard");
             if (data.succeeded) {
                 setDashboard(data.data.corporateInfo);
             }
@@ -154,7 +154,7 @@ function ProfilePage() {
             // --- Actual API call using axios ---
             // Use PUT or POST depending on your API design for updates
             console.log('Sending data to API:', dataToSend); // Log data being sent
-            const { data } = await api.post('/Corporate/edit-corporate', dataToSend); // Or axios.post // Log successful response
+            const { data } = await api.put('/corporate/profile', dataToSend); // Or axios.post // Log successful response
 
             // Assuming API returns { success: true, message: '...' } on success
             if (data.succeeded || data.success) {

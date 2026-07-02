@@ -11,7 +11,7 @@ import AlatPayButton from '../components/AlatPayButton';
 const AlatIcon = () => (
     <span className="font-medium text-zinc-800 flex items-center gap-1">
         <img
-            src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg"
+            src="/images/alat-logo.png"
             alt="Alat Logo"
             className="w-10 h-10 mx-2 inline-block rounded-sm"
         />
@@ -681,7 +681,7 @@ const Dashboard = () => {
                                         <span className="text-zinc-500">Payment Method</span>
                                         <span className="font-medium text-zinc-800 flex items-center gap-1">
                                             <img
-                                                src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg"
+                                                src="/images/alat-logo.png"
                                                 alt="Alat Logo"
                                                 className="w-10 h-10 mx-2 inline-block rounded-sm"
                                             />{" "}
@@ -790,7 +790,7 @@ const Dashboard = () => {
                                             </label>
                                             <div className="mt-1 mb-4 flex items-center gap-2 p-3 border border-zinc-300 rounded-xl bg-zinc-50">
                                                 <img
-                                                    src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg"
+                                                    src="/images/alat-logo.png"
                                                     alt="Alat Logo"
                                                     className="w-8 h-8 rounded-sm"
                                                 />{" "}

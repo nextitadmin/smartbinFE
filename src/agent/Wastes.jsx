@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Sidebar from '../components/AgentSidebar';
 import Topbar from '../components/AgentTopBar';
 import api from '../api/axiosConfig';
@@ -36,6 +36,138 @@ const CheckIcon = ({ className = "h-5 w-5" }) => (
 );
 
 const CUSTOMER_TYPES = ['Resident', 'Corporate'];
+
+const CustomDatePicker = ({ value, onChange, minDate }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [viewDate, setViewDate] = useState(value ? new Date(value) : new Date());
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const daysInMonth = (date) => {
+        return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    };
+
+    const firstDayOfMonth = (date) => {
+        return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+    };
+
+    const handlePrevMonth = () => {
+        setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+    };
+
+    const handleNextMonth = () => {
+        setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+    };
+
+    const handleDayClick = (day) => {
+        const selected = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
+        const yyyy = selected.getFullYear();
+        const mm = String(selected.getMonth() + 1).padStart(2, '0');
+        const dd = String(selected.getDate()).padStart(2, '0');
+        const formatted = `${yyyy}-${mm}-${dd}`;
+        onChange(formatted);
+        setIsOpen(false);
+    };
+
+    const formatDateString = (dateStr) => {
+        if (!dateStr) return 'Select date';
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    const totalDays = daysInMonth(viewDate);
+    const startOffset = firstDayOfMonth(viewDate);
+    const grid = [];
+
+    for (let i = 0; i < startOffset; i++) {
+        grid.push(<div key={`empty-${i}`} className="w-8 h-8"></div>);
+    }
+
+    const minD = minDate ? new Date(minDate) : null;
+    if (minD) minD.setHours(0, 0, 0, 0);
+
+    for (let day = 1; day <= totalDays; day++) {
+        const current = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
+        current.setHours(0, 0, 0, 0);
+
+        const isDisabled = minD && current < minD;
+        const isSelected = value && new Date(value).toDateString() === current.toDateString();
+        const isToday = new Date().toDateString() === current.toDateString();
+
+        grid.push(
+            <button
+                key={`day-${day}`}
+                type="button"
+                disabled={isDisabled}
+                onClick={() => handleDayClick(day)}
+                className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-all ${
+                    isSelected
+                        ? 'bg-green-700 text-white'
+                        : isToday
+                        ? 'border border-green-700 text-green-700 font-semibold'
+                        : isDisabled
+                        ? 'text-zinc-300 cursor-not-allowed'
+                        : 'text-zinc-700 hover:bg-zinc-100'
+                }`}
+            >
+                {day}
+            </button>
+        );
+    }
+
+    const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    return (
+        <div ref={containerRef} className="relative">
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full border border-zinc-300 p-4 rounded-xl text-left text-sm text-zinc-800 bg-white flex justify-between items-center focus:ring-2 focus:ring-green-700 focus:border-transparent outline-none"
+            >
+                <span>{value ? formatDateString(value) : "Select date"}</span>
+                <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            </button>
+
+            {isOpen && (
+                <div className="absolute z-50 mt-2 p-4 bg-white border border-zinc-200 rounded-2xl shadow-xl w-72">
+                    <div className="flex justify-between items-center mb-4">
+                        <button type="button" onClick={handlePrevMonth} className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-600 font-bold">
+                            &larr;
+                        </button>
+                        <span className="font-semibold text-sm text-zinc-800">
+                            {monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}
+                        </span>
+                        <button type="button" onClick={handleNextMonth} className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-600 font-bold">
+                            &rarr;
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1 mb-2 text-center text-zinc-500 text-xs font-semibold">
+                        <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1 text-center">
+                        {grid}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const SmartBinApplication = () => {
     // --- State ---
@@ -386,8 +518,9 @@ const SmartBinApplication = () => {
         time: '',
         phone: '',
         address: '',
-        customerName : "",
-        customerType : ""
+        customerName: "",
+        customerType: "Resident",
+        note: ""
     });
 
     // Subscription modal data
@@ -412,8 +545,9 @@ const SmartBinApplication = () => {
                 time: '',
                 phone: '',
                 address: '',
-                customerName : "",
-                customerType : ""
+                customerName: "",
+                customerType: "Resident",
+                note: ""
             });
         };
     };
@@ -537,42 +671,42 @@ const SmartBinApplication = () => {
 
 
 
-    const SubmitPickupRequest = async (ref, amount, PayChan) => {
-        // if (pickupRequestData.date && pickupRequestData.time && pickupRequestData.phone && pickupRequestData.address && pickupRequestData.customerType && pickupRequestData.customerName) {
-        //     const newDate = combineDateAndTime(pickupRequestData.date, pickupRequestData.time);
-        //     try {
-        //         const { data } = await api.post("/WasteMgmt/new-waste-req", {
-        //             representative: pickupRequestData.phone,
-        //             customerName : pickupRequestData.customerName,
-        //             customerType : pickupRequestData.customerType,
-        //             address: pickupRequestData.address,
-        //             pickupDate: newDate,
-        //             phoneNo: pickupRequestData.phone,
-        //             transRef: ref,
-        //             amountPaid: pickUpAmount,
-        //             PaymentChannel: PayChan
-        //         });
+    const SubmitPickupRequest = async (response) => {
+        if (pickupRequestData.date && pickupRequestData.time && pickupRequestData.phone && pickupRequestData.address && pickupRequestData.customerName) {
+            const newDate = combineDateAndTime(pickupRequestData.date, pickupRequestData.time);
+            try {
+                const { data } = await api.post("/WasteMgmt/new-waste-req", {
+                    representative: pickupRequestData.phone,
+                    customerName: pickupRequestData.customerName,
+                    customerType: pickupRequestData.customerType || 'Resident',
+                    address: pickupRequestData.address,
+                    pickupDate: newDate,
+                    phoneNo: pickupRequestData.phone,
+                    transRef: response.ref,
+                    amountPaid: pickUpAmount,
+                    PaymentChannel: response.channel,
+                    note: pickupRequestData.note || ''
+                });
 
-        //         if (data.succeeded) {
-        //             setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
-        //             console.log("Submitting Pickup Request:", pickupRequestData);
-        //         }
-        //         else {
-        //             setNotification({ type: 'error', message: data.message || "Error submitting" });
-        //         }
-        //     } catch (error) {
-        //         setNotification({ type: 'error', message: "Error submitting" });
-        //         console.log("API Error:", error);
-        //     }
-        // } else {
-        //     setNotification({ type: 'error', message: "Fill all fields" });
-        // }
+                if (data.succeeded || data.success) {
+                    setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
+                    console.log("Submitting Pickup Request:", pickupRequestData);
+                }
+                else {
+                    setNotification({ type: 'error', message: data.message || "Error submitting" });
+                }
+            } catch (error) {
+                setNotification({ type: 'error', message: "Error submitting" });
+                console.log("API Error:", error);
+            }
+        } else {
+            setNotification({ type: 'error', message: "Fill all fields" });
+        }
     };
 
     const handlePickupRequest = async () => {
-        if (pickupRequestData.date && pickupRequestData.time && pickupRequestData.phone && pickupRequestData.address) {
+        if (pickupRequestData.date && pickupRequestData.time && pickupRequestData.phone && pickupRequestData.address && pickupRequestData.customerName) {
             closeModal('pickup');
-            //setNotification({ type: 'success', message: 'Saved successfully, complete payment!' });
             openModal('payment');
         } else {
             setNotification({ type: 'error', message: "Fill all fields" });
@@ -609,23 +743,26 @@ const SmartBinApplication = () => {
                             <div className="p-5 md:p-8 rounded-lg w-full mx-auto">
                                 {/* Header */}
                                 <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
-                                    <div className="flex items-center gap-2">
-                                        <h1 className="text-xl md:text-2xl font-semibold text-zinc-800">Waste Collections</h1>
-                                        <span className="bg-green-700 text-green-50 text-xs font-semibold px-2.5 py-2 rounded-full">
-                                            {applications.length}
-                                        </span>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h1 className="text-xl md:text-2xl font-semibold text-zinc-800">Waste Management</h1>
+                                            <span className="bg-green-700 text-green-50 text-xs font-semibold px-2.5 py-2 rounded-full">
+                                                {applications.length}
+                                            </span>
+                                        </div>
+                                        <p className="text-zinc-500 mt-1 text-sm">Track your waste disposal.</p>
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-3">
                                         <button
                                             type="button"
                                             onClick={() => openModal('pickup')}
-                                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                            className="inline-flex items-center p-2.5 border border-transparent rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                            aria-label="Add"
                                         >
-                                            <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                                             </svg>
-                                            Schedule Collection
                                         </button>
                                     </div>
                                 </div>
@@ -646,85 +783,61 @@ const SmartBinApplication = () => {
                                             className="w-full lg:w-[24rem] pl-10 pr-4 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent"
                                         />
                                     </div>
-                                    <div>
-                                        <button
-                                            onClick={filterData}
-                                            type="button"
-                                            className="px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                                        >
-                                            Filter
-                                        </button>
-                                        <button
-                                            onClick={exportData}
-                                            type="button"
-                                            className="px-4 py-2 mx-4 border border-zinc-300 lg:mx-0 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                                        >
-                                            Export
-                                        </button>
-                                    </div>
                                 </div>
 
                                 {/* Table */}
                                 <div className="table-container border border-zinc-200 rounded-2xl">
                                     <table className="w-full min-w-[768px] text-sm text-left text-zinc-600">
-                                        <thead className="font-light text-zinc-700 uppercase bg-white">
+                                        <thead className="font-light text-zinc-700 bg-white">
                                             <tr>
                                                 <th scope="col" className="px-4 py-3 w-24" role="button" onClick={() => sortBy('sn')}>
                                                     <div className="flex items-center justify-between">
-                                                        S/N <span className={`sort-icon ${sortColumn === 'sn' ? 'active' : ''}`}>
+                                                        s/n <span className={`sort-icon ${sortColumn === 'sn' ? 'active' : ''}`}>
                                                             {sortIcon('sn')}
                                                         </span>
                                                     </div>
                                                 </th>
                                                 <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('wasteId')}>
                                                     <div className="flex items-center justify-between">
-                                                        Waste ID <span className={`sort-icon ${sortColumn === 'wasteId' ? 'active' : ''}`}>
+                                                        waste id <span className={`sort-icon ${sortColumn === 'wasteId' ? 'active' : ''}`}>
                                                             {sortIcon('wasteId')}
                                                         </span>
                                                     </div>
                                                 </th>
                                                 <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('customerName')}>
                                                     <div className="flex items-center justify-between">
-                                                        Customer Name <span className={`sort-icon ${sortColumn === 'customerName' ? 'active' : ''}`}>
+                                                        customer name <span className={`sort-icon ${sortColumn === 'customerName' ? 'active' : ''}`}>
                                                             {sortIcon('customerName')}
                                                         </span>
                                                     </div>
                                                 </th>
                                                 <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('date')}>
                                                     <div className="flex items-center justify-between">
-                                                        Date <span className={`sort-icon ${sortColumn === 'date' ? 'active' : ''}`}>
+                                                        date <span className={`sort-icon ${sortColumn === 'date' ? 'active' : ''}`}>
                                                             {sortIcon('date')}
                                                         </span>
                                                     </div>
                                                 </th>
                                                 <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('address')}>
                                                     <div className="flex items-center justify-between">
-                                                        Address <span className={`sort-icon ${sortColumn === 'address' ? 'active' : ''}`}>
+                                                        address <span className={`sort-icon ${sortColumn === 'address' ? 'active' : ''}`}>
                                                             {sortIcon('address')}
                                                         </span>
                                                     </div>
                                                 </th>
                                                 <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('representative')}>
                                                     <div className="flex items-center justify-between">
-                                                        Representative <span className={`sort-icon ${sortColumn === 'representative' ? 'active' : ''}`}>
+                                                        representative <span className={`sort-icon ${sortColumn === 'representative' ? 'active' : ''}`}>
                                                             {sortIcon('representative')}
                                                         </span>
                                                     </div>
                                                 </th>
-                                                <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('status')}>
-                                                    <div className="flex items-center justify-between">
-                                                        Status <span className={`sort-icon ${sortColumn === 'status' ? 'active' : ''}`}>
-                                                            {sortIcon('status')}
-                                                        </span>
-                                                    </div>
-                                                </th>
-                                                {/* <th scope="col" className="px-4 py-3 text-center">Action</th> */}
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {sortedApplications.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan="7" className="text-center py-10 text-zinc-500">No waste collections found.</td>
+                                                    <td colSpan="6" className="text-center py-10 text-zinc-500">No waste collections found.</td>
                                                 </tr>
                                             ) : (
                                                 sortedApplications.map(app => (
@@ -735,22 +848,6 @@ const SmartBinApplication = () => {
                                                         <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.date)}</td>
                                                         <td className="px-4 py-3">{app.address}</td>
                                                         <td className="px-4 py-3 whitespace-nowrap">{app.representative}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">
-                                                            <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(app.status)}`}>
-                                                                {app.status}
-                                                            </span>
-                                                        </td>
-                                                        {/* <td className="px-4 py-3 text-center">
-                                                            <button
-                                                                onClick={() => handleRowAction(app.wasteId)}
-                                                                type="button"
-                                                                className="p-1 text-zinc-500 hover:text-zinc-700"
-                                                            >
-                                                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                                                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
-                                                                </svg>
-                                                            </button>
-                                                        </td> */}
                                                     </tr>
                                                 ))
                                             )}
@@ -887,133 +984,57 @@ const SmartBinApplication = () => {
 
             {/* Pickup Modal */}
             {isPickupModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal-content lg:py-12 lg:px-8">
-                        <div className="flex justify-between items-center pb-6">
+                <div className="fixed inset-0 bg-zinc-950/70 bg-opacity-50 backdrop-blur-sm z-50 font-sans flex items-center justify-center p-4">
+                    <main className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        {/* Header */}
+                        <div className="flex justify-between items-center pb-4 border-b border-zinc-200 p-6 bg-zinc-100/20">
                             <div>
-                                <h3 className="text-2xl font-semibold text-zinc-800">Request for pickup</h3>
-                                <p className="text-zinc-500 mt-1">Request for your waste to be disposed</p>
+                                <h3 className="text-xl sm:text-2xl font-semibold text-zinc-800">Request for pickup</h3>
+                                <p className="text-zinc-500 mt-1 text-sm">Request for your waste to be disposed</p>
                             </div>
                             <button
                                 onClick={() => closeModal('pickup')}
                                 aria-label="Close"
-                                className="text-zinc-700 hover:text-red-600 self-start"
+                                className="text-red-600 hover:text-zinc-600 self-start"
                             >
                                 <CloseIcon className="w-6 h-6" />
                             </button>
                         </div>
 
-                        <form className="py-6 space-y-5">
-                             <div className="mb-4">
-                                    <label htmlFor="customerType" className="block text-sm font-medium text-zinc-700 mb-1">Customer type</label>
-                                    <div className="relative">
-                                        <div className="relative inline-block w-full">
-                                            <button
-                                                type="button"
-                                                className={`w-full lg:p-4 p-2 pr-8 border border-zinc-300 rounded-2xl appearance-none focus:ring focus:outline-none focus:ring-green-700 focus:border-green-700 bg-white text-left flex justify-between items-center ${!pickupRequestData.customerType ? 'text-zinc-400' : 'text-zinc-900'
-                                                    }`}
-                                                onClick={() => setIsCustomerOpen(!isCustomerOpen)}
-                                                aria-haspopup="listbox"
-                                                aria-expanded={isCustomerOpen}
-                                            >
-                                                {pickupRequestData.customerType !== '' ? pickupRequestData.customerType : "Select customer type"}
-                                                <ChevronDownIcon className={`h-4 w-4 text-zinc-400 transform ${isCustomerOpen  ? 'rotate-180' : ''}`} />
-                                            </button>
-
-                                            {isCustomerOpen && (
-                                                <ul
-                                                    className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none"
-                                                    role="listbox"
-                                                    tabIndex={-1}
-                                                >
-
-                                                    {CUSTOMER_TYPES.map((type) => (
-                                                        <li
-                                                            key={type}
-                                                            className="text-zinc-900 cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-zinc-50"
-                                                            role="option"
-                                                            onClick={() => {
-                                                                setNewCustomerType(type);
-                                                                setIsCustomerOpen(false);
-                                                            }}
-                                                        >
-                                                            <span className="block truncate">{type}</span>
-                                                            {pickupRequestData.customerType === type && (
-                                                                <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-green-600">
-                                                                    <CheckIcon className="h-5 w-5" />
-                                                                </span>
-                                                            )}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                                 <div className="mb-4">
-                                <label htmlFor="customerType" className="block text-sm font-medium text-zinc-700 mb-1">Customer name</label>
-                                <div className="relative">
-                                    <div className="relative inline-block w-full">
-                                        <button
-                                            type="button"
-                                            className={`w-full lg:p-4 p-2 pr-8 border border-zinc-300 rounded-2xl appearance-none focus:ring focus:outline-none focus:ring-green-700 focus:border-green-700 bg-white text-left flex justify-between items-center ${!pickupRequestData.customerName ? 'text-zinc-400' : 'text-zinc-900'
-                                                }`}
-                                            onClick={() => setIsCustomerListOpen(!isCustomerListOpen)}
-                                            aria-haspopup="listbox"
-                                            aria-expanded={isCustomerListOpen}
-                                        >
-                                            {pickupRequestData.customerName !== '' ? pickupRequestData.customerName : "Select customer name"}
-                                            <ChevronDownIcon className={`h-4 w-4 text-zinc-400 transform ${isCustomerListOpen ? 'rotate-180' : ''}`} />
-                                        </button>
-
-                                        {isCustomerListOpen && (
-                                            <ul
-                                                className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none"
-                                                role="listbox"
-                                                tabIndex={-1}
-                                            >
-
-                                                {customerNameList.map((type) => (
-                                                    <li
-                                                        key={type}
-                                                        className="text-zinc-900 cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-zinc-50"
-                                                        role="option"
-                                                        onClick={() => {
-                                                            setNewCustomerName(type);
-                                                            setIsCustomerListOpen(false);
-                                                        }}
-                                                    >
-                                                        <span className="block truncate">{type}</span>
-                                                        {pickupRequestData.customerName === type && (
-                                                            <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-green-600">
-                                                                <CheckIcon className="h-5 w-5" />
-                                                            </span>
-                                                        )}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                        {/* Scrollable Form Body */}
+                        <form className="flex-1 overflow-y-auto p-6 bg-white space-y-5">
                             <div>
-                                <label htmlFor="pickupDate" className="block text-sm font-medium text-zinc-700 mb-1">
-                                    Select date
-                                </label>
-                                <input
-                                    type="date"
-                                    id="date"
-                                    value={pickupRequestData.date}
-                                    onChange={handlePickupDataChange}
+                                <label htmlFor="customerName" className="block text-sm font-medium text-zinc-700 mb-1">Customer Name</label>
+                                <select
+                                    id="customerName"
+                                    value={pickupRequestData.customerName}
+                                    onChange={(e) => setPickupRequestData(prev => ({ ...prev, customerName: e.target.value }))}
                                     required
-                                    placeholder="choose date"
-                                    min={getTodayDate()}
-                                    className="form-input form-input-date relative pr-8"
+                                    className="w-full border border-zinc-300 p-4 rounded-xl bg-white outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent text-sm"
+                                >
+                                    <option disabled value="">Select customer name</option>
+                                    {customerNameList.map((name) => (
+                                        <option key={name} value={name}>
+                                            {name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Select Date
+                                </label>
+                                <CustomDatePicker
+                                    value={pickupRequestData.date}
+                                    onChange={(dateVal) => setPickupRequestData(prev => ({ ...prev, date: dateVal }))}
+                                    minDate={getTodayDate()}
                                 />
                             </div>
+
                             <div>
-                                <label htmlFor="pickupTime" className="block text-sm font-medium text-zinc-700 mb-1">
-                                    Select time
+                                <label htmlFor="time" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Select Time
                                 </label>
                                 <input
                                     type="time"
@@ -1021,12 +1042,13 @@ const SmartBinApplication = () => {
                                     value={pickupRequestData.time}
                                     onChange={handlePickupDataChange}
                                     required
-                                    className="form-input form-input-time relative pr-8"
+                                    className="w-full border border-zinc-300 p-4 rounded-xl bg-white outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent text-sm"
                                 />
                             </div>
+
                             <div>
-                                <label htmlFor="pickupPhone" className="block text-sm font-medium text-zinc-700 mb-1">
-                                    Phone number
+                                <label htmlFor="phone" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Phone Number
                                 </label>
                                 <input
                                     type="tel"
@@ -1034,11 +1056,12 @@ const SmartBinApplication = () => {
                                     value={pickupRequestData.phone}
                                     onChange={handlePickupDataChange}
                                     required
-                                    className="form-input"
+                                    className="w-full border border-zinc-300 p-4 rounded-xl bg-white outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent text-sm"
                                 />
                             </div>
+
                             <div>
-                                <label htmlFor="pickupAddress" className="block text-sm font-medium text-zinc-700 mb-1">
+                                <label htmlFor="address" className="block text-sm font-medium text-zinc-700 mb-1">
                                     Address
                                 </label>
                                 <textarea
@@ -1047,22 +1070,36 @@ const SmartBinApplication = () => {
                                     onChange={handlePickupDataChange}
                                     required
                                     rows="3"
-                                    className="form-input"
+                                    className="w-full border border-zinc-300 p-4 rounded-xl bg-white outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent text-sm"
                                     placeholder="Contact address"
                                 ></textarea>
                             </div>
-                        </form>
 
-                        <div className="py-4 flex justify-end">
-                            <button
-                                type="button"
-                                onClick={handlePickupRequest}
-                                className="btn btn-primary w-full text-sm rounded-xl"
-                            >
-                                Make Payment
-                            </button>
-                        </div>
-                    </div>
+                            <div>
+                                <label htmlFor="note" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    Add Note
+                                </label>
+                                <textarea
+                                    id="note"
+                                    value={pickupRequestData.note || ''}
+                                    onChange={handlePickupDataChange}
+                                    rows="3"
+                                    className="w-full border border-zinc-300 p-4 rounded-xl bg-white outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent text-sm"
+                                    placeholder="Add any extra notes here..."
+                                ></textarea>
+                            </div>
+
+                            <div className="pt-4 flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={handlePickupRequest}
+                                    className="btn btn-primary w-full text-sm rounded-xl"
+                                >
+                                    Make Payment
+                                </button>
+                            </div>
+                        </form>
+                    </main>
                 </div>
             )}
             {notification && (
@@ -1094,7 +1131,7 @@ const SmartBinApplication = () => {
 const AlatIcon = () => (
     <span className="font-medium text-zinc-800 flex items-center gap-1">
         <img
-            src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg"
+            src="/images/alat-logo.png"
             alt="Alat Logo"
             className="w-10 h-10 mx-2 inline-block rounded-sm"
         />

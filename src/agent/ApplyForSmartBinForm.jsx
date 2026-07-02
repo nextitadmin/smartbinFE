@@ -23,7 +23,7 @@ const ChevronDownIcon = ({ className = 'h-5 w-5' }) => (
 
 const AlatIcon = () => (
     <span className="font-medium text-zinc-800 flex items-center gap-1">
-        <img src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg" alt="Alat Logo" className="w-10 h-10 mx-2 inline-block rounded-sm" />
+        <img src="/images/alat-logo.png" alt="Alat Logo" className="w-10 h-10 mx-2 inline-block rounded-sm" />
     </span>
 );
 
@@ -229,8 +229,10 @@ const SmartBinApplication = () => {
     const fetchLga = async () => {
         try {
             const { data } = await api.get('/utility/get-lgas');
-            if (data.succeeded) {
-                setOptions((prev) => ({ ...prev, lgas: data.data.map((item) => item.text) }));
+            if (data.succeeded && Array.isArray(data.data)) {
+                setOptions((prev) => ({ ...prev, lgas: data.data }));
+            } else if (data?.success && Array.isArray(data.data)) {
+                setOptions((prev) => ({ ...prev, lgas: data.data }));
             }
         } catch (error) {
             console.error('Error fetching LGAs:', error);
@@ -307,10 +309,10 @@ const SmartBinApplication = () => {
 
     const getStatusClass = (status) => {
         switch ((status ?? '').toLowerCase()) {
-            case 'pending':   return 'bg-zinc-100 text-zinc-800 border-zinc-300';
-            case 'approved':  return 'bg-sky-100 text-sky-800 border-sky-300';
+            case 'pending': return 'bg-zinc-100 text-zinc-800 border-zinc-300';
+            case 'approved': return 'bg-sky-100 text-sky-800 border-sky-300';
             case 'delivered': return 'bg-green-100 text-green-800 border-green-300';
-            default:          return 'bg-zinc-100 text-zinc-800 border-zinc-300';
+            default: return 'bg-zinc-100 text-zinc-800 border-zinc-300';
         }
     };
 
@@ -322,8 +324,8 @@ const SmartBinApplication = () => {
 
     // ─── Action handlers ──────────────────────────────────────────────────────
 
-    const filterData  = () => setNotification({ type: 'error', message: 'Coming soon..' });
-    const exportData  = () => setNotification({ type: 'error', message: 'Coming soon..' });
+    const filterData = () => setNotification({ type: 'error', message: 'Coming soon..' });
+    const exportData = () => setNotification({ type: 'error', message: 'Coming soon..' });
     const applyAction = () => setModal(true);
 
     const handleRowAction = (appId) => {
@@ -528,13 +530,13 @@ const SmartBinApplication = () => {
                                     <thead className="font-light text-zinc-700 uppercase bg-white">
                                         <tr>
                                             {[
-                                                { key: 'sn',           label: 'S/N' },
+                                                { key: 'sn', label: 'S/N' },
                                                 { key: 'customerName', label: 'Name' },
                                                 { key: 'customerType', label: 'Customer Type' },
-                                                { key: 'orderId',      label: 'Order ID' },
-                                                { key: 'date',         label: 'Date' },
-                                                { key: 'address',      label: 'Address' },
-                                                { key: 'status',       label: 'Status' },
+                                                { key: 'orderId', label: 'Order ID' },
+                                                { key: 'date', label: 'Date' },
+                                                { key: 'address', label: 'Address' },
+                                                { key: 'status', label: 'Status' },
                                             ].map(({ key, label }) => (
                                                 <th key={key} scope="col" className="px-4 py-3" role="button" onClick={() => sortBy(key)}>
                                                     <div className="flex items-center justify-between">
@@ -635,11 +637,11 @@ const SmartBinApplication = () => {
                             </div>
                             <div className="p-6 flex flex-col gap-6">
                                 {[
-                                    { label: 'OrderID',       value: appDetails.orderId },
-                                    { label: 'Date',          value: formatDate(appDetails.date) },
-                                    { label: 'Name',          value: appDetails.customerName },
+                                    { label: 'OrderID', value: appDetails.orderId },
+                                    { label: 'Date', value: formatDate(appDetails.date) },
+                                    { label: 'Name', value: appDetails.customerName },
                                     { label: 'Customer Type', value: appDetails.customerType },
-                                    { label: 'Address',       value: appDetails.address },
+                                    { label: 'Address', value: appDetails.address },
                                 ].map(({ label, value }) => (
                                     <div key={label} className="flex justify-between">
                                         <span className="text-zinc-500">{label}</span>
@@ -804,7 +806,19 @@ const SmartBinApplication = () => {
                                             <label htmlFor="lga" className="block text-sm font-medium text-zinc-700 mb-1">Local Government</label>
                                             <select id="lga" name="lga" disabled={isDisabled} style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }} value={formData.lga || ''} onChange={handleInputChange} required className="form-select w-full border border-zinc-300 p-4 rounded-xl">
                                                 <option disabled value="">Select Local Government</option>
-                                                {options.lgas.map((o) => <option key={o} value={o}>{o}</option>)}
+                                                {options.lgas.map((item) => {
+                                                    const value = typeof item === 'string'
+                                                        ? item
+                                                        : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                                    const label = typeof item === 'string'
+                                                        ? item
+                                                        : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                                    return (
+                                                        <option key={value || label} value={value}>
+                                                            {label}
+                                                        </option>
+                                                    );
+                                                })}
                                             </select>
                                         </div>
 

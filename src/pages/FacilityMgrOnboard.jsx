@@ -27,6 +27,7 @@ export default function FacilityMgrOnbordForm() {
         cpassword: '',
         lgaId: '',
     });
+
     const [lgas, setLgas] = useState([]);
     const [loadingLgas, setLoadingLgas] = useState(false);
     const [lgaError, setLgaError] = useState(null);
@@ -73,6 +74,31 @@ export default function FacilityMgrOnbordForm() {
     }, []);
     // State for submitted data
     // const [submittedData, setSubmittedData] = useState(null);
+
+    useEffect(() => {
+        const fetchLgas = async () => {
+            setLoadingLgas(true);
+            try {
+                const { data } = await api.get('/utility/get-lgas');
+                if (Array.isArray(data)) {
+                    setLgas(data);
+                    setLgaError(null);
+                } else if (data?.success && Array.isArray(data.data)) {
+                    setLgas(data.data);
+                    setLgaError(null);
+                } else {
+                    setLgaError('Unable to load LGAs.');
+                }
+            } catch (error) {
+                console.error('Error fetching LGAs:', error);
+                setLgaError('Unable to load LGAs.');
+            } finally {
+                setLoadingLgas(false);
+            }
+        };
+
+        fetchLgas();
+    }, []);
 
     // Handle form input changes
     const handleInputChange = (e) => {
@@ -351,7 +377,6 @@ export default function FacilityMgrOnbordForm() {
                                     </select>
                                     {lgaError && <p className="text-sm text-red-600 mt-1">{lgaError}</p>}
                                 </div>
-
 
                                 {/* Password Field */}
                                 <div className="relative lg:col-span-2">

@@ -30,20 +30,20 @@ const ConfirmationModal = ({ show, onClose, onConfirm, userData }) => {
                 </div>
                 <div className="text-zinc-700 text-sm mb-6 max-h-96 overflow-y-auto pr-2">
                     {[
-                        ['User ID',              userData.userId],
-                        ['First Name',           userData.firstName],
-                        ['Last Name',            userData.lastName],
-                        ['Email Address',        userData.email],
-                        ['Phone Number',         userData.phoneNumber],
-                        ['Bin Type',             userData.binType],
-                        ['LAWMA Customer Type',  userData.lawmaCustomerType],
-                        ['Building Name',        userData.buildingName],
-                        ['Building Type',        userData.buildingType],
-                        ['House Number',         userData.houseNumber],
-                        ['Flat Number',          userData.flatNumber],
-                        ['Full Address',         userData.address],
-                        ['Local Government',     userData.localGovernment],
-                        ['Closest Landmark',     userData.closestLandmark],
+                        ['User ID', userData.userId],
+                        ['First Name', userData.firstName],
+                        ['Last Name', userData.lastName],
+                        ['Email Address', userData.email],
+                        ['Phone Number', userData.phoneNumber],
+                        ['Bin Type', userData.binType],
+                        ['LAWMA Customer Type', userData.lawmaCustomerType],
+                        ['Building Name', userData.buildingName],
+                        ['Building Type', userData.buildingType],
+                        ['House Number', userData.houseNumber],
+                        ['Flat Number', userData.flatNumber],
+                        ['Full Address', userData.address],
+                        ['Local Government', userData.localGovernment],
+                        ['Closest Landmark', userData.closestLandmark],
                     ].map(([label, value]) => (
                         <p key={label} className="mb-2">
                             <span className="font-medium">{label}:</span> {value}
@@ -93,19 +93,19 @@ const SignUpModal = ({ show, onClose }) => {
     //   buildingName, buildingType, address, localGovernment, closestLandmark,
     //   lawmaCustomerType, binType }
     const emptyForm = {
-        userId:            '',   // was: payerId
-        firstName:         '',
-        lastName:          '',
-        email:             '',
-        phoneNumber:       '',   // was: phoneNo
-        binType:           '',
-        buildingName:      '',
-        buildingType:      '',
-        houseNumber:       '',   // was: houseNo
-        flatNumber:        '',   // was: flatNumber (same) / flatNo in payload
-        address:           '',
-        localGovernment:   '',   // was: lga
-        closestLandmark:   '',   // was: closestLandmark (same) / closestLandMark in payload
+        userId: '',   // was: payerId
+        firstName: '',
+        lastName: '',
+        email: '',
+        phoneNumber: '',   // was: phoneNo
+        binType: '',
+        buildingName: '',
+        buildingType: '',
+        houseNumber: '',   // was: houseNo
+        flatNumber: '',   // was: flatNumber (same) / flatNo in payload
+        address: '',
+        localGovernment: '',   // was: lga
+        closestLandmark: '',   // was: closestLandmark (same) / closestLandMark in payload
         lawmaCustomerType: '',
     };
 
@@ -162,20 +162,20 @@ const SignUpModal = ({ show, onClose }) => {
 
         try {
             const payload = {
-                userId:            userData.userId,
-                firstName:         userData.firstName,
-                lastName:          userData.lastName,
-                email:             userData.email,
-                phoneNumber:       userData.phoneNumber,
-                houseNumber:       userData.houseNumber,
-                flatNumber:        userData.flatNumber,
-                buildingName:      userData.buildingName,
-                buildingType:      userData.buildingType,
-                address:           userData.address,
-                localGovernment:   userData.localGovernment,
-                closestLandmark:   userData.closestLandmark,
+                userId: userData.userId,
+                firstName: userData.firstName,
+                lastName: userData.lastName,
+                email: userData.email,
+                phoneNumber: userData.phoneNumber,
+                houseNumber: userData.houseNumber,
+                flatNumber: userData.flatNumber,
+                buildingName: userData.buildingName,
+                buildingType: userData.buildingType,
+                address: userData.address,
+                localGovernment: userData.localGovernment,
+                closestLandmark: userData.closestLandmark,
                 lawmaCustomerType: userData.lawmaCustomerType,
-                binType:           userData.binType,
+                binType: userData.binType,
             };
 
             const response = await api.post('/facility-managers/user', payload);
@@ -291,11 +291,15 @@ const SignUpModal = ({ show, onClose }) => {
                                 </div>
                             </div>
 
+
+                            <div className='mt-12'>
+                                <h2 className='text-green-600 text-xl font-semibold'>Additional Details</h2>
+                            </div>
                             {/* Address fields */}
                             <div className="grid grid-cols-1 md:grid-cols-6 gap-x-5 gap-y-6 mt-12">
 
                                 <div className="md:col-span-2">
-                                    <label htmlFor="buildingName" className="block text-sm font-medium text-zinc-700 mb-1">Building name</label>
+                                    <label htmlFor="buildingName" className="block text-sm font-medium text-zinc-700 mb-1">Building/Facility name</label>
                                     <input type="text" id="buildingName" name="buildingName" value={userData.buildingName} onChange={handleChange}
                                         placeholder="Building Name" required
                                         className="form-input w-full border border-zinc-300 p-4 rounded-xl" />
@@ -329,7 +333,19 @@ const SignUpModal = ({ show, onClose }) => {
                                     <select id="localGovernment" name="localGovernment" value={userData.localGovernment} onChange={handleChange} required
                                         className="form-select w-full border border-zinc-300 p-3 rounded-xl">
                                         <option disabled value="">Select Local Government</option>
-                                        {options.lgas.map((o) => <option key={o} value={o}>{o}</option>)}
+                                        {options.lgas.map((item) => {
+                                            const value = typeof item === 'string'
+                                                ? item
+                                                : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                            const label = typeof item === 'string'
+                                                ? item
+                                                : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                            return (
+                                                <option key={value || label} value={value}>
+                                                    {label}
+                                                </option>
+                                            );
+                                        })}
                                     </select>
                                 </div>
 

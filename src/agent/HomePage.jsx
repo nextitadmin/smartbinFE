@@ -18,7 +18,7 @@ const formatNaira = (amount) =>
 const AlatIcon = () => (
     <span className="font-medium text-zinc-800 flex items-center gap-1">
         <img
-            src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg"
+            src="/images/alat-logo.png"
             alt="Alat Logo"
             className="w-10 h-10 mx-2 inline-block rounded-sm"
         />
@@ -541,7 +541,7 @@ const Dashboard = () => {
                                 <div className="flex justify-between items-center py-2">
                                     <span className="text-zinc-500">Payment Method</span>
                                     <span className="font-medium text-zinc-800 flex items-center gap-1">
-                                        <img src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg" alt="Alat Logo" className="w-10 h-10 mx-2 inline-block rounded-sm" />
+                                        <img src="/images/alat-logo.png" alt="Alat Logo" className="w-10 h-10 mx-2 inline-block rounded-sm" />
                                         Alat By Wema
                                     </span>
                                 </div>
@@ -603,7 +603,7 @@ const Dashboard = () => {
                                 <div>
                                     <label className="block font-medium text-zinc-700 mb-1">Choose Payment method</label>
                                     <div className="mt-1 mb-4 flex items-center gap-2 p-3 border border-zinc-300 rounded-xl bg-zinc-50">
-                                        <img src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg" alt="Alat Logo" className="w-8 h-8 rounded-sm" />
+                                        <img src="/images/alat-logo.png" alt="Alat Logo" className="w-8 h-8 rounded-sm" />
                                         <span className="font-medium text-zinc-800">Alat By Wema</span>
                                     </div>
                                 </div>

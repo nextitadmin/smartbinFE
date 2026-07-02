@@ -14,7 +14,7 @@ const CloseIcon = ({ className = 'w-5 h-5' }) => (
 const AlatIcon = () => (
     <span className="font-medium text-zinc-800 flex items-center gap-1">
         <img
-            src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg"
+            src="/images/alat-logo.png"
             alt="Alat Logo"
             className="w-10 h-10 mx-2 inline-block rounded-sm"
         />
@@ -339,16 +339,15 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
     return (
         <>
             {/* Application Form Modal */}
-            <div className="fixed inset-0  bg-zinc-950/70 bg-opacity-50 backdrop-blur-lg  z-50 font-sans flex lg:items-center justify-center min-h-screen overflow-y-auto p-4">
-                <main className="w-full max-w-7xl bg-white">
-                    <div className="shadow-lg">
-                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-200 p-6 bg-zinc-100/20">
-                            <h2 className="text-xl sm:text-2xl font-semibold text-zinc-800">Apply for Smart Bin</h2>
-                            <button onClick={closeForm} aria-label="Close" className="text-red-600 hover:text-zinc-600">
-                                <CloseIcon />
-                            </button>
-                        </div>
-                        <form onSubmit={submitApplication} className="p-6 bg-white">
+            <div className="fixed inset-0 bg-zinc-950/70 bg-opacity-50 backdrop-blur-sm z-50 font-sans flex items-center justify-center p-4">
+                <main className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                    <div className="flex justify-between items-center pb-4 border-b border-zinc-200 p-6 bg-zinc-100/20">
+                        <h2 className="text-xl sm:text-2xl font-semibold text-zinc-800">Apply for Smart Bin</h2>
+                        <button onClick={closeForm} aria-label="Close" className="text-red-600 hover:text-zinc-600">
+                            <CloseIcon />
+                        </button>
+                    </div>
+                    <form onSubmit={submitApplication} className="flex-1 overflow-y-auto p-6 bg-white">
                             <div className="grid grid-cols-1 md:grid-cols-6 gap-x-5 gap-y-6">
                                 <div className="md:col-span-3">
                                     <label htmlFor="TenantName" className="block text-sm font-medium text-zinc-700 mb-1">Tenant Name</label>
@@ -559,7 +558,6 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                                 </button>
                             </div>
                         </form>
-                    </div>
                 </main>
             </div>
 

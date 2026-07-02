@@ -17,7 +17,7 @@ const InlineLoader = ({ className = "w-5 h-5" }) => (
 const AlatIcon = () => (
     <span className="font-medium text-zinc-800 flex items-center gap-1">
         <img
-            src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg"
+            src="/images/alat-logo.png"
             alt="Alat Logo"
             className="w-10 h-10 mx-2 inline-block rounded-sm"
         />
@@ -102,7 +102,7 @@ function SubscriptionPage() {
             console.log(" API endpoint:", `/wallets/mock-verify?reference=${reference}`);
             
             const { data } = await api.get(
-                `/wallets/mock-verify?reference=${reference}`
+                `/corporate/wallets`
             );
             console.log(" AlatPay verification API response:", data);
             console.log(" Response success status:", data?.success || data?.succeeded);
@@ -1031,7 +1031,7 @@ function SubscriptionPage() {
                     ) : (
                       <>
                         <img
-                          src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg"
+                          src="/images/alat-logo.png"
                           alt="Alat Logo"
                           className="w-10 h-10 mx-2 inline-block rounded-sm"
                         />
