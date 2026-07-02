@@ -861,7 +861,7 @@ const Wastes = () => {
 const AlatIcon = () => (
     <span className="font-medium text-zinc-800 flex items-center gap-1">
         <img
-            src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg"
+            src="/images/alat-logo.png"
             alt="Alat Logo"
             className="w-10 h-10 mx-2 inline-block rounded-sm"
         />

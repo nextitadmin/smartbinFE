@@ -517,9 +517,19 @@ const KYCApplication = () => {
                                                         className="w-full p-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition duration-150 ease-in-out text-sm placeholder-zinc-400 bg-white"
                                                     >
                                                         <option value="">Choose LG</option>
-                                                        {localGovernmentOptions.map(option => (
-                                                            <option key={option} value={option}>{option}</option>
-                                                        ))}
+                                                        {localGovernmentOptions.map((item) => {
+                                                             const value = typeof item === 'string'
+                                                                 ? item
+                                                                 : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                                             const label = typeof item === 'string'
+                                                                 ? item
+                                                                 : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                                             return (
+                                                                 <option key={value || label} value={value}>
+                                                                     {label}
+                                                                 </option>
+                                                             );
+                                                         })}
                                                     </select>
                                                 </div>
 

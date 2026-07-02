@@ -57,10 +57,10 @@ export default function AssignBinTable() {
             const response = await api.get(`/facility-managers/user/approved-bins?page=${page}&limit=${binsPerPage}`);
             if (response.data?.success && Array.isArray(response.data.data)) {
                 const newBins = response.data.data.map((item, index) => ({
-                    id:           item.id ?? item._id ?? `${item.binId ?? item.binID ?? index}-${page}`,
-                    binId:        item.binId ?? item.binID ?? item.wasteID ?? item.id ?? `#${index + 1}`,
-                    status:       item.status ?? item.binStatus ?? 'Approved',
-                    assignedTo:   item.assignedTo ?? item.tenantName ?? item.userName ?? '-',
+                    id: item.id ?? item._id ?? `${item.binId ?? item.binID ?? index}-${page}`,
+                    binId: item.binId ?? item.binID ?? item.wasteID ?? item.id ?? `#${index + 1}`,
+                    status: item.status ?? item.binStatus ?? 'Approved',
+                    assignedTo: item.assignedTo ?? item.tenantName ?? item.userName ?? '-',
                     buildingName: item.buildingName ?? item.location ?? item.propertyName ?? '-',
                 }));
                 setBins(newBins);
@@ -168,7 +168,7 @@ export default function AssignBinTable() {
                             placeholder="Search members"
                             value={searchTerm}
                             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                            className="w-full pl-10 pr-4 py-2 border border-zinc-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                            className="w-full pl-10 pr-4 py-2 border border-zinc-300 bg-white rounded-md focus:ring-green-500 focus:border-green-500"
                         />
                     </div>
                     <button
@@ -193,11 +193,11 @@ export default function AssignBinTable() {
                             <table className="min-w-full bg-white">
                                 <thead className="bg-white border-b border-zinc-200">
                                     <tr>
-                                        <SortableHeader label="S/N"           columnKey="id" />
-                                        <SortableHeader label="Bin ID"         columnKey="binId" />
-                                        <SortableHeader label="Bin Status"     columnKey="status" />
-                                        <SortableHeader label="Assigned to"    columnKey="assignedTo" />
-                                        <SortableHeader label="Building name"  columnKey="buildingName" />
+                                        <SortableHeader label="S/N" columnKey="id" />
+                                        <SortableHeader label="Bin ID" columnKey="binId" />
+                                        <SortableHeader label="Bin Status" columnKey="status" />
+                                        <SortableHeader label="Assigned to" columnKey="assignedTo" />
+                                        <SortableHeader label="Building name" columnKey="buildingName" />
                                         <th className="py-3 px-4 sm:px-6 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Action</th>
                                     </tr>
                                 </thead>

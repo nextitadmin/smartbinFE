@@ -51,13 +51,15 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
                     orderId: item.orderID,
                     date: item.requestDate?.slice(0, 10),
-                    address: item.residentDetails,
+                    address: item.residentDetails || item.address || '-',
                     status: item.statusName,
                     deliveredDate: item.deliveredDate,
                     deliveredBy: item.deliveredBy,
                     approvedDate: item.approvedDate,
                     customerName: item.residentFullName,
                     customerType: item.customerType,
+                    buildingName: item.buildingName ?? item.houseNo ?? item.propertyName ?? '-',
+                    binType: item.binType ?? item.binTypeName ?? 'Smart',
                 }));
                 setApplications(newData);
                 setTotalPages(data.data.totalPages || 0);
@@ -245,60 +247,54 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
             {/* Table */}
             <div className="table-container border border-zinc-200 rounded-2xl">
                 <table className="w-full min-w-[768px] text-sm text-left text-zinc-600">
-                    <thead className="font-light text-zinc-700 uppercase bg-white">
+                    <thead className="font-light text-zinc-700 bg-white">
                         <tr>
                             <th scope="col" className="px-4 py-3 w-24" role="button" onClick={() => sortBy('sn')}>
                                 <div className="flex items-center justify-between">
-                                    S/N <span className={`sort-icon ${sortColumn === 'sn' ? 'active' : ''}`}>{sortIcon('sn')}</span>
+                                    s/n <span className={`sort-icon ${sortColumn === 'sn' ? 'active' : ''}`}>{sortIcon('sn')}</span>
                                 </div>
                             </th>
-                            <th scope="col" className="px-4 py-3 " role="button" onClick={() => sortBy('customerName')}>
+                            <th scope="col" className="px-4 py-3 " role="button" onClick={() => sortBy('buildingName')}>
                                 <div className="flex items-center justify-between">
-                                    Name <span className={`sort-icon ${sortColumn === 'customerName' ? 'active' : ''}`}>{sortIcon('customerName')}</span>
-                                </div>
-                            </th>
-                            <th scope="col" className="px-4 py-3 " role="button" onClick={() => sortBy('customerType')}>
-                                <div className="flex items-center justify-between">
-                                    CUSTOMER TYPE<span className={`sort-icon ${sortColumn === 'customerType' ? 'active' : ''}`}>{sortIcon('customerType')}</span>
-                                </div>
-                            </th>
-                            <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('orderId')}>
-                                <div className="flex items-center justify-between">
-                                    Order ID <span className={`sort-icon ${sortColumn === 'orderId' ? 'active' : ''}`}>{sortIcon('orderId')}</span>
-                                </div>
-                            </th>
-                            <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('date')}>
-                                <div className="flex items-center justify-between">
-                                    Date <span className={`sort-icon ${sortColumn === 'date' ? 'active' : ''}`}>{sortIcon('date')}</span>
+                                    building name <span className={`sort-icon ${sortColumn === 'buildingName' ? 'active' : ''}`}>{sortIcon('buildingName')}</span>
                                 </div>
                             </th>
                             <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('address')}>
                                 <div className="flex items-center justify-between">
-                                    Address <span className={`sort-icon ${sortColumn === 'address' ? 'active' : ''}`}>{sortIcon('address')}</span>
+                                    address <span className={`sort-icon ${sortColumn === 'address' ? 'active' : ''}`}>{sortIcon('address')}</span>
+                                </div>
+                            </th>
+                            <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('binType')}>
+                                <div className="flex items-center justify-between">
+                                    bin type <span className={`sort-icon ${sortColumn === 'binType' ? 'active' : ''}`}>{sortIcon('binType')}</span>
+                                </div>
+                            </th>
+                            <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('date')}>
+                                <div className="flex items-center justify-between">
+                                    date <span className={`sort-icon ${sortColumn === 'date' ? 'active' : ''}`}>{sortIcon('date')}</span>
                                 </div>
                             </th>
                             <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('status')}>
                                 <div className="flex items-center justify-between">
-                                    Status <span className={`sort-icon ${sortColumn === 'status' ? 'active' : ''}`}>{sortIcon('status')}</span>
+                                    status <span className={`sort-icon ${sortColumn === 'status' ? 'active' : ''}`}>{sortIcon('status')}</span>
                                 </div>
                             </th>
-                            <th scope="col" className="px-4 py-3 text-center">Action</th>
+                            <th scope="col" className="px-4 py-3 text-center">action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {totalItems === 0 ? (
                             <tr>
-                                <td colSpan="8" className="text-center py-10 text-zinc-500">No applications found.</td>
+                                <td colSpan="7" className="text-center py-10 text-zinc-500">No applications found.</td>
                             </tr>
                         ) : (
                             sortedApplications.map(app => (
                                 <tr key={app.id} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
                                     <td className="px-4 py-3 font-medium text-zinc-900">{app.sn}</td>
-                                    <td className="px-4 py-3 font-medium text-zinc-900">{app.customerName}</td>
-                                    <td className="px-4 py-3 font-medium text-zinc-900">{app.customerType}</td>
-                                    <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.orderId}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.date)}</td>
+                                    <td className="px-4 py-3 font-medium text-zinc-900">{app.buildingName}</td>
                                     <td className="px-4 py-3">{app.address}</td>
+                                    <td className="px-4 py-3 font-medium text-zinc-900">{app.binType}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.date)}</td>
                                     <td className="px-4 py-3 whitespace-nowrap">
                                         <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(app.status)}`}>
                                             {app.status}

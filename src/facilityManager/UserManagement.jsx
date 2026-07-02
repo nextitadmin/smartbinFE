@@ -513,14 +513,14 @@ const UserManagement = () => {
                                             <table className="min-w-full bg-white">
                                                 <thead className="bg-zinc-50">
                                                     <tr>
-                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">S/N</th>
-                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Name</th>
-                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Bin Status</th>
-                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Bin ID</th>
-                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Phone number</th>
-                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Building name</th>
-                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Date added</th>
-                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Action</th>
+                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500  tracking-wider">S/N</th>
+                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500  tracking-wider">Name</th>
+                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500  tracking-wider">Bin Status</th>
+                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500  tracking-wider">Bin ID</th>
+                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500  tracking-wider">Phone number</th>
+                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500  tracking-wider">Building name</th>
+                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500  tracking-wider">Date added</th>
+                                                        <th className="py-3 px-6 text-left text-xs font-medium text-zinc-500  tracking-wider">Action</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-zinc-200">

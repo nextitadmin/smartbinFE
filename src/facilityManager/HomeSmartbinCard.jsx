@@ -320,11 +320,12 @@ const SmartBinTableCard = () => {
     const fetchLga = async () => {
         try {
             const { data } = await api.get("/utility/get-lgas");
-            if (data.succeeded) {
-                setOptions((prev) => ({
-                    ...prev,
-                    lgas: data.data.map((item) => item.text)
-                }));
+            if (Array.isArray(data)) {
+                setOptions((prev) => ({ ...prev, lgas: data }));
+            } else if (data?.success && Array.isArray(data.data)) {
+                setOptions((prev) => ({ ...prev, lgas: data.data }));
+            } else if (data?.succeeded && Array.isArray(data.data)) {
+                setOptions((prev) => ({ ...prev, lgas: data.data }));
             }
         } catch (error) {
             console.log("Error fetching lga", error);
@@ -422,7 +423,7 @@ const SmartBinTableCard = () => {
     const AlatIcon = () => (
         <span className="font-medium text-zinc-800 flex items-center gap-1">
             <img
-                src="https://alat.ng/wp-content/uploads/2021/03/cropped-ALAT_By_Wema_Bank.jpg"
+                src="/images/alat-logo.png"
                 alt="Alat Logo"
                 className="w-10 h-10 mx-2 inline-block rounded-sm"
             />
@@ -681,7 +682,7 @@ const SmartBinTableCard = () => {
                     {/* Table */}
                     <div className="table-container border border-zinc-200 rounded-2xl my-8">
                         <table className="w-full min-w-[768px] text-sm text-left text-zinc-600">
-                            <thead className="font-light text-zinc-700 uppercase bg-white">
+                            <thead className="font-light text-zinc-700  bg-white">
                                 <tr>
                                     <th scope="col" className="px-4 py-3 w-24" role="button" onClick={() => sortBy('sn')}>
                                         <div className="flex items-center justify-between">
@@ -699,7 +700,7 @@ const SmartBinTableCard = () => {
                                     </th>
                                     <th scope="col" className="px-4 py-3 " role="button" onClick={() => sortBy('customerType')}>
                                         <div className="flex items-center justify-between">
-                                            CUSTOMER TYPE<span className={`sort-icon ${sortColumn === 'customerType' ? 'active' : ''}`}>
+                                            Customer Type<span className={`sort-icon ${sortColumn === 'customerType' ? 'active' : ''}`}>
                                                 {sortIcon('customerType')}
                                             </span>
                                         </div>
@@ -1174,9 +1175,19 @@ const SmartBinTableCard = () => {
                                                     className="form-select w-full border border-zinc-300 p-3 rounded-xl"
                                                 >
                                                     <option disabled value="">Select Local Government</option>
-                                                    {options.lgas.map(option => (
-                                                        <option key={option} value={option}>{option}</option>
-                                                    ))}
+                                                    {options.lgas.map((item) => {
+                                                        const value = typeof item === 'string'
+                                                            ? item
+                                                            : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                                        const label = typeof item === 'string'
+                                                            ? item
+                                                            : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                                        return (
+                                                            <option key={value || label} value={value}>
+                                                                {label}
+                                                            </option>
+                                                        );
+                                                    })}
                                                 </select>
                                             </div>
 
