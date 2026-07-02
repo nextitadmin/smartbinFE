@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback import
+import React, { useState, useEffect, useCallback, useMemo } from 'react'; // Added useCallback and useMemo import
 // --- Import your Axios instance --- (Update the path to YOUR actual file)
 import api from '../api/axiosConfig'; // <-- IMPORTANT: Update this path
 
@@ -23,22 +23,45 @@ export default function AddBranchModal({ isOpen, onClose, onSuccess }) {
         address: '',
         lga: '',
         landmark: '',
-        state: ''
+        state: '',
+        lawmaCustomerType: 'Returning'
     });
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [apiError, setApiError] = useState('');
 
-    const nigerianStates = [
-        "Lagos",
-    ];
+    const [lgas, setLgas] = useState([]);
+    const [loadingLgas, setLoadingLgas] = useState(false);
 
-    const lgasByState = {
-        "Lagos": ["Ikeja", "Alimosho", "Surulere", "Kosofe", "Lagos Island"],
-        "Rivers": ["Port Harcourt", "Obio-Akpor", "Eleme"],
-        "FCT": ["Abuja Municipal Area Council", "Gwagwalada", "Kuje"]
-        // ... other states
-    };
+    useEffect(() => {
+        if (!isOpen) return;
+        const fetchLgas = async () => {
+            setLoadingLgas(true);
+            try {
+                const { data } = await api.get('/utility/get-lgas');
+                if (Array.isArray(data)) {
+                    setLgas(data);
+                } else if (data?.success && Array.isArray(data.data)) {
+                    setLgas(data.data);
+                }
+            } catch (error) {
+                console.error('Error fetching LGAs:', error);
+            } finally {
+                setLoadingLgas(false);
+            }
+        };
+        fetchLgas();
+    }, [isOpen]);
+
+    const nigerianStates = useMemo(() => {
+        const states = lgas.map(item => typeof item === 'string' ? '' : item.state).filter(Boolean);
+        return Array.from(new Set(states)).sort();
+    }, [lgas]);
+
+    const filteredLgas = useMemo(() => {
+        if (!formData.state) return [];
+        return lgas.filter(item => typeof item !== 'string' && item.state === formData.state);
+    }, [lgas, formData.state]);
 
     // --- Improved handleClose with useCallback ---
     const handleClose = useCallback(() => {
@@ -71,7 +94,8 @@ export default function AddBranchModal({ isOpen, onClose, onSuccess }) {
                 address: '',
                 lga: '',
                 landmark: '',
-                state: ''
+                state: '',
+                lawmaCustomerType: 'Returning'
             });
             setErrors({});
             setApiError('');
@@ -123,7 +147,8 @@ export default function AddBranchModal({ isOpen, onClose, onSuccess }) {
             branchAddress: formData.address,
             localGovernmentArea: formData.lga,
             closestLandmark: formData.landmark,
-            state: formData.state
+            state: formData.state,
+            lawmaCustomerType: formData.lawmaCustomerType
         };
 
         try {
@@ -262,10 +287,12 @@ export default function AddBranchModal({ isOpen, onClose, onSuccess }) {
                                     value={formData.state}
                                     onChange={handleInputChange}
                                     className={`w-full px-3 py-3 border rounded-md bg-white focus:outline-none focus:ring-2 ${errors.state ? 'border-red-500 focus:ring-red-500' : 'border-zinc-300 focus:ring-green-700'}`}
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || loadingLgas}
                                     required
                                 >
-                                    <option value="" disabled>Select a state</option>
+                                    <option value="" disabled>
+                                        {loadingLgas ? 'Loading states...' : 'Select a state'}
+                                    </option>
                                     {nigerianStates.map(state => <option key={`state-${state}`} value={state}>{state}</option>)}
                                 </select>
                                 {errors.state && <p className="text-red-600 text-xs mt-1">{errors.state}</p>}
@@ -282,10 +309,11 @@ export default function AddBranchModal({ isOpen, onClose, onSuccess }) {
                                     required
                                 >
                                     <option value="" disabled>Select an LGA</option>
-                                    {formData.state && lgasByState[formData.state] &&
-                                        lgasByState[formData.state].map(lga => (
-                                            <option key={`lga-${formData.state}-${lga}`} value={lga}>{lga}</option>
-                                        ))}
+                                    {filteredLgas.map(lgaObj => {
+                                        const id = typeof lgaObj === 'string' ? lgaObj : (lgaObj._id || lgaObj.id);
+                                        const name = typeof lgaObj === 'string' ? lgaObj : lgaObj.name;
+                                        return <option key={`lga-${id}`} value={id}>{name}</option>;
+                                    })}
                                 </select>
                                 {errors.lga && <p className="text-red-600 text-xs mt-1">{errors.lga}</p>}
                             </div>
@@ -303,6 +331,21 @@ export default function AddBranchModal({ isOpen, onClose, onSuccess }) {
                                     required
                                 />
                                 {errors.landmark && <p className="text-red-600 text-xs mt-1">{errors.landmark}</p>}
+                            </div>
+                            <div>
+                                <label htmlFor="lawmaCustomerType" className="block text-sm font-medium text-zinc-700 mb-1">LAWMA customer type</label>
+                                <select
+                                    id="lawmaCustomerType"
+                                    name="lawmaCustomerType"
+                                    value={formData.lawmaCustomerType}
+                                    onChange={handleInputChange}
+                                    className="w-full px-3 py-3 border border-zinc-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent text-sm"
+                                    disabled={isSubmitting}
+                                    required
+                                >
+                                    <option value="New">New</option>
+                                    <option value="Returning">Returning</option>
+                                </select>
                             </div>
                         </div>
                         <div className="my-6 flex justify-end space-x-4">
