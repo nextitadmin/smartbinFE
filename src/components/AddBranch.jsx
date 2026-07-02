@@ -310,8 +310,9 @@ export default function AddBranchModal({ isOpen, onClose, onSuccess }) {
                                 >
                                     <option value="" disabled>Select an LGA</option>
                                     {filteredLgas.map(lgaObj => {
+                                        const id = typeof lgaObj === 'string' ? lgaObj : (lgaObj._id || lgaObj.id);
                                         const name = typeof lgaObj === 'string' ? lgaObj : lgaObj.name;
-                                        return <option key={`lga-${name}`} value={name}>{name}</option>;
+                                        return <option key={`lga-${id}`} value={id}>{name}</option>;
                                     })}
                                 </select>
                                 {errors.lga && <p className="text-red-600 text-xs mt-1">{errors.lga}</p>}

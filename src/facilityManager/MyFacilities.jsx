@@ -66,6 +66,14 @@ const MyFacilities = () => {
 
   const facilitiesPerPage = 6;
 
+  const getLgaId = (lgaProp) => {
+    if (!lgaProp) return '';
+    if (typeof lgaProp === 'object') {
+      return lgaProp._id || lgaProp.id || '';
+    }
+    return lgaProp;
+  };
+
   const fetchFacilities = async (page = currentPage, search = searchQuery) => {
     try {
       const response = await api.get('/facilities', {
@@ -99,7 +107,7 @@ const MyFacilities = () => {
         buildingName: item.buildingName,
         buildingType: item.buildingType || '',
         address: item.address,
-        lga: item.localGovernment || item.lga || '',
+        lga: getLgaId(item.localGovernment || item.lga),
         closestLandmark: item.closestLandmark || '',
       }));
       setFacilities(mapped);
@@ -139,6 +147,12 @@ const MyFacilities = () => {
     }
   }, [notification]);
 
+  const getLgaName = (lgaIdOrName) => {
+    if (!lgaIdOrName) return '';
+    const found = lgasList.find(item => item._id === lgaIdOrName || item.id === lgaIdOrName || item.name === lgaIdOrName);
+    return found ? found.name : lgaIdOrName;
+  };
+
   const filteredFacilities = facilities;
   const paginatedFacilities = facilities;
 
@@ -171,7 +185,7 @@ const MyFacilities = () => {
           buildingName: detail.buildingName || '',
           buildingType: detail.buildingType || '',
           address: detail.address || '',
-          lga: detail.localGovernment || detail.lga || '',
+          lga: getLgaId(detail.localGovernment || detail.lga),
           closestLandmark: detail.closestLandmark || '',
         });
       } else if (resData) {
@@ -180,7 +194,7 @@ const MyFacilities = () => {
           buildingName: detail.buildingName || '',
           buildingType: detail.buildingType || '',
           address: detail.address || '',
-          lga: detail.localGovernment || detail.lga || '',
+          lga: getLgaId(detail.localGovernment || detail.lga),
           closestLandmark: detail.closestLandmark || '',
         });
       }
@@ -322,7 +336,7 @@ const MyFacilities = () => {
                         <td className="px-5 py-4 text-sm font-medium text-zinc-800">{facility.sn}</td>
                         <td className="px-5 py-4 text-sm text-zinc-700">{facility.buildingName}</td>
                         <td className="px-5 py-4 text-sm text-zinc-700 max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap">{facility.address}</td>
-                        <td className="px-5 py-4 text-sm text-zinc-700">{facility.lga}</td>
+                        <td className="px-5 py-4 text-sm text-zinc-700">{getLgaName(facility.lga)}</td>
                         <td className="px-5 py-4 text-right">
                           <div className="relative inline-flex">
                             <button onClick={() => setActiveActionMenu(activeActionMenu === facility.id ? null : facility.id)} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 hover:bg-zinc-200">
@@ -396,9 +410,10 @@ const MyFacilities = () => {
                     {loadingLgas ? 'Loading LGAs...' : 'Select Local Government'}
                   </option>
                   {lgasList.map((lgaItem) => {
+                    const id = typeof lgaItem === 'string' ? lgaItem : (lgaItem._id || lgaItem.id);
                     const name = typeof lgaItem === 'string' ? lgaItem : lgaItem.name;
                     return (
-                      <option key={`lga-opt-${name}`} value={name}>
+                      <option key={`lga-opt-${id}`} value={id}>
                         {name}
                       </option>
                     );
