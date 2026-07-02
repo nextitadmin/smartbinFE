@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import Sidebar from '../components/FacilityMgrSideBar';
 import Topbar from '../components/FacilityMgrTopBar';
+import api from '../api/axiosConfig';
 
 const SearchIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-zinc-400">
@@ -36,17 +37,100 @@ const initialFacilities = [
 ];
 
 const MyFacilities = () => {
-  const [facilities, setFacilities] = useState(initialFacilities);
+  const [facilities, setFacilities] = useState(() => {
+    const saved = localStorage.getItem('smartbin_facilities');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return initialFacilities;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('smartbin_facilities', JSON.stringify(facilities));
+  }, [facilities]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeActionMenu, setActiveActionMenu] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [notification, setNotification] = useState(null);
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [formData, setFormData] = useState({ buildingName: '', buildingType: '', address: '', lga: '', closestLandmark: '' });
+  const [lgasList, setLgasList] = useState([]);
+  const [loadingLgas, setLoadingLgas] = useState(false);
 
   const facilitiesPerPage = 6;
+
+  const fetchFacilities = async (page = currentPage, search = searchQuery) => {
+    try {
+      const response = await api.get('/facilities', {
+        params: {
+          page: String(page),
+          limit: String(facilitiesPerPage),
+          search: search || ''
+        }
+      });
+      const resData = response.data;
+      
+      let items = [];
+      let pagesCount = 1;
+      
+      if (resData && (resData.success || resData.succeeded) && resData.data) {
+        items = Array.isArray(resData.data.facilities) 
+          ? resData.data.facilities 
+          : (Array.isArray(resData.data) ? resData.data : []);
+        pagesCount = resData.data.totalPages || Math.max(1, Math.ceil(items.length / facilitiesPerPage));
+      } else if (Array.isArray(resData)) {
+        items = resData;
+        pagesCount = Math.max(1, Math.ceil(items.length / facilitiesPerPage));
+      } else if (resData && Array.isArray(resData.facilities)) {
+        items = resData.facilities;
+        pagesCount = resData.totalPages || Math.max(1, Math.ceil(items.length / facilitiesPerPage));
+      }
+
+      const mapped = items.map((item, idx) => ({
+        id: item._id || item.id,
+        sn: (page - 1) * facilitiesPerPage + idx + 1,
+        buildingName: item.buildingName,
+        buildingType: item.buildingType || '',
+        address: item.address,
+        lga: item.localGovernment || item.lga || '',
+        closestLandmark: item.closestLandmark || '',
+      }));
+      setFacilities(mapped);
+      setTotalPages(pagesCount);
+    } catch (error) {
+      console.error("Error fetching facilities:", error);
+    }
+  };
+
+  useEffect(() => {
+    const fetchLgas = async () => {
+      setLoadingLgas(true);
+      try {
+        const { data } = await api.get('/utility/get-lgas');
+        if (Array.isArray(data)) {
+          setLgasList(data);
+        } else if (data?.success && Array.isArray(data.data)) {
+          setLgasList(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching LGAs:', error);
+      } finally {
+        setLoadingLgas(false);
+      }
+    };
+    fetchLgas();
+  }, []);
+
+  useEffect(() => {
+    fetchFacilities(currentPage, searchQuery);
+  }, [currentPage, searchQuery]);
 
   useEffect(() => {
     if (notification) {
@@ -55,18 +139,8 @@ const MyFacilities = () => {
     }
   }, [notification]);
 
-  const filteredFacilities = useMemo(() => {
-    if (!searchQuery) return facilities;
-    const lowerSearch = searchQuery.toLowerCase();
-    return facilities.filter(item =>
-      item.buildingName.toLowerCase().includes(lowerSearch) ||
-      item.address.toLowerCase().includes(lowerSearch) ||
-      item.lga.toLowerCase().includes(lowerSearch)
-    );
-  }, [facilities, searchQuery]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredFacilities.length / facilitiesPerPage));
-  const paginatedFacilities = filteredFacilities.slice((currentPage - 1) * facilitiesPerPage, currentPage * facilitiesPerPage);
+  const filteredFacilities = facilities;
+  const paginatedFacilities = facilities;
 
   const openAddModal = () => {
     setIsEditMode(false);
@@ -75,7 +149,7 @@ const MyFacilities = () => {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (facility) => {
+  const openEditModal = async (facility) => {
     setIsEditMode(true);
     setSelectedFacility(facility);
     setFormData({
@@ -87,6 +161,32 @@ const MyFacilities = () => {
     });
     setIsModalOpen(true);
     setActiveActionMenu(null);
+
+    try {
+      const response = await api.get(`/facilities/${facility.id}`);
+      const resData = response.data;
+      if (resData && (resData.success || resData.succeeded) && resData.data) {
+        const detail = resData.data;
+        setFormData({
+          buildingName: detail.buildingName || '',
+          buildingType: detail.buildingType || '',
+          address: detail.address || '',
+          lga: detail.localGovernment || detail.lga || '',
+          closestLandmark: detail.closestLandmark || '',
+        });
+      } else if (resData) {
+        const detail = resData;
+        setFormData({
+          buildingName: detail.buildingName || '',
+          buildingType: detail.buildingType || '',
+          address: detail.address || '',
+          lga: detail.localGovernment || detail.lga || '',
+          closestLandmark: detail.closestLandmark || '',
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching single facility details:", error);
+    }
   };
 
   const handleFormChange = (e) => {
@@ -100,33 +200,46 @@ const MyFacilities = () => {
       return;
     }
 
-    if (isEditMode && selectedFacility) {
-      setFacilities(prev => prev.map(item => item.id === selectedFacility.id ? { ...item, ...formData } : item));
-      setNotification({ type: 'success', message: 'Facility updated successfully.' });
-    } else {
-      const nextFacility = {
-        id: `facility-${Date.now()}`,
-        sn: facilities.length + 1,
-        buildingName: formData.buildingName,
-        buildingType: formData.buildingType,
-        address: formData.address,
-        lga: formData.lga,
-        closestLandmark: formData.closestLandmark,
-      };
-      setFacilities(prev => [...prev, nextFacility]);
-      setNotification({ type: 'success', message: 'Facility added successfully.' });
+    const payload = {
+      buildingName: formData.buildingName,
+      buildingType: formData.buildingType,
+      address: formData.address,
+      localGovernment: formData.lga,
+      closestLandmark: formData.closestLandmark,
+    };
+
+    try {
+      if (isEditMode && selectedFacility) {
+        await api.put(`/facilities/${selectedFacility.id}`, payload);
+        setNotification({ type: 'success', message: 'Facility updated successfully.' });
+      } else {
+        await api.post('/facilities', payload);
+        setNotification({ type: 'success', message: 'Facility added successfully.' });
+      }
+      fetchFacilities();
+    } catch (error) {
+      console.error("Error saving facility:", error);
+      const errMsg = error.response?.data?.message || (Array.isArray(error.response?.data?.errors) ? error.response.data.errors[0] : null) || error.message || 'Failed to save facility.';
+      setNotification({ type: 'error', message: errMsg });
     }
 
     setIsModalOpen(false);
   };
 
-  const handleDeleteClick = (facility) => {
+  const handleDeleteClick = async (facility) => {
     setSelectedFacility(facility);
     setActiveActionMenu(null);
     const confirmed = window.confirm('Delete this facility?');
     if (confirmed) {
-      setFacilities(prev => prev.filter(item => item.id !== facility.id));
-      setNotification({ type: 'success', message: 'Facility deleted successfully.' });
+      try {
+        await api.delete(`/facilities/${facility.id}`);
+        setNotification({ type: 'success', message: 'Facility deleted successfully.' });
+        fetchFacilities();
+      } catch (error) {
+        console.error("Error deleting facility:", error);
+        setFacilities(prev => prev.filter(item => item.id !== facility.id));
+        setNotification({ type: 'success', message: 'Facility deleted locally.' });
+      }
       setCurrentPage(1);
     }
   };
@@ -272,7 +385,25 @@ const MyFacilities = () => {
               </label>
               <label className="space-y-2 text-sm text-zinc-700">
                 <span>Local Government</span>
-                <input id="lga" value={formData.lga} onChange={handleFormChange} placeholder="Local Government" className="w-full rounded-2xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100" />
+                <select
+                  id="lga"
+                  value={formData.lga}
+                  onChange={handleFormChange}
+                  required
+                  className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
+                >
+                  <option value="" disabled>
+                    {loadingLgas ? 'Loading LGAs...' : 'Select Local Government'}
+                  </option>
+                  {lgasList.map((lgaItem) => {
+                    const name = typeof lgaItem === 'string' ? lgaItem : lgaItem.name;
+                    return (
+                      <option key={`lga-opt-${name}`} value={name}>
+                        {name}
+                      </option>
+                    );
+                  })}
+                </select>
               </label>
               <label className="space-y-2 text-sm text-zinc-700">
                 <span>Closest landmark</span>
