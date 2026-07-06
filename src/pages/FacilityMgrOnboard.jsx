@@ -72,33 +72,18 @@ export default function FacilityMgrOnbordForm() {
 
         fetchLgas();
     }, []);
-    // State for submitted data
-    // const [submittedData, setSubmittedData] = useState(null);
 
-    useEffect(() => {
-        const fetchLgas = async () => {
-            setLoadingLgas(true);
-            try {
-                const { data } = await api.get('/utility/get-lgas');
-                if (Array.isArray(data)) {
-                    setLgas(data);
-                    setLgaError(null);
-                } else if (data?.success && Array.isArray(data.data)) {
-                    setLgas(data.data);
-                    setLgaError(null);
-                } else {
-                    setLgaError('Unable to load LGAs.');
-                }
-            } catch (error) {
-                console.error('Error fetching LGAs:', error);
-                setLgaError('Unable to load LGAs.');
-            } finally {
-                setLoadingLgas(false);
-            }
-        };
-
-        fetchLgas();
-    }, []);
+    const formatErrorMessage = (errorObjOrMsg) => {
+        if (!errorObjOrMsg) return '';
+        if (typeof errorObjOrMsg === 'string') return errorObjOrMsg;
+        if (Array.isArray(errorObjOrMsg)) {
+            return errorObjOrMsg.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(', ');
+        }
+        if (typeof errorObjOrMsg === 'object') {
+            return errorObjOrMsg.message || JSON.stringify(errorObjOrMsg);
+        }
+        return String(errorObjOrMsg);
+    };
 
     // Handle form input changes
     const handleInputChange = (e) => {
@@ -112,7 +97,7 @@ export default function FacilityMgrOnbordForm() {
     const fetchData = async () => {
         try {
             const { data } = await api.get(`/payer/${formData.payerId}`);
-            if (data.success) {
+            if (data.success && data.data) {
                 setFormData(prev => ({
                     ...prev,
                     firstName: data.data.firstName || '',
@@ -127,17 +112,18 @@ export default function FacilityMgrOnbordForm() {
     };
 
     useEffect(() => {
-        if (formData.payerId.trim()) {
+        if (!formData.payerId.trim()) return;
+        const delayDebounceFn = setTimeout(() => {
             fetchData();
-        }
+        }, 500);
+        return () => clearTimeout(delayDebounceFn);
     }, [formData.payerId]);
-
 
     // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (formData.cpassword !== formData.password) {
+        if (formData.password !== formData.cpassword) {
             setNotification({ type: 'error', message: 'Passwords do not match' });
             return;
         }
@@ -155,18 +141,19 @@ export default function FacilityMgrOnbordForm() {
             const { data } = await api.post('/facility-managers/account', payload);
 
             if (data.succeeded || data.success) {
-                setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
+                setNotification({ type: 'success', message: formatErrorMessage(data.message) || 'Submitted successfully!' });
                 console.log("Success! Navigating to /");
                 navigate("/");
             } else {
-                setNotification({ type: 'error', message: data.message || "Error submitting" });
+                setNotification({ type: 'error', message: formatErrorMessage(data.message) || "Error submitting" });
             }
         } catch (error) {
             console.error("Error creating Facility Manager:", error);
-            const errMsg = error.response?.data?.message || "Error creating new FacilityMgr";
-            setNotification({ type: 'error', message: errMsg });
+            const errMsg = error.response?.data?.message || error.response?.data?.errors || error.message || "Error creating new FacilityMgr";
+            setNotification({ type: 'error', message: formatErrorMessage(errMsg) });
         }
     };
+
 
     //   pattern="[A-Za-z\s]+"
 
@@ -367,7 +354,7 @@ export default function FacilityMgrOnbordForm() {
                                                 : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
                                             const label = typeof item === 'string'
                                                 ? item
-                                                : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                                : item.name ?? item.lgaName ?? item.label ?? item.value ?? '';
                                             return (
                                                 <option key={value || label} value={value}>
                                                     {label}
