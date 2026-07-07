@@ -35,9 +35,30 @@ const CreatePayerID = () => {
     // State for submitted data
     // const [submittedData, setSubmittedData] = useState(null);
 
+    const formatErrorMessage = (errorObjOrMsg) => {
+        if (!errorObjOrMsg) return '';
+        if (typeof errorObjOrMsg === 'string') return errorObjOrMsg;
+        if (Array.isArray(errorObjOrMsg)) {
+            return errorObjOrMsg.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(', ');
+        }
+        if (typeof errorObjOrMsg === 'object') {
+            return errorObjOrMsg.message || JSON.stringify(errorObjOrMsg);
+        }
+        return String(errorObjOrMsg);
+    };
+
     // Handle form input changes
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
+        if (name === 'nin') {
+            // Allow only digits up to 11 characters
+            const digits = value.replace(/\D/g, '').slice(0, 11);
+            setFormData(prev => ({
+                ...prev,
+                [name]: digits
+            }));
+            return;
+        }
         setFormData(prev => ({
             ...prev,
             [name]: type === 'checkbox' ? checked : value
@@ -50,6 +71,12 @@ const CreatePayerID = () => {
     const handleSubmit = async (e) => {
         console.log("Form submitted with data:", formData);
         e.preventDefault();
+
+        if (formData.nin.length !== 11) {
+            setNotification({ type: 'error', message: 'NIN must be exactly 11 digits' });
+            return;
+        }
+
         try {
             const { data } = await api.post('/payer',
                 { ...formData }
@@ -60,11 +87,12 @@ const CreatePayerID = () => {
                 setNotification({ type: 'success', message: 'Created successfully!' });
             }
             else {
-                setNotification({ type: 'error', message: data.message || 'Error creating payer Id' });
+                setNotification({ type: 'error', message: formatErrorMessage(data.message) || 'Error creating payer Id' });
             }
         } catch (error) {
             console.log("Error is", error);
-            setNotification({ type: 'error', message: 'Error creating payer Id' });
+            const errMsg = error.response?.data?.message || error.response?.data?.errors || error.message || 'Error creating payer Id';
+            setNotification({ type: 'error', message: formatErrorMessage(errMsg) });
         }
     };
 
@@ -388,8 +416,10 @@ const CreatePayerID = () => {
                                     name="nin"
                                     value={formData.nin}
                                     onChange={handleInputChange}
-                                    placeholder="Your NIN"
-                                    title="Please enter a valid NIN (alphanumeric)"
+                                    placeholder="Your NIN (11 digits)"
+                                    pattern="\d{11}"
+                                    maxLength={11}
+                                    title="Please enter exactly 11 digits"
                                     required
                                     className="w-full p-3 border border-zinc-300 rounded-md focus:ring-2 focus:ring-green-700 focus:border-transparent outline-none transition duration-150 ease-in-out"
                                 />
