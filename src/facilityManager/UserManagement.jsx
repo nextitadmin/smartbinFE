@@ -212,24 +212,27 @@ const initialUsers = [
 ];
 
 const fetchUsers = async () => {
-
     try {
-
-        let { data } = await api.get("/facility-managers/user/tenants")
-        if (data.succeeded) {
-            return data.data.data
+        let { data } = await api.get("/facility-managers/user/tenants");
+        if (data.success) {
+            return data.data.map((item, idx) => ({
+                ...item,
+                id: item._id || item.id || `user-${idx}`,
+                sn: idx + 1,
+                fullName: `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.name || 'No Name',
+                statusName: item.binStatus ? (item.binStatus.charAt(0).toUpperCase() + item.binStatus.slice(1)) : 'Unassigned',
+                phoneNo: item.phoneNumber || item.phone || '-',
+                building: item.buildingName || item.building || '-',
+                created: item.createdAt || item.dateAdded || ''
+            }));
         } else {
-
-            console.log(data, "it failed ")
-
+            console.log(data, "it failed ");
+            return [];
         }
-
     } catch (error) {
-
-        console.log(error)
-
+        console.log(error);
+        return [];
     }
-
 };
 
 
@@ -302,27 +305,21 @@ const UserManagement = () => {
         loadUsers();
     }, []);
 
-    // // Handle filtering
-    // useEffect(() => {
-    //     let result = users;
+    // Handle filtering
+    useEffect(() => {
+        let result = users || [];
 
-    //     // Search filter
-    //     if (searchTerm) {
-    //         result = result.filter(user =>
-    //             user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    //             user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    //         );
-    //     }
+        // Search filter
+        if (searchTerm) {
+            result = result.filter(user =>
+                (user.fullName && user.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+            );
+        }
 
-    //     // Customer type filter
-    //     const activeFilters = Object.keys(customerTypeFilter).filter(key => customerTypeFilter[key]);
-    //     if (activeFilters.length > 0) {
-    //         result = result.filter(user => activeFilters.includes(user.customerType));
-    //     }
-
-    //     setFilteredUsers(result);
-    //     setCurrentPage(1); // Reset to first page on filter change
-    // }, [searchTerm, customerTypeFilter, users]);
+        setFilteredUsers(result);
+        setCurrentPage(1); // Reset to first page on filter change
+    }, [searchTerm, users]);
 
     // Pagination logic
     const totalPages = Math.ceil(filteredUsers?.length / usersPerPage);
@@ -541,8 +538,8 @@ const UserManagement = () => {
                                                                 <DotsVerticalIcon onClick={() => handleActionMenuToggle(user.id)} />
                                                                 {activeActionMenu === user.id && (
                                                                     <div className="absolute right-8 top-0 z-10 w-48 bg-white rounded-xl shadow-lg border border-zinc-200">
-                                                                        <p className=' flex justify-between items-center m-1 px-4 text-xs hover:bg-red-200 bg-red-50 border-t border-transparent rounded-xl text-red-500' onClick={() => setActiveActionMenu(null)}>  <span>
-                                                                            Close</span><span className='p-2 '> < XMarkIcon /></span></p>
+                                                                        {/* <p className=' flex justify-between items-center m-1 px-4 text-xs hover:bg-red-200 bg-red-50 border-t border-transparent rounded-xl text-red-500' onClick={() => setActiveActionMenu(null)}>  <span>
+                                                                            Close</span><span className='p-2 '> < XMarkIcon /></span></p> */}
                                                                         <a href="#" onClick={(e) => { e.preventDefault(); handleOpenSidebar(activeActionMenu); setActiveActionMenu(null); }} className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">View details</a>
                                                                         <a href="#" onClick={(e) => { e.preventDefault(); setIsEditUserModalOpen(true); }} className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Edit tenant</a>
                                                                         <a href="#" onClick={(e) => { e.preventDefault(); handleDeleteClick(user); }} className="block px-4 py-2 text-sm text-red-600 hover:bg-zinc-100">Deactivate user</a>
