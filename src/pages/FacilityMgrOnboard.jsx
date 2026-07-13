@@ -80,7 +80,12 @@ export default function FacilityMgrOnbordForm() {
             return errorObjOrMsg.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(', ');
         }
         if (typeof errorObjOrMsg === 'object') {
-            return errorObjOrMsg.message || JSON.stringify(errorObjOrMsg);
+            if (errorObjOrMsg.message) return errorObjOrMsg.message;
+            const values = Object.values(errorObjOrMsg).flat();
+            if (values.length > 0) {
+                return values.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(', ');
+            }
+            return JSON.stringify(errorObjOrMsg);
         }
         return String(errorObjOrMsg);
     };
