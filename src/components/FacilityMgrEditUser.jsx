@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api from '../api/axiosConfig';
 
 // Raw SVG Icons from Heroicons (adjusted for direct use)
 const EyeIcon = ({ className = 'w-5 h-5' }) => (
@@ -240,7 +241,7 @@ const SuccessModal = ({ show, onClose, message }) => {
 };
 
 // Main EditUserModal Component
-const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => {
+const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuccess }) => {
     const [userData, setUserData] = useState({
         customerType: '',
         payerId: '',
@@ -250,11 +251,13 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
         phoneNumber: '',
         lawmaCustomerType: '',
         buildingType: '',
+        buildingName: '',
         houseNumber: '',
         flatNumber: '',
         fullAddress: '',
         localGovernment: '',
         closestLandmark: '',
+        binType: '',
         businessName: '',
         companyEmailAddress: '',
         companyTelephone: '',
@@ -275,6 +278,7 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
         isCollapsed: false
     }]);
 
+    const [lgas, setLgas] = useState([]);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
@@ -282,12 +286,21 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+    const fetchLga = async () => {
+        try {
+            const { data } = await api.get("/utility/get-lgas");
+            if ((data.succeeded || data.success) && Array.isArray(data.data)) {
+                setLgas(data.data);
+            }
+        } catch (error) {
+            console.error("Error fetching LGA:", error);
+        }
+    };
 
     const mockApiCall = (userData, devMode) => {
         return new Promise((resolve) => {
             setTimeout(() => {
                 if (devMode) {
-                    // Simulate local dummy data response
                     console.log("Dev Mode: Using dummy data for API call.");
                     resolve({
                         success: true,
@@ -295,7 +308,6 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
                         data: { ...userData, id: `dummy-${Date.now()}` },
                     });
                 } else {
-                    // Simulate real API call
                     console.log("Live Mode: Simulating real API call.");
                     resolve({
                         success: true,
@@ -303,13 +315,40 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
                         data: { ...userData, id: `real-${Date.now()}` },
                     });
                 }
-            }, 1000); // Faster fetch for editing
+            }, 1000);
         });
     };
 
-    // Simulate fetching user data
+    // Fetch user data
     const getUser = async (userType, userId) => {
         try {
+            if (!devMode) {
+                const { data } = await api.get('/facility-managers/user/tenants');
+                if (data.success && Array.isArray(data.data)) {
+                    const item = data.data.find(t => t._id === userId || t.id === userId);
+                    if (item) {
+                        setUserData({
+                            customerType: 'tenant',
+                            payerId: item.payerId || item.payerID || '',
+                            firstName: item.firstName || '',
+                            lastName: item.lastName || '',
+                            emailAddress: item.email || '',
+                            phoneNumber: item.phoneNumber || item.phoneNo || '',
+                            lawmaCustomerType: item.lawmaCustomerType || '',
+                            buildingType: item.buildingType || '',
+                            buildingName: item.buildingName || '',
+                            houseNumber: item.houseNumber || item.houseNo || '',
+                            flatNumber: item.flatNumber || item.flatNo || '',
+                            fullAddress: item.address || item.residentialAddress || '',
+                            localGovernment: item.localGovernment || item.localGovernmentArea?.id || item.localGovernmentArea?.name || item.lga || '',
+                            closestLandmark: item.closestLandmark || item.landMark || '',
+                            binType: item.binType || '',
+                        });
+                        return;
+                    }
+                }
+            }
+
             const response = await mockApiCall({ id: userId, type: userType }, devMode);
             if (response.success && response.data) {
                 const fetchedData = response.data;
@@ -331,8 +370,11 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
     };
 
     useEffect(() => {
-        if (show && userId && userType) {
-            getUser(userType, userId);
+        if (show) {
+            fetchLga();
+            if (userId && userType) {
+                getUser(userType, userId);
+            }
         }
     }, [show, userId, userType]);
 
@@ -401,17 +443,41 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
                 dataToSend.branches = branches;
             }
 
-            const response = await editUserMockApiCall(dataToSend, devMode);
-            if (response.success) {
-                setSuccessMessage(response.message);
-                setShowSuccessModal(true);
+            let responseData;
+            if (!devMode) {
+                const payload = {
+                    firstName: userData.firstName,
+                    lastName: userData.lastName,
+                    email: userData.emailAddress || userData.email,
+                    phoneNumber: userData.phoneNumber,
+                    houseNumber: userData.houseNumber,
+                    flatNumber: userData.flatNumber,
+                    buildingName: userData.buildingName,
+                    buildingType: userData.buildingType,
+                    address: userData.fullAddress || userData.address,
+                    localGovernment: userData.localGovernment,
+                    closestLandmark: userData.closestLandmark,
+                    lawmaCustomerType: userData.lawmaCustomerType,
+                    binType: userData.binType,
+                };
+                const res = await api.patch(`/facility-managers/user/${userId}`, payload);
+                responseData = res.data;
             } else {
-                console.error("API Error:", response.message);
-                alert("Failed to update user: " + response.message);
+                responseData = await editUserMockApiCall(dataToSend, devMode);
+            }
+
+            if (responseData.success || responseData.succeeded) {
+                setSuccessMessage(responseData.message || "User updated successfully!");
+                setShowSuccessModal(true);
+                if (onSuccess) onSuccess();
+            } else {
+                console.error("API Error:", responseData.message);
+                alert("Failed to update user: " + responseData.message);
             }
         } catch (error) {
             console.error("Submission error:", error);
-            alert("An error occurred during submission.");
+            const errMsg = error.response?.data?.message || "An error occurred during submission.";
+            alert("Failed to update user: " + errMsg);
         } finally {
             setIsSubmitting(false);
         }
@@ -500,7 +566,7 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
                         </div>
 
                         {/* Resident or Corporate Fields */}
-                        {userData.customerType === 'resident' ? (
+                        {userData.customerType === 'resident' || userData.customerType === 'tenant' ? (
                             <>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
@@ -542,14 +608,14 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="emailAddress" className="block text-sm font-medium text-zinc-700">Email Address</label>
+                                        <label htmlFor="emailAddress" className="block text-sm font-medium text-zinc-700">Email address</label>
                                         <input
                                             type="email"
                                             id="emailAddress"
                                             name="emailAddress"
                                             value={userData.emailAddress}
                                             onChange={handleChange}
-                                            placeholder="Email Address"
+                                            placeholder="Email address"
                                             required
                                             className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14"
                                         />
@@ -563,22 +629,37 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
                                             value={userData.phoneNumber}
                                             onChange={handleChange}
                                             placeholder="Phone number"
+                                            required
                                             className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14"
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="lawmaCustomerType" className="block text-sm font-medium text-zinc-700">LAWMA Customer Type</label>
+                                        <label htmlFor="lawmaCustomerType" className="block text-sm font-medium text-zinc-700">LAWMA Customer type</label>
                                         <select
                                             id="lawmaCustomerType"
                                             name="lawmaCustomerType"
                                             value={userData.lawmaCustomerType || ''}
                                             onChange={handleChange}
+                                            required
                                             className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14 bg-white"
                                         >
                                             <option value="">Select existing or new</option>
-                                            <option value="existing">Existing</option>
-                                            <option value="new">New</option>
+                                            <option value="Returning">Existing</option>
+                                            <option value="New">New</option>
                                         </select>
+                                    </div>
+                                    <div>
+                                        <label htmlFor="buildingName" className="block text-sm font-medium text-zinc-700">Building/Facility name</label>
+                                        <input
+                                            type="text"
+                                            id="buildingName"
+                                            name="buildingName"
+                                            value={userData.buildingName}
+                                            onChange={handleChange}
+                                            placeholder="Building Name"
+                                            required
+                                            className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14"
+                                        />
                                     </div>
                                     <div>
                                         <label htmlFor="buildingType" className="block text-sm font-medium text-zinc-700">Building Type</label>
@@ -587,15 +668,17 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
                                             name="buildingType"
                                             value={userData.buildingType || ''}
                                             onChange={handleChange}
+                                            required
                                             className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14 bg-white"
                                         >
                                             <option value="">Building type</option>
-                                            <option value="residential">Residential</option>
-                                            <option value="commercial">Commercial</option>
+                                            {['Duplex', 'Bungalow', 'Block of Flats', 'Terrace', 'Detached', 'Semi-Detached', 'Other'].map(type => (
+                                                <option key={type} value={type}>{type}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div>
-                                        <label htmlFor="houseNumber" className="block text-sm font-medium text-zinc-700">House Number</label>
+                                        <label htmlFor="houseNumber" className="block text-sm font-medium text-zinc-700">House number</label>
                                         <input
                                             type="text"
                                             id="houseNumber"
@@ -603,11 +686,12 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
                                             value={userData.houseNumber}
                                             onChange={handleChange}
                                             placeholder="House number"
+                                            required
                                             className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14"
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="flatNumber" className="block text-sm font-medium text-zinc-700">Flat Number</label>
+                                        <label htmlFor="flatNumber" className="block text-sm font-medium text-zinc-700">Flat number</label>
                                         <input
                                             type="text"
                                             id="flatNumber"
@@ -615,6 +699,7 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
                                             value={userData.flatNumber}
                                             onChange={handleChange}
                                             placeholder="Flat number"
+                                            required
                                             className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14"
                                         />
                                     </div>
@@ -638,11 +723,23 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
                                             name="localGovernment"
                                             value={userData.localGovernment || ''}
                                             onChange={handleChange}
+                                            required
                                             className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14 bg-white"
                                         >
-                                            <option value="">Local Government</option>
-                                            <option value="ikeja">Ikeja</option>
-                                            <option value="eti-osa">Eti-Osa</option>
+                                            <option value="">Select Local Government</option>
+                                            {lgas.map((item) => {
+                                                const value = typeof item === 'string'
+                                                    ? item
+                                                    : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                                const label = typeof item === 'string'
+                                                    ? item
+                                                    : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                                return (
+                                                    <option key={value || label} value={value}>
+                                                        {label}
+                                                    </option>
+                                                );
+                                            })}
                                         </select>
                                     </div>
                                     <div>
@@ -654,8 +751,24 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
                                             value={userData.closestLandmark}
                                             onChange={handleChange}
                                             placeholder="Closest landmark"
+                                            required
                                             className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14"
                                         />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="binType" className="block text-sm font-medium text-zinc-700">Bin type</label>
+                                        <select
+                                            id="binType"
+                                            name="binType"
+                                            value={userData.binType || ''}
+                                            onChange={handleChange}
+                                            required
+                                            className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14 bg-white"
+                                        >
+                                            <option value="">Select Bin type</option>
+                                            <option value="smart">Smart</option>
+                                            <option value="non_Smart">Not Smart</option>
+                                        </select>
                                     </div>
                                 </div>
                             </>

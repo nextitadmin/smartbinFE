@@ -76,7 +76,12 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
         try {
             const { data } = await api.get("/facility-managers/user/tenants");
             if (data.success) {
-                setTenantsList(data.data || []);
+                const mappedTenants = (data.data || []).map((item, idx) => ({
+                    ...item,
+                    id: item._id || item.id || `tenant-${idx}`,
+                    fullName: `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.name || 'No Name'
+                }));
+                setTenantsList(mappedTenants);
             } else {
                 console.error("Failed to fetch tenants:", data);
                 setTenantsList([]);
@@ -90,28 +95,30 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
     const fetchTenantDetails = async (id) => {
         if (!id) return; // Prevent call if no ID
         try {
-            const { data } = await api.get(`/facility-managers/user/tenants/${id}`);
-            if (data.success) {
-                const tenantData = data.data;
+            const tenantData = tenantsList.find(t => t.id === id || t._id === id);
+            if (tenantData) {
+                const fullName = `${tenantData.firstName || ''} ${tenantData.lastName || ''}`.trim() || tenantData.fullName || tenantData.name || '';
                 setFormData(prev => ({
                     ...prev,
-                    tenantName: tenantData.fullName,
-                    tenantId: tenantData.id,
+                    tenantName: fullName,
+                    tenantId: tenantData._id || tenantData.id,
                     selectedTenant: tenantData,
-                    streetName: tenantData.residentialAddress,
-                    closestLandmark: tenantData.landMark,
-                    email: tenantData.email,
-                    phoneNo: tenantData.phoneNo,
-                    payerId: tenantData.payerID,
-                    buildingType: tenantData.buildingType,
-                    houseNo: tenantData.houseNo,
-                    flatNo: tenantData.flatNo,
-                    lga: tenantData.lga,
+                    streetName: tenantData.address || tenantData.residentialAddress || '',
+                    closestLandmark: tenantData.closestLandmark || tenantData.landMark || '',
+                    email: tenantData.email || '',
+                    phoneNo: tenantData.phoneNumber || tenantData.phoneNo || '',
+                    payerId: tenantData.payerId || tenantData.payerID || '',
+                    buildingType: tenantData.buildingType || '',
+                    houseNo: tenantData.houseNumber || tenantData.houseNo || '',
+                    flatNo: tenantData.flatNumber || tenantData.flatNo || '',
+                    lga: tenantData.localGovernmentArea?.name || tenantData.localGovernmentArea?.id || tenantData.lga || '',
                     lawmaCustomerType: tenantData.lawmaCustomerType || 'Existing',
                 }));
+            } else {
+                console.warn("Tenant not found in list:", id);
             }
         } catch (error) {
-            console.error("Error fetching tenant details:", error);
+            console.error("Error setting tenant details:", error);
         }
     };
 
@@ -287,7 +294,7 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                 console.log("Submitting application with payload:", payload);
                 const { data } = await api.post("/facility-managers/smart-bin/applications", payload);
 
-                if (data.succeeded) {
+                if (data.success || data.succeeded) {
                     setNotification({ type: 'success', message: 'Submitted successfully!' });
                     // Notify parent of success and close
                     onSubmitSuccess();
@@ -310,7 +317,7 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
 
     const handlePaymentWithWallet = async () => {
         try {
-            const response = await api.post("/Wallet/debit-wallet", {
+            const response = await api.post("/facility-managers/wallets/charge", {
                 userId: useAuthStore.getState().token,
                 drAccountNo: initialFacilityMgrData?.accountNo,
                 amount: smartBinAmount,
@@ -318,10 +325,11 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                 paymentPurpose: "Smart Bin Application"
             });
             const data = response.data;
-            console.log("Response from debit-wallet:", data);
-            if (data.succeeded) {
-                const successMessage = data.message.split('|');
-                const successRef = successMessage.length > 1 ? successMessage[1] : 'N/A';
+            console.log("Response from charge wallet:", data);
+            if (data.success || data.succeeded) {
+                const successRef = (data.message && data.message.includes('|'))
+                    ? data.message.split('|')[1]
+                    : (data.data?.reference || data.data?.transactionReference || data.data?.transRef || 'N/A');
                 await handlePayment({ reference: successRef, channel: "wallet" });
                 setNotification({ type: 'success', message: 'Payment successful!' });
             } else {
