@@ -300,12 +300,14 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                     onSubmitSuccess();
                 } else {
                     console.error("Error submitting application:", data.message);
-                    setNotification({ type: 'error', message: data.message || "Error submitting application" });
+                    const errMsg = formatErrorMessage(data.message) || "Error submitting application";
+                    setNotification({ type: 'error', message: errMsg });
                     handleBack(); // Go back to form/payment selection
                 }
             } catch (error) {
                 console.error("API Error submitting application:", error);
-                setNotification({ type: 'error', message: "Network error or server issue. Please try again." });
+                const errMsg = formatErrorMessage(error.response?.data?.message) || error.message || "Network error or server issue. Please try again.";
+                setNotification({ type: 'error', message: errMsg });
                 handleBack(); // Go back to form/payment selection
             }
         } else {
@@ -313,6 +315,18 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
             setNotification({ type: 'error', message: "Payment information incomplete. Please try again." });
             handleBack(); // Go back to form/payment selection
         }
+    };
+
+    const formatErrorMessage = (msg) => {
+        if (Array.isArray(msg)) {
+            return msg.join(", ");
+        }
+        if (typeof msg === 'object' && msg !== null) {
+            return Object.entries(msg)
+                .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(", ") : val}`)
+                .join("; ");
+        }
+        return msg || "";
     };
 
     const handlePaymentWithWallet = async () => {
@@ -334,11 +348,13 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                 setNotification({ type: 'success', message: 'Payment successful!' });
             } else {
                 console.error("Wallet payment failed:", data.message);
-                setNotification({ type: 'error', message: data.message || "Error processing wallet payment" });
+                const errMsg = formatErrorMessage(data.message) || "Error processing wallet payment";
+                setNotification({ type: 'error', message: errMsg });
             }
         } catch (error) {
             console.error("Error processing wallet payment:", error);
-            setNotification({ type: 'error', message: "Error processing wallet payment. Please try again." });
+            const errMsg = formatErrorMessage(error.response?.data?.message) || error.message || "Error processing wallet payment. Please try again.";
+            setNotification({ type: 'error', message: errMsg });
         }
     };
 

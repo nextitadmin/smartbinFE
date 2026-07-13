@@ -109,15 +109,14 @@ const CustomDatePicker = ({ value, onChange, minDate }) => {
                 type="button"
                 disabled={isDisabled}
                 onClick={() => handleDayClick(day)}
-                className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-all ${
-                    isSelected
+                className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-all ${isSelected
                         ? 'bg-green-700 text-white'
                         : isToday
-                        ? 'border border-green-700 text-green-700 font-semibold'
-                        : isDisabled
-                        ? 'text-zinc-300 cursor-not-allowed'
-                        : 'text-zinc-700 hover:bg-zinc-100'
-                }`}
+                            ? 'border border-green-700 text-green-700 font-semibold'
+                            : isDisabled
+                                ? 'text-zinc-300 cursor-not-allowed'
+                                : 'text-zinc-700 hover:bg-zinc-100'
+                    }`}
             >
                 {day}
             </button>
@@ -171,134 +170,7 @@ const CustomDatePicker = ({ value, onChange, minDate }) => {
 
 const SmartBinApplication = () => {
     // --- State ---
-    const [applications, setApplications] = useState([
-        {
-            "sn": 1,
-            "wasteId": "#999935",
-            "subsTransferId": null,
-            "phoneNo": "07015607352",
-            "address": "Ibeju Royalty",
-            "payerID": null,
-            "createdBy": null,
-            "date": "2025-05-16T00:00:00",
-            "weight": 0,
-            "pickupBy": "",
-            "customerName": "John Boyega",
-            "pickupDate": null,
-            "paymentType": "Wema",
-            "paymentTransRef": null,
-            "amountPaid": 0,
-            "status": "PENDING",
-            "loggerName": null,
-            "id": "08dd8cd8-67f3-49fc-80f0-4525254151a1",
-            "isDeleted": false
-        },
-        {
-            "sn": 2,
-            "wasteId": "#316596",
-            "subsTransferId": null,
-            "phoneNo": "07015607398",
-            "address": "sdfghjk",
-            "payerID": null,
-            "createdBy": null,
-            "date": "2025-05-14T00:00:00",
-            "weight": 0,
-            "pickupBy": "",
-            "customerName": "John Boyega",
-            "pickupDate": null,
-            "paymentType": "Wema",
-            "paymentTransRef": null,
-            "amountPaid": 0,
-            "status": "PENDING",
-            "loggerName": null,
-            "id": "08dd8b52-77a6-4b33-80e2-93195fd275c4",
-            "isDeleted": false
-        },
-        {
-            "sn": 3,
-            "wasteId": "#168473",
-            "subsTransferId": null,
-            "phoneNo": "07015607398",
-            "address": "Ibeju lekki",
-            "payerID": null,
-            "createdBy": null,
-            "date": "2025-05-14T00:00:00",
-            "weight": 0,
-            "pickupBy": "",
-            "customerName": "John Boyega",
-            "pickupDate": null,
-            "paymentType": "Wema",
-            "paymentTransRef": null,
-            "amountPaid": 0,
-            "status": "PENDING",
-            "loggerName": null,
-            "id": "08dd8c9a-aac5-4120-850d-a0f754ef5e58",
-            "isDeleted": false
-        },
-        {
-            "sn": 4,
-            "wasteId": "#374937",
-            "subsTransferId": null,
-            "phoneNo": "07015607398",
-            "address": "sdfghjk",
-            "payerID": null,
-            "createdBy": null,
-            "date": "2025-05-10T00:00:00",
-            "weight": 0,
-            "pickupBy": "",
-            "customerName": "John Boyega",
-            "pickupDate": null,
-            "paymentType": "Wema",
-            "paymentTransRef": null,
-            "amountPaid": 0,
-            "status": "PENDING",
-            "loggerName": null,
-            "id": "08dd8a83-f4f3-467a-8b1d-d8dcc4bef37b",
-            "isDeleted": false
-        },
-        {
-            "sn": 5,
-            "wasteId": "#064665",
-            "subsTransferId": null,
-            "phoneNo": "07034563743",
-            "address": "string",
-            "payerID": null,
-            "createdBy": null,
-            "date": "2025-05-07T11:51:54.218",
-            "weight": 0,
-            "pickupBy": "",
-            "customerName": "John Boyega",
-            "pickupDate": null,
-            "paymentType": "Wema",
-            "paymentTransRef": null,
-            "amountPaid": 0,
-            "status": "PENDING",
-            "loggerName": null,
-            "id": "08dd8a41-8c28-475c-8e93-c81c61f23797",
-            "isDeleted": false
-        },
-        {
-            "sn": 6,
-            "wasteId": "#408805",
-            "subsTransferId": null,
-            "phoneNo": "07015607352",
-            "address": "Lagos",
-            "payerID": null,
-            "createdBy": null,
-            "date": "2025-05-07T00:00:00",
-            "weight": 0,
-            "pickupBy": "",
-            "customerName": "John Boyega",
-            "pickupDate": null,
-            "paymentType": "Wema",
-            "paymentTransRef": null,
-            "amountPaid": 0,
-            "status": "PENDING",
-            "loggerName": null,
-            "id": "08dd8a4f-2587-46f0-8428-3ab6ac322b33",
-            "isDeleted": false
-        }
-    ]);
+    const [applications, setApplications] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortColumn, setSortColumn] = useState('date');
     const [sortDirection, setSortDirection] = useState('dsc');
@@ -309,7 +181,7 @@ const SmartBinApplication = () => {
     const [notification, setNotification] = useState(null);
     const [isCustomerOpen, setIsCustomerOpen] = useState(false);
     const [isCustomerListOpen, setIsCustomerListOpen] = useState(false);
-    const [customerNameList, setCustomerNameList] = useState(['John Babatunde', 'Alima Philips']);
+    const [customerNameList, setCustomerNameList] = useState([]);
     const FacilityMgr = useFacilityMgrStore.getState().facilityMgrInfo;
     const [pickUpAmount, setPickUpAmount] = useState(0);
     const [debitType, setDebitType] = useState('');
@@ -335,8 +207,13 @@ const SmartBinApplication = () => {
         try {
             const { data } = await api.get("/facility-managers/user/tenants");
             if (data.success && Array.isArray(data.data)) {
-                const names = data.data.map(tenant => tenant.fullName);
-                setCustomerNameList(names);
+                const tenants = data.data.map((tenant, idx) => ({
+                    id: tenant._id || tenant.id || `tenant-${idx}`,
+                    fullName: `${tenant.firstName || ''} ${tenant.lastName || ''}`.trim() || tenant.fullName || tenant.name || 'No Name',
+                    phone: tenant.phoneNumber || tenant.phoneNo || '',
+                    address: tenant.address || tenant.residentialAddress || '',
+                }));
+                setCustomerNameList(tenants);
             }
         } catch (error) {
             console.error("Error fetching tenants for pickup:", error);
@@ -350,11 +227,11 @@ const SmartBinApplication = () => {
     const fetchPickUpAmount = async () => {
 
         try {
-            const response = await api.get("/wallets");
+            const response = await api.get("/facility-managers/wallets");
 
             console.log("Response from fetch-amount:", response);
             const data = response.data?.data;
-            if (response.data?.success && data) {
+            if ((response.data?.success || response.data?.succeeded) && data) {
                 setPickUpAmount(data.balance ?? data.amountToDebit);
                 setDebitType(data.debitType || data.status || 'standard');
                 console.log(data.status || data.debitType, " debit type");
@@ -372,31 +249,35 @@ const SmartBinApplication = () => {
         fetchPickUpAmount();
     }, []);
 
-    // const fetchData = async () => {
-    //     try {
-    //         const { data } = await api.get(`/WasteMgmt/my-waste-applications?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
-    //         if (data.succeeded) {
-    //             const newData = data.data.data.map((item, index) => ({
-    //                 sn: index + 1 + (currentPage - 1) * itemsPerPage,
-    //                 wasteId: item.wasteID,
-    //                 date: item.requestDate?.slice(0, 10),
-    //                 address: item.address,
-    //                 status: item.status,
-    //                 representative: item.pickupBy
-    //    customerName : item.customerName
-    //             }));;
-    //             setApplications(newData);
-    //             setTotalPages(data.data.totalPages);
-    //             setTotalItems(data.data.totalCount);
-    //         }
-    //     } catch (error) {
-    //         console.log(error);
-    //     }
-    // }
+    const fetchData = async () => {
+        try {
+            const { data } = await api.get(`/waste-management/pickups?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
+            if (data.success || data.succeeded) {
+                const rawList = Array.isArray(data.data) ? data.data : (data.data?.data || []);
+                const newData = rawList.map((item, index) => ({
+                    sn: index + 1 + (currentPage - 1) * itemsPerPage,
+                    wasteId: item.wasteId || item.wasteID || '',
+                    date: (item.createdAt || item.requestDate || item.date || '').slice(0, 10),
+                    address: item.address || '',
+                    status: item.statusName || item.status || '',
+                    representative: item.pickupBy || '',
+                    customerName: item.customerName || ''
+                }));
+                setApplications(newData);
 
-    // useEffect(() => {
-    //     fetchData()
-    // }, [currentPage]);
+                const totalPagesVal = data.meta?.paging?.pages || data.data?.totalPages || 0;
+                const totalItemsVal = data.meta?.paging?.total || data.data?.totalCount || 0;
+                setTotalPages(totalPagesVal);
+                setTotalItems(totalItemsVal);
+            }
+        } catch (error) {
+            console.error("Error fetching waste applications:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, [currentPage]);
 
 
     const formatDate = (dateString) => {
@@ -571,12 +452,21 @@ const SmartBinApplication = () => {
         };
     };
 
+    const formatErrorMessage = (msg) => {
+        if (Array.isArray(msg)) {
+            return msg.join(", ");
+        }
+        if (typeof msg === 'object' && msg !== null) {
+            return Object.entries(msg)
+                .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(", ") : val}`)
+                .join("; ");
+        }
+        return msg || "";
+    };
+
     const handlePaymentWithWallet = async () => {
-
-
-
         try {
-            const response = await api.post("/Wallet/debit-wallet", {
+            const response = await api.post("/facility-managers/wallets/charge", {
                 userId: useAuthStore.getState().token, // Assuming you have a userId in your auth store
                 drAccountNo: FacilityMgr.accountNo,
                 amount: pickUpAmount,
@@ -585,17 +475,14 @@ const SmartBinApplication = () => {
             });
             const data = response.data;
 
-            console.log("Response from debit-wallet:", data);
+            console.log("Response from charge wallet:", data);
 
-            if (data.succeeded) {
-                console.log("Wallet payment successful:", data.succeeded, "and message:", data.message);
+            if (data.success || data.succeeded) {
+                console.log("Wallet payment successful:", data.success || data.succeeded, "and message:", data.message);
 
-                let successMessage = data.message.split('|');
-                let successRef; // Assuming the first part is the reference
-                if (successMessage.length > 1) {
-                    successRef = successMessage[1];
-                }
-
+                const successRef = (data.message && data.message.includes('|'))
+                    ? data.message.split('|')[1]
+                    : (data.data?.reference || data.data?.transactionReference || data.data?.transRef || 'N/A');
 
                 await handlePayment({ reference: successRef, channel: "wallet" }).finally(() => {
                     console.log("Payment with wallet completed");
@@ -604,13 +491,15 @@ const SmartBinApplication = () => {
 
             } else {
                 console.error("Wallet payment failed:", data.message);
-                setNotification({ type: 'error', message: data.message || "Error processing wallet payment" });
+                const errMsg = formatErrorMessage(data.message) || "Error processing wallet payment";
+                setNotification({ type: 'error', message: errMsg });
             }
 
         }
         catch (error) {
             console.error("Error processing wallet payment:", error);
-            setNotification({ type: 'error', message: "Error processing wallet payment" });
+            const errMsg = formatErrorMessage(error.response?.data?.message) || error.message || "Error processing wallet payment";
+            setNotification({ type: 'error', message: errMsg });
         }
 
 
@@ -679,28 +568,34 @@ const SmartBinApplication = () => {
         if (pickupRequestData.date && pickupRequestData.time && pickupRequestData.phone && pickupRequestData.address && pickupRequestData.customerName) {
             const newDate = combineDateAndTime(pickupRequestData.date, pickupRequestData.time);
             try {
-                const { data } = await api.post("/WasteMgmt/new-waste-req", {
+                const { data } = await api.post("/waste-management/pickups", {
                     representative: pickupRequestData.phone,
                     customerName: pickupRequestData.customerName,
                     customerType: pickupRequestData.customerType || 'Resident',
                     address: pickupRequestData.address,
                     pickupDate: newDate,
+                    pickupTime: pickupRequestData.time,
+                    phoneNumber: pickupRequestData.phone,
                     phoneNo: pickupRequestData.phone,
                     transRef: response.ref,
                     amountPaid: pickUpAmount,
                     PaymentChannel: response.channel,
+                    paymentChannel: response.channel,
                     note: pickupRequestData.note || ''
                 });
 
                 if (data.succeeded || data.success) {
                     setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
                     console.log("Submitting Pickup Request:", pickupRequestData);
+                    fetchData();
                 }
                 else {
-                    setNotification({ type: 'error', message: data.message || "Error submitting" });
+                    const errMsg = formatErrorMessage(data.message) || "Error submitting";
+                    setNotification({ type: 'error', message: errMsg });
                 }
             } catch (error) {
-                setNotification({ type: 'error', message: "Error submitting" });
+                const errMsg = formatErrorMessage(error.response?.data?.message) || error.message || "Error submitting";
+                setNotification({ type: 'error', message: errMsg });
                 console.log("API Error:", error);
             }
         } else {
@@ -1052,14 +947,23 @@ const SmartBinApplication = () => {
                                 <select
                                     id="customerName"
                                     value={pickupRequestData.customerName}
-                                    onChange={(e) => setPickupRequestData(prev => ({ ...prev, customerName: e.target.value }))}
+                                    onChange={(e) => {
+                                        const selectedName = e.target.value;
+                                        const selectedTenant = customerNameList.find(t => t.fullName === selectedName);
+                                        setPickupRequestData(prev => ({
+                                            ...prev,
+                                            customerName: selectedName,
+                                            phone: selectedTenant ? selectedTenant.phone : prev.phone,
+                                            address: selectedTenant ? selectedTenant.address : prev.address,
+                                        }));
+                                    }}
                                     required
                                     className="w-full border border-zinc-300 p-4 rounded-xl bg-white outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent text-sm"
                                 >
                                     <option disabled value="">Select customer name</option>
-                                    {customerNameList.map((name) => (
-                                        <option key={name} value={name}>
-                                            {name}
+                                    {customerNameList.map((tenant) => (
+                                        <option key={tenant.id} value={tenant.fullName}>
+                                            {tenant.fullName}
                                         </option>
                                     ))}
                                 </select>
