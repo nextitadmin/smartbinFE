@@ -295,13 +295,14 @@ const UserManagement = () => {
         setNotification(null);
     };
 
+    const loadUsers = async () => {
+        const usersData = await fetchUsers();
+        setUsers(usersData);
+        setFilteredUsers(usersData);
+    };
+
     // Fetch users on mount
     useEffect(() => {
-        const loadUsers = async () => {
-            const usersData = await fetchUsers();
-            setUsers(usersData);
-            setFilteredUsers(usersData);
-        };
         loadUsers();
     }, []);
 
@@ -541,7 +542,7 @@ const UserManagement = () => {
                                                                         {/* <p className=' flex justify-between items-center m-1 px-4 text-xs hover:bg-red-200 bg-red-50 border-t border-transparent rounded-xl text-red-500' onClick={() => setActiveActionMenu(null)}>  <span>
                                                                             Close</span><span className='p-2 '> < XMarkIcon /></span></p> */}
                                                                         <a href="#" onClick={(e) => { e.preventDefault(); handleOpenSidebar(activeActionMenu); setActiveActionMenu(null); }} className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">View details</a>
-                                                                        <a href="#" onClick={(e) => { e.preventDefault(); setIsEditUserModalOpen(true); }} className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Edit tenant</a>
+                                                                        <a href="#" onClick={(e) => { e.preventDefault(); setSelectedTenantId(user.id); setIsEditUserModalOpen(true); setActiveActionMenu(null); }} className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Edit tenant</a>
                                                                         <a href="#" onClick={(e) => { e.preventDefault(); handleDeleteClick(user); }} className="block px-4 py-2 text-sm text-red-600 hover:bg-zinc-100">Deactivate user</a>
 
                                                                     </div>
@@ -652,9 +653,10 @@ const UserManagement = () => {
             <EditUserModal
                 show={isEditUserModalOpen}
                 onClose={() => setIsEditUserModalOpen(false)}
-                devMode={true}
-                userType="corporate"
-                userId="user-123"
+                devMode={false}
+                userType="tenant"
+                userId={selectedTenantId}
+                onSuccess={loadUsers}
             />
 
             <TenantDetailsSideBar

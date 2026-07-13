@@ -90,29 +90,31 @@ const TenantDetailsSideBar = ({ tenantId, isOpen, onClose }) => {
             setIsLoading(true);
 
             try {
-                const { data } = await api.get(`/FacilityMgr/tenant-by-id?tenantId=${tenantId}`);
-                if (data.succeeded){
-                    const item = data.data;
-                    const newData = {
-                        dateAdded: item.created.slice(0,10),
-                        payerId: item.payerID,
-                        firstName: item.firstName,
-                        lastName: item.lastName,
-                        email: item.email,
-                        phone: item.phoneNo,
-                        lawmaType: item.lawmaCustomerType,
-                        binType: item.binType,
-                        binId: item.binID,
-                        binStatus: item.statusName,
-                        buildingName: item.buildingName,
-                        buildingType: item.buildingType,
-                        houseNumber: item.houseNo,
-                        flatNumber: item.flatNo,
-                        localGovernment: item.lga,
-                        closestLandmark: item.landMark,
-                        fullAddress: item.residentialAddress,
-                    };
-                    setTenantData(newData);
+                const { data } = await api.get('/facility-managers/user/tenants');
+                if (data.success && Array.isArray(data.data)){
+                    const item = data.data.find(t => t._id === tenantId || t.id === tenantId);
+                    if (item) {
+                        const newData = {
+                            dateAdded: item.createdAt ? item.createdAt.slice(0,10) : '',
+                            payerId: item.payerId || item.payerID || '-',
+                            firstName: item.firstName,
+                            lastName: item.lastName,
+                            email: item.email,
+                            phone: item.phoneNumber || item.phoneNo || '-',
+                            lawmaType: item.lawmaCustomerType,
+                            binType: item.binType || '-',
+                            binId: item.binId || item.binID || '-',
+                            binStatus: item.binStatus || item.statusName || '-',
+                            buildingName: item.buildingName,
+                            buildingType: item.buildingType,
+                            houseNumber: item.houseNumber || item.houseNo,
+                            flatNumber: item.flatNumber || item.flatNo,
+                            localGovernment: item.localGovernmentArea?.name || item.localGovernmentArea?.id || item.lga,
+                            closestLandmark: item.closestLandmark || item.landMark,
+                            fullAddress: item.address || item.residentialAddress,
+                        };
+                        setTenantData(newData);
+                    }
                 }
             } catch (error) {
                 console.log("Error fetching action details", error);
