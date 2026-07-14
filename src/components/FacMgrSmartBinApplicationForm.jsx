@@ -47,6 +47,7 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
         flatNo: '',
         lga: '',
         lawmaCustomerType: 'Existing',
+        binType: 'Smart',
     });
     const [tenantsList, setTenantsList] = useState([]);
     const [isDisabled, setIsDisabled] = useState(false);
@@ -113,6 +114,7 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                     flatNo: tenantData.flatNumber || tenantData.flatNo || '',
                     lga: tenantData.localGovernmentArea?.name || tenantData.localGovernmentArea?.id || tenantData.lga || '',
                     lawmaCustomerType: tenantData.lawmaCustomerType || 'Existing',
+                    binType: tenantData.binType || 'Smart',
                 }));
             } else {
                 console.warn("Tenant not found in list:", id);
@@ -290,6 +292,7 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                     paymentType: channel,
                     paidAmount: amount,
                     transRef: ref,
+                    binType: formData.binType,
                 };
                 console.log("Submitting application with payload:", payload);
                 const { data } = await api.post("/facility-managers/smart-bin/applications", payload);
@@ -397,14 +400,14 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                                         id="binType"
                                         disabled={isDisabled}
                                         style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                        name="binType" // Note: This name might conflict with formData structure
-                                        value="Smart" // Hardcoded as per original form
-                                        // onChange={handleInputChange} // Not needed if hardcoded
+                                        name="binType"
+                                        value={formData.binType || 'Smart'}
+                                        onChange={handleInputChange}
                                         required
-                                        className="form-select w-full border border-zinc-300 p-3 rounded-xl"
+                                        className="form-select w-full border border-zinc-300 p-3 rounded-xl bg-white outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent text-sm"
                                     >
                                         <option value="Smart">Smart</option>
-                                        {/* <option value="Not Smart">Not Smart</option> Removed as likely not applicable */}
+                                        <option value="Non Smart">Non Smart</option>
                                     </select>
                                 </div>
                                 <div className="md:col-span-2">

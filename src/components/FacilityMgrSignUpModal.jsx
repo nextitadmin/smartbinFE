@@ -236,7 +236,7 @@ const SignUpModal = ({ show, onClose }) => {
                                     className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14 bg-white">
                                     <option value="">Select Bin type</option>
                                     <option value="smart">Smart</option>
-                                    <option value="non_Smart">Not Smart</option>
+                                    <option value="non_Smart">Non Smart</option>
                                 </select>
                             </div>
                         </div>
