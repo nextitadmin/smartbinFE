@@ -425,10 +425,10 @@ const SmartBinApplication = () => {
         const lowerQuery = searchQuery.toLowerCase();
         return applications.filter(app => {
             return (
-                app.orderId.toLowerCase().includes(lowerQuery) ||
-                app.address.toLowerCase().includes(lowerQuery) ||
-                app.status.toLowerCase().includes(lowerQuery) ||
-                (app.date).includes(lowerQuery)
+                app.orderId?.toLowerCase().includes(lowerQuery) ||
+                app.address?.toLowerCase().includes(lowerQuery) ||
+                app.status?.toLowerCase().includes(lowerQuery) ||
+                app.date?.toLowerCase().includes(lowerQuery)
             );
         });
     }, [applications, searchQuery]);
@@ -440,7 +440,7 @@ const SmartBinApplication = () => {
 
             if (typeof valA === 'string') {
                 valA = valA.toLowerCase();
-                valB = valB.toLowerCase();
+                valB = typeof valB === 'string' ? valB.toLowerCase() : valB;
             }
 
             if (sortColumn === 'date') {
@@ -483,7 +483,7 @@ const SmartBinApplication = () => {
     };
 
     const getStatusClass = (status) => {
-        switch (status.toLowerCase()) {
+        switch ((status ?? '').toLowerCase()) {
             case 'pending':
                 return 'bg-zinc-100 text-zinc-800 border-zinc-300';
             case 'approved':
