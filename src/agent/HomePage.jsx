@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import useAuthStore from '../store/authStore';
 import api from '../api/axiosConfig';
 import useAgentStore from '../store/useAgentStore';
-import AlatPayButton from '../components/AlatPayButton';
+import Pay4ItButton from '../components/Pay4ItButton';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -307,10 +307,12 @@ const Dashboard = () => {
             return;
         }
         try {
-            const { data } = await api.post('/Wallet/wallet-topup', {
+            const clientRef = 'SBTP-' + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
+            const { data } = await api.post('/wallets/topup', {
                 userId: useAuthStore.getState().token,
                 walletAcctNo: '',
                 amount: topUpAmount,
+                reference: clientRef,
                 channel: 'Alat',
                 narration: '',
             });
@@ -492,10 +494,20 @@ const Dashboard = () => {
                         </div>
                         <div className="px-6 py-4 flex flex-col items-center gap-3">
                             {selectedPaymentMethod === 'card' ? (
-                                <AlatPayButton
-                                    amount={parseInt(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.price.replace(/[^\d]/g, '') ?? 0)}
-                                    onTransaction={handlePayment}
-                                    buttonText="Pay Now with ALATPay"
+                                <Pay4ItButton
+                                    amount={parseInt(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.price.replace(/[^\d]/g, '') ?? 0) / 100}
+                                    email={useAgentStore.getState().agentInfo?.emailAddress || useAuthStore.getState().email || "agent@email.com"}
+                                    customerName={`${useAgentStore.getState().agentInfo?.firstName || ''} ${useAgentStore.getState().agentInfo?.lastName || ''}`.trim() || "Agent User"}
+                                    userType="agent"
+                                    onSuccess={(res) => {
+                                        console.log("Pay4It subscription success:", res);
+                                        const finalRef = res.reference || res.tranref;
+                                        handlePayment({ data: { reference: finalRef } });
+                                    }}
+                                    onClose={() => {
+                                        console.log("Pay4It window closed");
+                                    }}
+                                    buttonText="Pay Now with Pay4It"
                                     buttonClassName="btn btn-primary w-full"
                                 />
                             ) : (
@@ -607,9 +619,19 @@ const Dashboard = () => {
                                         <span className="font-medium text-zinc-800">Alat By Wema</span>
                                     </div>
                                 </div>
-                                <AlatPayButton
+                                <Pay4ItButton
                                     amount={parseInt(topUpAmount) || 0}
-                                    onTransaction={handleTopUpSubmit}
+                                    email={useAgentStore.getState().agentInfo?.emailAddress || useAuthStore.getState().email || "agent@email.com"}
+                                    customerName={`${useAgentStore.getState().agentInfo?.firstName || ''} ${useAgentStore.getState().agentInfo?.lastName || ''}`.trim() || "Agent User"}
+                                    userType="agent"
+                                    onSuccess={() => {
+                                        fetchBalance();
+                                        closeModal('topup');
+                                        openModal('success');
+                                    }}
+                                    onClose={() => {
+                                        console.log("Pay4It closed");
+                                    }}
                                     buttonText="Confirm Top Up"
                                     buttonClassName="w-full inline-flex justify-center items-center px-4 py-4 border border-transparent font-medium rounded-2xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                 />

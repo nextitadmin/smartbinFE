@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import useAuthStore from '../store/authStore';
 import api from '../api/axiosConfig';
 import useResidentStore from '../store/useResidentStore';
-import AlatPayButton from '../components/AlatPayButton';
+import Pay4ItButton from '../components/Pay4ItButton';
 
 const AlatIcon = () => (
     <span className="font-medium text-zinc-800 flex items-center gap-1">
@@ -287,11 +287,13 @@ const Dashboard = () => {
             return;
         }
         try {
-            const { data } = await api.post('/Wallet/wallet-topup',
+            const clientRef = 'SBTP-' + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
+            const { data } = await api.post('/wallets/topup',
                 {
                     userId: useAuthStore.getState().token,
                     walletAcctNo: "",
                     amount: topUpAmount,
+                    reference: clientRef,
                     channel: "Alat",
                     narration: ""
                 }
@@ -582,11 +584,20 @@ const Dashboard = () => {
                                 {
                                     selectedPaymentMethod === 'card' ?
                                         (
-                                            <AlatPayButton
-                                                //all details provided by the api request in the component
-                                                amount={parseInt(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.price?.replace(/[^\d]/g, '') || 0)}
-                                                onTransaction={() => { handlePayment }}
-                                                buttonText="Pay Now with ALATPay"
+                                            <Pay4ItButton
+                                                amount={parseInt(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.price?.replace(/[^\d]/g, '') || 0) / 100}
+                                                email={useResidentStore.getState().residentInfo?.emailAddress || useAuthStore.getState().email || "resident@email.com"}
+                                                customerName={`${useResidentStore.getState().residentInfo?.firstName || ''} ${useResidentStore.getState().residentInfo?.lastName || ''}`.trim() || "Resident User"}
+                                                userType="resident"
+                                                onSuccess={(res) => {
+                                                    console.log("Pay4It subscription success:", res);
+                                                    const finalRef = res.reference || res.tranref;
+                                                    handlePayment({ data: { reference: finalRef } });
+                                                }}
+                                                onClose={() => {
+                                                    console.log("Pay4It window closed");
+                                                }}
+                                                buttonText="Pay Now with Pay4It"
                                                 buttonClassName="btn btn-primary w-full"
                                             />
                                         )
@@ -799,10 +810,19 @@ const Dashboard = () => {
                                                 </span>
                                             </div>
                                         </div>
-                                        <AlatPayButton
-                                            //all details provided by the api request in the component
+                                        <Pay4ItButton
                                             amount={parseInt(topUpAmount)}
-                                            onTransaction={() => { handleTopUpSubmit() }}
+                                            email={useResidentStore.getState().residentInfo?.emailAddress || useAuthStore.getState().email || "resident@email.com"}
+                                            customerName={`${useResidentStore.getState().residentInfo?.firstName || ''} ${useResidentStore.getState().residentInfo?.lastName || ''}`.trim() || "Resident User"}
+                                            userType="resident"
+                                            onSuccess={() => {
+                                                fetchBalance();
+                                                closeModal('topup');
+                                                openModal('success');
+                                            }}
+                                            onClose={() => {
+                                                console.log("Pay4It closed");
+                                            }}
                                             buttonText="Confirm Top Up"
                                             buttonClassName="w-full inline-flex justify-center items-center px-4 py-4 border border-transparent font-medium rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                         />

@@ -53,6 +53,9 @@ const Forgot = lazy(() =>
 const EnterNewPassword = lazy(() =>
   import("../pages/EnterNewPassword").catch(() => import("../pages/404"))
 );
+const PaymentSuccess = lazy(() =>
+  import("../pages/PaymentSuccess").catch(() => import("../pages/404"))
+);
 const FacilityManagerOnboard = lazy(() =>
   import("../pages/FacilityMgrOnboard").catch(() => import("../pages/404"))
 );
@@ -242,6 +245,14 @@ export default function RouterWrapper() {
         element: (
           <Suspense fallback={<LoadingComponent />}>
             <EnterNewPassword />
+          </Suspense>
+        ),
+      },
+      {
+        path: "/payment-success",
+        element: (
+          <Suspense fallback={<LoadingComponent />}>
+            <PaymentSuccess />
           </Suspense>
         ),
       },

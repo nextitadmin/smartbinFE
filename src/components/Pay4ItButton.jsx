@@ -1,0 +1,241 @@
+import React, { useState, useEffect } from 'react';
+import api from '../api/axiosConfig';
+import useAuthStore from '../store/authStore';
+
+const Pay4ItButton = ({
+  amount,
+  email,
+  customerName = 'John Doe',
+  description = 'Smart Bin Wallet Top-up',
+  currency = 'NGN',
+  userType = 'resident', // 'resident', 'corporate', 'facilityManager', or 'agent'
+  customEndpoint = '',
+  customPayload = {},
+  onSuccess,
+  onClose,
+  onPaymentWindowOpen,
+  buttonText = 'Confirm Top Up',
+  buttonClassName = 'w-full inline-flex justify-center items-center px-4 py-4 border border-transparent font-medium rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-200',
+}) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+
+  const showNotification = (message, type = 'error') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 5000);
+  };
+
+
+
+  const fetchTransactionReference = async () => {
+    let endpoint = customEndpoint;
+    if (!endpoint) {
+      endpoint = '/wallets/topup'; // Default fallback (Resident)
+      if (userType === 'corporate') {
+        endpoint = '/corporate/wallets/topup';
+      } else if (userType === 'facilityManager') {
+        endpoint = '/wallets/topup';
+      } else if (userType === 'agent') {
+        endpoint = '/wallets/topup';
+      }
+    }
+
+    const userId = useAuthStore.getState().user?.id || useAuthStore.getState().token;
+
+    try {
+      const clientRef = 'SBTP-' + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
+      const response = await api.post(endpoint, {
+        userId,
+        walletAcctNo: '',
+        amount: Number(amount),
+        reference: clientRef,
+        channel: 'ALATPay',
+        narration: description,
+        ...customPayload,
+      });
+
+      const responseData = response.data;
+      if (responseData?.succeeded || responseData?.success) {
+        // Return reference and callbackUrl from response
+        const reference =
+          responseData?.reference ||
+          responseData?.data?.transactionReference ||
+          responseData?.data?.reference;
+
+        const callbackUrl = responseData?.data?.callback?.paymentCallbackUrl || null;
+
+        if (reference) {
+          return { reference, callbackUrl };
+        }
+      }
+      throw new Error(responseData?.message || 'Failed to initialize transaction reference from backend.');
+    } catch (error) {
+      console.error('Error fetching transaction reference:', error);
+      throw error;
+    }
+  };
+
+  const verifyPaymentOnBackend = async (pay4itResponse, reference, callbackUrl) => {
+    try {
+      // 1. Try primary GET verification endpoint
+      try {
+        const verifyResponse = await api.get(`/payments/verify/${reference}`);
+        if (verifyResponse.data?.success || verifyResponse.data?.succeeded) {
+          return true;
+        }
+      } catch (err) {
+        console.warn('GET /payments/verify check failed, trying notification:', err.message);
+      }
+
+      // 2. Build full verification payload
+      const payload = {
+        amount: Number(amount),
+        orderId: reference,
+        description: description,
+        channel: 'pay4it',
+        reference: reference,
+        code: pay4itResponse.code || pay4itResponse.payments?.code || '00',
+        message: pay4itResponse.message || 'Successful',
+        linkingReference: pay4itResponse.linkingreference || pay4itResponse.payments?.linkingreference || '',
+        status: pay4itResponse.status || 'SUCCESS',
+        callbackUrl: '',
+        feeAmount: pay4itResponse.fee || 0,
+        businessName: 'SmartBin Wallet',
+        currency: pay4itResponse.currency || 'NGN',
+        statusReason: '',
+        settlementType: 'WALLET_TOPUP',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ngnVirtualBankAccountNumber: '',
+        ngnVirtualBankCode: '',
+        usdVirtualAccountNumber: '',
+        usdVirtualBankCode: '',
+        rawResponse: JSON.stringify(pay4itResponse),
+      };
+
+      // 3. Try POST notification with 'pay4it' provider key
+      try {
+        const response = await api.post('/payments/notification/pay4it', pay4itResponse);
+        if (response.data?.succeeded || response.data?.success) {
+          return true;
+        }
+      } catch (err) {
+        console.warn('POST /payments/notification/pay4it failed, trying ALAT fallback:', err.message);
+      }
+
+      // 4. Try legacy POST notification with 'ALAT' provider key
+      const response = await api.post('/payments/notification/ALAT', {
+        ...payload,
+        channel: 'ALAT',
+      });
+      return response.data?.succeeded || response.data?.success;
+    } catch (error) {
+      console.error('Error verifying transaction on backend:', error);
+      return false;
+    }
+  };
+
+  const handlePaymentClick = async (e) => {
+    if (e) e.preventDefault();
+
+    if (!amount || amount < 100) {
+      showNotification('Enter a valid amount', 'error');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      if (!window.Pay4it) {
+        showNotification('Payment system is loading. Please wait.', 'error');
+        setIsLoading(false);
+        return;
+      }
+
+      // Step A: Fetch transaction reference from BE based on user type
+      const { reference: transactionRef, callbackUrl } = await fetchTransactionReference();
+
+      if (typeof onPaymentWindowOpen === 'function') {
+        onPaymentWindowOpen(); // Close top-up modal or prepare UI if needed
+      }
+
+      // Step B: Setup & trigger Pay4it inline checkout popup
+      window.Pay4it(
+        {
+          tranref: transactionRef,
+          currency: currency,
+          description: description,
+          country: 'NG',
+          amount: parseFloat(amount).toFixed(2),
+          full_name: customerName,
+          email: email,
+          public_key: import.meta.env.VITE_PAY4IT_PUBLIC_KEY || 'SBTESTPUBK_SW86IO9PMLCYGUR2QJ5EDOEF2AIHQ8OO',
+          callbackurl: '',
+          setAmountByCustomer: false,
+        },
+        async function callback(response, closeCheckout) {
+          setIsLoading(false);
+          const isVerified = await verifyPaymentOnBackend(response, transactionRef, callbackUrl);
+
+          if (isVerified) {
+            showNotification('Payment verified successfully!', 'success');
+            if (onSuccess) onSuccess(response);
+          } else {
+            showNotification('Payment processed but verification pending.', 'info');
+          }
+
+          if (typeof closeCheckout === 'function') {
+            closeCheckout();
+          }
+        },
+        function close(closedState) {
+          setIsLoading(false);
+          console.log('Pay4It payment window closed:', closedState);
+          if (onClose) onClose();
+          showNotification('Payment window closed.', 'info');
+        }
+      );
+
+      showNotification('Payment initialized successfully!', 'success');
+    } catch (error) {
+      console.error('Payment initialization failed:', error);
+      showNotification(error.message || 'Something went wrong while initializing payment.', 'error');
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative w-full">
+      {notification.show && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${notification.type === 'error'
+          ? 'bg-red-100 border-l-4 border-red-500 text-red-700'
+          : notification.type === 'success'
+            ? 'bg-green-100 border-l-4 border-green-500 text-green-700'
+            : 'bg-blue-100 border-l-4 border-blue-500 text-blue-700'
+          }`}>
+          <p>{notification.message}</p>
+        </div>
+      )}
+
+      <button
+        onClick={handlePaymentClick}
+        className={`${buttonClassName} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <span className="flex items-center justify-center">
+            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Processing...
+          </span>
+        ) : (
+          buttonText
+        )}
+      </button>
+    </div>
+  );
+};
+
+export default Pay4ItButton;

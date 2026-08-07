@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import useAuthStore from "../store/authStore";
 import api from "../api/axiosConfig";
 import useCorporateStore from "../store/useCorporateStore";
-import AlatPayButton from "../components/AlatPayButton";
+import Pay4ItButton from "../components/Pay4ItButton";
 import AddBranchModal from "../components/AddBranch"
 
 const AlatIcon = () => (
@@ -1261,35 +1261,24 @@ const Dashboard = () => {
             </div>
             <div className="px-6 py-4 flex flex-col items-center gap-3">
               {selectedPaymentMethod === "card" ? (
-                <AlatPayButton
-                  metadata={{
-                    accountNo:
-                      useCorporateStore.getState().corporateInfo.accountNo,
-                  }}
-                  customerName={
-                    useCorporateStore.getState().corporateInfo.companyName ||
-                    "Corporate User"
-                  }
-                  email={
-                    useAuthStore.getState().email || "manifestomixx@gmail.com"
-                  }
-                  redirectUrl="https://smartbin-frontend-staging.up.railway.app/payment-success"
+                <Pay4ItButton
                   amount={
-                    subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice || 0
+                    (subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice || 0) / 100
                   }
-                  onTransaction={(response) => {
-                    console.log(" AlatPay onTransaction called with response:", response);
-                    // Call the new function that handles backend integration
-                    const amount = subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice || 0;
-                    submitSubscriptionAlatPay(amount);
+                  customerName={useCorporateStore.getState().corporateInfo.companyName || "Corporate User"}
+                  email={useAuthStore.getState().email || "corporate@email.com"}
+                  userType="corporate"
+                  customEndpoint="/corporate/wallets/charge"
+                  customPayload={{ paymentPurpose: "Subscription Application" }}
+                  onSuccess={(res) => {
+                    console.log("Pay4It subscription success:", res);
+                    const finalRef = res.reference || res.tranref;
+                    handlePayment({ data: { reference: finalRef } });
                   }}
                   onClose={() => {
-                    console.log(" AlatPay window closed");
+                    console.log("Pay4It window closed");
                   }}
-                  onPaymentWindowOpen={() => {
-                    console.log(" AlatPay payment window opened");
-                  }}
-                  buttonText="Pay Now with ALATPay"
+                  buttonText="Pay Now with Pay4It"
                   buttonClassName="btn btn-primary w-full"
                 />
               ) : (
@@ -1526,35 +1515,18 @@ const Dashboard = () => {
                                             buttonClassName="w-full inline-flex justify-center items-center px-4 py-4 border border-transparent font-medium rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                         /> */}
 
-                  <AlatPayButton
+                  <Pay4ItButton
                     amount={Number(topUpAmount)}
-                    metadata={{
-                      accountNo:
-                        useCorporateStore.getState().corporateInfo.accountNo,
-                    }}
-                    customerName={
-                      useCorporateStore.getState().corporateInfo.companyName ||
-                      "Corporate User"
-                    }
-                    email={
-                      useAuthStore.getState().email || "manifestomixx@gmail.com"
-                    }
-                    redirectUrl="https://smartbin-frontend-staging.up.railway.app/payment-success"
-                    onTransaction={(reference) => {
-                      if (!reference) {
-                        setNotification({
-                          type: "error",
-                          message: "Missing transaction reference from AlatPay",
-                        });
-                        return;
-                      }
-                      submitTopUpAfterPayment(reference); // ✅ Pass ref from AlatPay
+                    customerName={useCorporateStore.getState().corporateInfo.companyName || "Corporate User"}
+                    email={useAuthStore.getState().email || "corporate@email.com"}
+                    userType="corporate"
+                    onSuccess={() => {
+                      fetchBalance();
+                      closeModal("topup");
+                      openModal("success");
                     }}
                     onClose={() => {
-                      console.log("AlatPay closed");
-                    }}
-                    onPaymentWindowOpen={() => {
-                      closeModal("topup"); // Close top-up modal when AlatPay opens
+                      console.log("Pay4It closed");
                     }}
                     buttonText="Confirm Top Up"
                     buttonClassName="w-full inline-flex justify-center items-center px-4 py-4 border border-transparent font-medium rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
