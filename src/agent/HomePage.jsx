@@ -625,7 +625,7 @@ const Dashboard = () => {
                                     customerName={`${useAgentStore.getState().agentInfo?.firstName || ''} ${useAgentStore.getState().agentInfo?.lastName || ''}`.trim() || "Agent User"}
                                     userType="agent"
                                     onSuccess={() => {
-                                        fetchBalance();
+                                        fetchDashboard();
                                         closeModal('topup');
                                         openModal('success');
                                     }}

@@ -75,60 +75,10 @@ const Pay4ItButton = ({
     }
   };
 
-  const verifyPaymentOnBackend = async (pay4itResponse, reference, callbackUrl) => {
+  const verifyPaymentOnBackend = async (pay4itResponse, reference) => {
     try {
-      // 1. Try primary GET verification endpoint
-      try {
-        const verifyResponse = await api.get(`/payments/verify/${reference}`);
-        if (verifyResponse.data?.success || verifyResponse.data?.succeeded) {
-          return true;
-        }
-      } catch (err) {
-        console.warn('GET /payments/verify check failed, trying notification:', err.message);
-      }
-
-      // 2. Build full verification payload
-      const payload = {
-        amount: Number(amount),
-        orderId: reference,
-        description: description,
-        channel: 'pay4it',
-        reference: reference,
-        code: pay4itResponse.code || pay4itResponse.payments?.code || '00',
-        message: pay4itResponse.message || 'Successful',
-        linkingReference: pay4itResponse.linkingreference || pay4itResponse.payments?.linkingreference || '',
-        status: pay4itResponse.status || 'SUCCESS',
-        callbackUrl: '',
-        feeAmount: pay4itResponse.fee || 0,
-        businessName: 'SmartBin Wallet',
-        currency: pay4itResponse.currency || 'NGN',
-        statusReason: '',
-        settlementType: 'WALLET_TOPUP',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        ngnVirtualBankAccountNumber: '',
-        ngnVirtualBankCode: '',
-        usdVirtualAccountNumber: '',
-        usdVirtualBankCode: '',
-        rawResponse: JSON.stringify(pay4itResponse),
-      };
-
-      // 3. Try POST notification with 'pay4it' provider key
-      try {
-        const response = await api.post('/payments/notification/pay4it', pay4itResponse);
-        if (response.data?.succeeded || response.data?.success) {
-          return true;
-        }
-      } catch (err) {
-        console.warn('POST /payments/notification/pay4it failed, trying ALAT fallback:', err.message);
-      }
-
-      // 4. Try legacy POST notification with 'ALAT' provider key
-      const response = await api.post('/payments/notification/ALAT', {
-        ...payload,
-        channel: 'ALAT',
-      });
-      return response.data?.succeeded || response.data?.success;
+      const verifyResponse = await api.get(`/payments/verify/${reference}`);
+      return verifyResponse.data?.success || verifyResponse.data?.succeeded;
     } catch (error) {
       console.error('Error verifying transaction on backend:', error);
       return false;

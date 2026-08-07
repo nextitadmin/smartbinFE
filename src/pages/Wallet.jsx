@@ -30,7 +30,7 @@ const PaymentReceipts = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get('/wallets/');
+            const { data } = await api.get('/wallets');
             if (data.succeeded) {
                 const newData = data.data.data.map((item, index) => ({
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
@@ -57,13 +57,10 @@ const PaymentReceipts = () => {
 
     const fetchBalance = async () => {
         try {
-            const { data } = await api.get("/residents/dashboard");
-            console.log("Dashboard response:", data); 
-            if (data.success) {
-                const dashboard = data.data;
-                setWalletBalance(dashboard.walletBalance);
+            const { data } = await api.get("/wallets");
+            if (data.success && data.data) {
+                setWalletBalance(data.data.balance);
             }
-
         } catch (error) {
             console.log(error);
         }

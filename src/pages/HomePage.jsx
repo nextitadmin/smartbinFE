@@ -816,7 +816,7 @@ const Dashboard = () => {
                                             customerName={`${useResidentStore.getState().residentInfo?.firstName || ''} ${useResidentStore.getState().residentInfo?.lastName || ''}`.trim() || "Resident User"}
                                             userType="resident"
                                             onSuccess={() => {
-                                                fetchBalance();
+                                                fetchResident();
                                                 closeModal('topup');
                                                 openModal('success');
                                             }}

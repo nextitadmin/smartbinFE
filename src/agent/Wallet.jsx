@@ -57,11 +57,10 @@ const PaymentReceipts = () => {
 
     const fetchBalance = async () => {
         try {
-            const { data } = await api.get("/agents/dashboard");
-            if (data.success) {
-                setWalletBalance(data.data.walletBalance);
+            const { data } = await api.get("/wallets");
+            if (data.success && data.data) {
+                setWalletBalance(data.data.balance);
             }
-
         } catch (error) {
             console.log(error);
         }

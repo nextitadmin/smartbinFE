@@ -23,73 +23,12 @@ const PaymentSuccess = () => {
       }
 
       try {
-        // 1. Try primary GET verification endpoint
-        try {
-          const verifyResponse = await api.get(`/payments/verify/${reference}`);
-          if (verifyResponse.data?.success || verifyResponse.data?.succeeded) {
-            setStatus('success');
-            return;
-          }
-        } catch (err) {
-          console.warn('GET /payments/verify check failed, trying fallback notification:', err.message);
-        }
-
-        // 2. Try POST notification fallback with pay4it response payload
-        const rawResponse = {
-          code: code || '00',
-          message: message || 'Successful',
-          payments: {
-            reference: reference,
-            linkingreference: linkingReference || '',
-          }
-        };
-
-        const payload = {
-          amount: 0,
-          orderId: reference,
-          description: 'Wallet TopUp',
-          channel: 'pay4it',
-          reference: reference,
-          code: code || '00',
-          message: message || 'Successful',
-          linkingReference: linkingReference || '',
-          status: 'SUCCESS',
-          callbackUrl: '',
-          feeAmount: 0,
-          businessName: 'SmartBin Wallet',
-          currency: 'NGN',
-          statusReason: '',
-          settlementType: 'WALLET_TOPUP',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          ngnVirtualBankAccountNumber: '',
-          ngnVirtualBankCode: '',
-          usdVirtualAccountNumber: '',
-          usdVirtualBankCode: '',
-          rawResponse: JSON.stringify(rawResponse),
-        };
-
-        try {
-          const response = await api.post('/payments/notification/pay4it', rawResponse);
-          if (response.data?.succeeded || response.data?.success) {
-            setStatus('success');
-            return;
-          }
-        } catch (err) {
-          console.warn('POST /payments/notification/pay4it failed, trying ALAT:', err.message);
-        }
-
-        // 3. Fallback to ALAT payload notification
-        const response = await api.post('/payments/notification/ALAT', {
-          ...payload,
-          channel: 'ALAT',
-        });
-
-        if (response.data?.succeeded || response.data?.success) {
+        const verifyResponse = await api.get(`/payments/verify/${reference}`);
+        if (verifyResponse.data?.success || verifyResponse.data?.succeeded) {
           setStatus('success');
         } else {
           setStatus('failed');
-          setErrorMessage(response.data?.message || 'Transaction settlement failed.');
+          setErrorMessage(verifyResponse.data?.message || 'Transaction verification failed.');
         }
       } catch (error) {
         console.error('Verification error:', error);

@@ -1007,7 +1007,7 @@ const Dashboard = () => {
                                             customerName={`${useFacilityMgrStore.getState().facilityMgrInfo?.firstName || ''} ${useFacilityMgrStore.getState().facilityMgrInfo?.lastName || ''}`.trim() || "Facility Manager"}
                                             userType="facilityManager"
                                             onSuccess={() => {
-                                                fetchBalance();
+                                                fetchFacilityMgr();
                                                 closeModal('topup');
                                                 openModal('success');
                                             }}
