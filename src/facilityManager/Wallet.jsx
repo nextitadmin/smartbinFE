@@ -4,11 +4,14 @@ import Topbar from '../components/FacilityMgrTopBar';
 import useFacilityMgrStore from '../store/useFacilityMgrStore';
 import useAuthStore from '../store/authStore';
 import api from '../api/axiosConfig';
-import AlatPayButton from '../components/AlatPayButton';
+import Pay4ItButton from '../components/Pay4ItButton';
 
 import PaymentNav from '../components/PaymentNav';
 
 const PaymentReceipts = () => {
+    const facilityMgrInfo = useFacilityMgrStore((state) => state.facilityMgrInfo);
+    const fetchFacilityMgrInfo = useFacilityMgrStore((state) => state.fetchFacilityManagerInfo);
+
     // --- State ---
     const [payments, setPayments] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -66,6 +69,7 @@ const PaymentReceipts = () => {
 
     useEffect(() => {
         fetchBalance();
+        fetchFacilityMgrInfo();
     }, [])
 
 
@@ -253,11 +257,13 @@ const PaymentReceipts = () => {
             return;
         }
         try {
-            const { data } = await api.post('/Wallet/wallet-topup',
+            const clientRef = 'SBTP-' + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
+            const { data } = await api.post('/wallets/topup',
                 {
                     userId: useAuthStore.getState().token,
                     walletAcctNo: "",
                     amount: topUpAmount,
+                    reference: clientRef,
                     channel: "card",
                     narration: ""
                 }
@@ -693,10 +699,20 @@ const PaymentReceipts = () => {
                                             </div>
                                         </div>
 
-                                        <AlatPayButton
-                                            //all details provided by the api request in the component
+                                        <Pay4ItButton
                                             amount={parseInt(topUpAmount)}
-                                            onTransaction={() => { handleTopUpSubmit() }}
+                                            email={facilityMgrInfo?.emailAddress || useAuthStore.getState().email || "facility@email.com"}
+                                            customerName={`${facilityMgrInfo?.firstName || ''} ${facilityMgrInfo?.lastName || ''}`.trim() || "Facility Manager"}
+                                            userType="facilityManager"
+                                            onSuccess={() => {
+                                                fetchBalance();
+                                                fetchData();
+                                                closeModal('topup');
+                                                openModal('success');
+                                            }}
+                                            onClose={() => {
+                                                console.log("Pay4It closed");
+                                            }}
                                             buttonText="Confirm Top Up"
                                             buttonClassName="w-full inline-flex justify-center items-center px-4 py-4 border border-transparent font-medium rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                         />

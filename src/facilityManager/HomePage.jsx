@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import useAuthStore from '../store/authStore';
 import api from '../api/axiosConfig';
 import useFacilityMgrStore from '../store/useFacilityMgrStore';
-import AlatPayButton from '../components/AlatPayButton';
+import Pay4ItButton from '../components/Pay4ItButton';
 import SmartBinTableCard from './HomeSmartbinCard'
 import useTokenStore from '../store/tokenStore';
 
@@ -74,7 +74,7 @@ const Dashboard = () => {
 
     const fetchFacilityMgrInfo = useFacilityMgrStore((state) => state.fetchFacilityManagerInfo);
     const facilityMgrInfo = useFacilityMgrStore((state) => state.facilityMgrInfo);
-    console.log("FacilityMgrInfo:", facilityMgrInfo);           
+    console.log("FacilityMgrInfo:", facilityMgrInfo);
 
 
     // Modal State
@@ -151,18 +151,18 @@ const Dashboard = () => {
         try {
             const { data } = await api.get("/facility-managers/dashboard");
             if (data.succeeded || data.success) {
-              setChartDetails(data.data.disposalChart || []);
-              setDashboardDetails(data.data);
-              console.log("Dashboard Details:", data.data);
-              console.log("chartDetails", data.data.disposalChart);
+                setChartDetails(data.data.disposalChart || []);
+                setDashboardDetails(data.data);
+                console.log("Dashboard Details:", data.data);
+                console.log("chartDetails", data.data.disposalChart);
             }
-          } catch (error) {
+        } catch (error) {
             if (error.response) {
-              console.error("API error:", error.response.data);
+                console.error("API error:", error.response.data);
             } else {
-              console.error("Error:", error.message);
+                console.error("Error:", error.message);
             }
-          }
+        }
 
 
     }
@@ -759,11 +759,20 @@ const Dashboard = () => {
                                 {
                                     selectedPaymentMethod === 'card' ?
                                         (
-                                            <AlatPayButton
-                                                //all details provided by the api request in the component
-                                                amount={parseInt(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan).price.replace(/[^\d]/g, ''))}
-                                                onTransaction={() => { handlePayment }}
-                                                buttonText="Pay Now with ALATPay"
+                                            <Pay4ItButton
+                                                amount={parseInt(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan).price.replace(/[^\d]/g, '')) / 100}
+                                                email={useFacilityMgrStore.getState().facilityMgrInfo?.emailAddress || useAuthStore.getState().email || "facility@email.com"}
+                                                customerName={`${useFacilityMgrStore.getState().facilityMgrInfo?.firstName || ''} ${useFacilityMgrStore.getState().facilityMgrInfo?.lastName || ''}`.trim() || "Facility Manager"}
+                                                userType="facilityManager"
+                                                onSuccess={(res) => {
+                                                    console.log("Pay4It subscription success:", res);
+                                                    const finalRef = res.reference || res.tranref;
+                                                    handlePayment({ data: { reference: finalRef } });
+                                                }}
+                                                onClose={() => {
+                                                    console.log("Pay4It window closed");
+                                                }}
+                                                buttonText="Pay Now with Pay4It"
                                                 buttonClassName="btn btn-primary w-full"
                                             />
                                         )
@@ -992,10 +1001,19 @@ const Dashboard = () => {
                                             </div>
                                         </div>
 
-                                        <AlatPayButton
-                                            //all details provided by the api request in the component
+                                        <Pay4ItButton
                                             amount={parseInt(topUpAmount)}
-                                            onTransaction={() => { handleTopUpSubmit() }}
+                                            email={useFacilityMgrStore.getState().facilityMgrInfo?.emailAddress || useAuthStore.getState().email || "facility@email.com"}
+                                            customerName={`${useFacilityMgrStore.getState().facilityMgrInfo?.firstName || ''} ${useFacilityMgrStore.getState().facilityMgrInfo?.lastName || ''}`.trim() || "Facility Manager"}
+                                            userType="facilityManager"
+                                            onSuccess={() => {
+                                                fetchFacilityMgr();
+                                                closeModal('topup');
+                                                openModal('success');
+                                            }}
+                                            onClose={() => {
+                                                console.log("Pay4It closed");
+                                            }}
                                             buttonText="Confirm Top Up"
                                             buttonClassName="w-full inline-flex justify-center items-center px-4 py-4 border border-transparent font-medium rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                         />

@@ -4,11 +4,14 @@ import Topbar from "../components/CorporateTopBar";
 import useCorporateStore from "../store/useCorporateStore";
 import useAuthStore from "../store/authStore";
 import api from "../api/axiosConfig";
-import AlatPayButton from "../components/AlatPayButton";
+import Pay4ItButton from "../components/Pay4ItButton";
 
 import PaymentNav from "../components/PaymentNav";
 
 const PaymentReceipts = () => {
+  const corporateInfo = useCorporateStore((state) => state.corporateInfo);
+  const fetchCorporateInfo = useCorporateStore((state) => state.fetchCorporateInfo);
+
   // --- State ---
 
   const [payments, setPayments] = useState([]);
@@ -102,6 +105,7 @@ const PaymentReceipts = () => {
 
   useEffect(() => {
     fetchBalance();
+    fetchCorporateInfo();
   }, []);
 
   const verifyAlatPayTransaction = async (reference) => {
@@ -1007,35 +1011,18 @@ const PaymentReceipts = () => {
                                             buttonClassName="w-full inline-flex justify-center items-center px-4 py-4 border border-transparent font-medium rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                         /> */}
 
-                  <AlatPayButton
+                   <Pay4ItButton
                     amount={Number(topUpAmount)}
-                    metadata={{
-                      accountNo:
-                        useCorporateStore.getState().corporateInfo.accountNo,
-                    }}
-                    customerName={
-                      useCorporateStore.getState().corporateInfo.companyName ||
-                      "Corporate User"
-                    }
-                    email={
-                      useAuthStore.getState().email || "manifestomixx@gmail.com"
-                    }
-                    redirectUrl="https://smartbin-frontend-staging.up.railway.app/payment-success"
-                    onTransaction={(reference) => {
-                      if (!reference) {
-                        setNotification({
-                          type: "error",
-                          message: "Missing transaction reference from AlatPay",
-                        });
-                        return;
-                      }
-                      submitTopUpAfterPayment(reference); // ✅ Pass ref from AlatPay
+                    customerName={corporateInfo?.businessName || corporateInfo?.companyName || `${corporateInfo?.firstName || ''} ${corporateInfo?.lastName || ''}`.trim() || "Corporate User"}
+                    email={useAuthStore.getState().email || corporateInfo?.emailAddress || "corporate@email.com"}
+                    userType="corporate"
+                    onSuccess={() => {
+                      fetchBalance();
+                      closeModal("topup");
+                      openModal("success");
                     }}
                     onClose={() => {
-                      console.log("AlatPay closed");
-                    }}
-                    onPaymentWindowOpen={() => {
-                      closeModal("topup"); // Close top-up modal when AlatPay opens
+                      console.log("Pay4It closed");
                     }}
                     buttonText="Confirm Top Up"
                     buttonClassName="w-full inline-flex justify-center items-center px-4 py-4 border border-transparent font-medium rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"

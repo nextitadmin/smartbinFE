@@ -4,11 +4,14 @@ import Topbar from '../components/AgentTopBar';
 import useAgentStore from '../store/useAgentStore';
 import useAuthStore from '../store/authStore';
 import api from '../api/axiosConfig';
-import AlatPayButton from '../components/AlatPayButton';
+import Pay4ItButton from '../components/Pay4ItButton';
 
 import PaymentNav from '../components/PaymentNav';
 
 const PaymentReceipts = () => {
+    const agentInfo = useAgentStore((state) => state.agentInfo);
+    const fetchAgentInfo = useAgentStore((state) => state.fetchAgentInfo);
+
     // --- State ---
     const [payments, setPayments] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -54,11 +57,10 @@ const PaymentReceipts = () => {
 
     const fetchBalance = async () => {
         try {
-            const { data } = await api.get("/agents/dashboard");
-            if (data.success) {
-                setWalletBalance(data.data.walletBalance);
+            const { data } = await api.get("/wallets");
+            if (data.success && data.data) {
+                setWalletBalance(data.data.balance);
             }
-
         } catch (error) {
             console.log(error);
         }
@@ -66,6 +68,7 @@ const PaymentReceipts = () => {
 
     useEffect(() => {
         fetchBalance();
+        fetchAgentInfo();
     }, [])
 
 
@@ -693,10 +696,20 @@ const PaymentReceipts = () => {
                                             </div>
                                         </div>
 
-                                        <AlatPayButton
-                                            //all details provided by the api request in the component
+                                        <Pay4ItButton
                                             amount={parseInt(topUpAmount)}
-                                            onTransaction={() => { handleTopUpSubmit() }}
+                                            email={agentInfo?.emailAddress || useAuthStore.getState().email || "agent@email.com"}
+                                            customerName={`${agentInfo?.firstName || ''} ${agentInfo?.lastName || ''}`.trim() || "Agent User"}
+                                            userType="agent"
+                                            onSuccess={() => {
+                                                fetchBalance();
+                                                fetchData();
+                                                closeModal('topup');
+                                                openModal('success');
+                                            }}
+                                            onClose={() => {
+                                                console.log("Pay4It closed");
+                                            }}
                                             buttonText="Confirm Top Up"
                                             buttonClassName="w-full inline-flex justify-center items-center px-4 py-4 border border-transparent font-medium rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                         />

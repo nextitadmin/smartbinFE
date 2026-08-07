@@ -67,7 +67,7 @@ const useAgentStore = create(
               address: data.address || null,
               passport: data.profilePicture?.trim() || "", // trim whitespace
               accountNo: data.accountNumber || "",
-              userType: "Corporate",
+              userType: "agent",
               businessName : data.businessName || "", 
               lawmaCustomerType: data.lawmaCustomerType || "",
               buildingType: data.buildingType || "",
@@ -76,10 +76,10 @@ const useAgentStore = create(
               nextPickupDate: data.nextPickupDate || "",
             };
 
-            set({ corporateInfo: mappedInfo });
+            set({ agentInfo: mappedInfo });
           }
         } catch (error) {
-          console.error("Error fetching corporate info:", error);
+          console.error("Error fetching agent info:", error);
         }
       },
     }),

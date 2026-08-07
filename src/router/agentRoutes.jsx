@@ -60,16 +60,16 @@ const agentRoutes = [
             </Suspense>
         ),
     },
-    {
-        path: "/bills",
-        element: (
-            <Suspense fallback={<LoadingComponent />}>
-                <ProtectedRoute>
-                    <Bills />
-                </ProtectedRoute>
-            </Suspense>
-        ),
-    },
+    // {
+    //     path: "/bills",
+    //     element: (
+    //         <Suspense fallback={<LoadingComponent />}>
+    //             <ProtectedRoute>
+    //                 <Bills />
+    //             </ProtectedRoute>
+    //         </Suspense>
+    //     ),
+    // },
     {
         path: "/view-bill",
         element: (

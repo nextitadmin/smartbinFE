@@ -39,19 +39,20 @@ const SmartBinApplication = () => {
 
     const fetchData = async() => {
         try {
-            const { data } = await api.get(`/Wallet/bill-list?ResidentID=${useAuthStore.getState().token}&PageNo=${currentPage}&PageSize=${itemsPerPage}`);
-            if (data.succeeded) {
-                const newData = data.data.data.map((item, index) => ({
+            const { data } = await api.get(`/resident/bills?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
+            if (data.succeeded || data.success) {
+                const billsList = data.data?.data || data.data || [];
+                const newData = billsList.map((item, index) => ({
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
-                    billId: item.billID,
-                    dueDate: item.dueDate?.slice(0, 10),
-                    service: item.serviceType,
+                    billId: item.billID || item.billId || item.id,
+                    dueDate: (item.dueDate || item.due_date)?.slice(0, 10),
+                    service: item.serviceType || item.service || item.description,
                     status: item.status,
                     amount: item.amount
-                }));;
+                }));
                 setApplications(newData);
-                setTotalPages(data.data.totalPages);
-                setTotalItems(data.data.totalCount);
+                setTotalPages(data.data?.totalPages || data.totalPages || 1);
+                setTotalItems(data.data?.totalCount || data.totalCount || billsList.length);
             }
         } catch (error) {
             console.log(error);
@@ -235,7 +236,7 @@ const SmartBinApplication = () => {
             amount: currentAmount
         };
         try {
-            const { data } = await  api.post('/Wallet/pay-my-bill', dataToSend);
+            const { data } = await  api.post('/wallets/pay-my-bill', dataToSend);
             if(data.succeeded){
                 setNotification({ type: 'success', message: data.message || 'Paid successfully!' });
                 setCurrentId('');
