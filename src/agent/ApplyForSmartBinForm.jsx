@@ -268,10 +268,10 @@ const SmartBinApplication = () => {
         const lowerQuery = searchQuery.toLowerCase();
         return applications.filter(
             (app) =>
-                app.orderId.toLowerCase().includes(lowerQuery) ||
-                app.address.toLowerCase().includes(lowerQuery) ||
-                app.status.toLowerCase().includes(lowerQuery) ||
-                app.date.includes(lowerQuery)
+                app.orderId?.toLowerCase().includes(lowerQuery) ||
+                app.address?.toLowerCase().includes(lowerQuery) ||
+                app.status?.toLowerCase().includes(lowerQuery) ||
+                app.date?.toLowerCase().includes(lowerQuery)
         );
     }, [applications, searchQuery]);
 
@@ -279,7 +279,7 @@ const SmartBinApplication = () => {
         return [...filteredApplications].sort((a, b) => {
             let valA = a[sortColumn];
             let valB = b[sortColumn];
-            if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
+            if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = typeof valB === 'string' ? valB.toLowerCase() : valB; }
             if (sortColumn === 'date') { valA = new Date(valA); valB = new Date(valB); }
             let cmp = valA > valB ? 1 : valA < valB ? -1 : 0;
             return sortDirection === 'dsc' ? cmp * -1 : cmp;
