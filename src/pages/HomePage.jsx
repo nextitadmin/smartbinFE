@@ -69,6 +69,7 @@ const Dashboard = () => {
     const [topUpAmount, setTopUpAmount] = useState('');
     const [chartDetails, setChartDetails] = useState([]);
     const [dashboardDetails, setDashboardDetails] = useState({});
+    const [walletBalance, setWalletBalance] = useState('');
     // Payment modal data
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card');
     const paymentOptions = [
@@ -112,9 +113,53 @@ const Dashboard = () => {
         }
     }
 
+    const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
+        if (!err) return defaultMsg;
+        if (typeof err === 'string') return err;
+
+        const msg = err.response?.data?.message ?? err.message;
+
+        if (Array.isArray(msg)) return msg.join(', ');
+        if (typeof msg === 'string' && msg.trim()) return msg;
+
+        return defaultMsg;
+    };
+
+    const fetchBalance = async () => {
+        try {
+            const { data } = await api.get("/wallets");
+            const succeeded = data.success || data.succeeded;
+            if (succeeded && data.data) {
+                setWalletBalance(`₦${Number(data.data.balance).toLocaleString()}`);
+            }
+        } catch (error) {
+            console.error("Error fetching wallet balance:", error);
+        }
+    };
+
     useEffect(() => {
         fetchResident();
+        fetchBalance();
     }, [])
+
+    const handleToggleChange = async (key, value) => {
+        const updatedSettings = { ...settings, [key]: value };
+        setSettings(updatedSettings);
+        try {
+            await api.post("/Notification/update-msg-setting", {
+                lowWalletBalance: updatedSettings.lowWalletBalance,
+                newWastesdisposed: updatedSettings.newWastesdisposed,
+                pushNotification: updatedSettings.pushNotification,
+                emailNotification: updatedSettings.emailNotification,
+                smsNotification: updatedSettings.smsNotification,
+                residentID: useAuthStore.getState().token
+            });
+            fetchResident();
+            fetchBalance();
+        } catch (error) {
+            console.error("Error updating settings:", error);
+        }
+    };
 
     const handlePaymentWithWallet = async () => {
         const selectedPlan = subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan);
@@ -128,7 +173,7 @@ const Dashboard = () => {
             });
             const data = response.data;
             console.log("Response from debit-wallet:", data);
-            if (data.succeeded) {
+            if (data.succeeded || data.success) {
                 console.log("Wallet payment successful:", data.succeeded, "and message:", data.message);
                 let successMessage = data.message.split('|');
                 let successRef;
@@ -141,12 +186,12 @@ const Dashboard = () => {
                 setNotification({ type: 'success', message: 'Payment successful!' });
             } else {
                 console.error("Wallet payment failed:", data.message);
-                setNotification({ type: 'error', message: data.message || "Error processing wallet payment" });
+                setNotification({ type: 'error', message: formatErrorMessage(data, "Error processing wallet payment") });
             }
         }
         catch (error) {
             console.error("Error processing wallet payment:", error);
-            setNotification({ type: 'error', message: "Error processing wallet payment" });
+            setNotification({ type: 'error', message: formatErrorMessage(error, "Error processing wallet payment") });
         }
         // Mock response for wallet payment
     }
@@ -176,18 +221,19 @@ const Dashboard = () => {
         };
         try {
             const { data } = await api.post('/Wallet/new-subscription', dataToSend);
-            if (data.succeeded) {
+            if (data.succeeded || data.success) {
                 setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
                 setIsSubscriptionModalOpen(false);
                 closeModal('payment');
+                fetchBalance();
             }
             else {
-                setNotification({ type: 'error', message: data.message || 'Error editing subscription!' });
+                setNotification({ type: 'error', message: formatErrorMessage(data, 'Error editing subscription!') });
                 handleSubscriptionBack();
             }
         } catch (error) {
             console.error("Error during payment:", error);
-            setNotification({ type: 'error', message: 'Error editing subscription!' });
+            setNotification({ type: 'error', message: formatErrorMessage(error, 'Error editing subscription!') });
             handleSubscriptionBack();
         }
     };
@@ -282,33 +328,31 @@ const Dashboard = () => {
     const handleTopUpSubmit = async () => {
         console.log("Top Up Amount Submitted:", topUpAmount);
         // Basic Validation Example
-        if (!topUpAmount || topUpAmount < 100 || topUpAmount > 1000000) {
-            setNotification({ type: 'error', message: 'Enter a valid amount' });
+        if (!topUpAmount || Number(topUpAmount) < 5000 || Number(topUpAmount) > 1000000) {
+            setNotification({ type: 'error', message: 'Enter a valid amount (minimum ₦5,000)' });
             return;
         }
         try {
             const clientRef = 'SBTP-' + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
             const { data } = await api.post('/wallets/topup',
                 {
-                    userId: useAuthStore.getState().token,
-                    walletAcctNo: "",
-                    amount: topUpAmount,
+                    amount: Number(topUpAmount),
                     reference: clientRef,
-                    channel: "Alat",
-                    narration: ""
                 }
             );
-            if (data.succeeded) {
+            if (data.succeeded || data.success) {
                 setNotification({ type: 'success', message: data.message || 'TopUp successfully!' });
                 closeModal('topup'); // Close the top-up modal
                 openModal('success');
+                fetchResident();
+                fetchBalance();
             }
             else {
-                setNotification({ type: 'error', message: data.message || 'Error during TopUp!' });
+                setNotification({ type: 'error', message: formatErrorMessage(data, 'Error during TopUp!') });
             }
         } catch (error) {
             console.error("Error during top-up:", error);
-            setNotification({ type: 'error', message: 'Error!' });
+            setNotification({ type: 'error', message: formatErrorMessage(error, 'Error during TopUp!') });
         }
     };
 
@@ -392,7 +436,7 @@ const Dashboard = () => {
                                         <div className="w-full">
                                             <p className="text-white text-xs font-light ">Available Balance</p>
                                             <div className="flex items-center ">
-                                                <h2 className="text-white text-3xl font-sans mt-1 mr-20">{dashboardDetails?.walletBalance ?? ''}
+                                                <h2 className="text-white text-3xl font-sans mt-1 mr-20">{walletBalance || '₦0'}
                                                 </h2>
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="text-white opacity-75" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />

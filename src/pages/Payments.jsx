@@ -32,26 +32,47 @@ const PaymentReceipts = () => {
     //     { transactionId: "#OD12589059", service: "Waste Bin Disposal", amount: 14500, date: "01-02-25", paymentMethod: "Wallet", status: "Successful" },
     // ];
 
+    const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
+        if (!err) return defaultMsg;
+        if (typeof err === 'string') return err;
+        if (err.response?.data?.message) {
+            const msg = err.response.data.message;
+            if (Array.isArray(msg)) {
+                return msg.join(', ');
+            }
+            return msg;
+        }
+        if (err.message) return err.message;
+        return defaultMsg;
+    };
+
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/Wallet/my-transaction-history?AccountNo=${useResidentStore.getState().residentInfo.accountNo}&PageNo=${currentPage}&PageSize=${itemsPerPage}`);
-            if (data.succeeded) {
-                const newData = data.data.data.map((item) => ({
+            const { data } = await api.get(`/residents/payment?page=${currentPage}&limit=${itemsPerPage}`);
+            const succeeded = data.succeeded || data.success;
+            if (succeeded) {
+                const rawData = data.data?.data || data.data?.items || data.data || data.items || data;
+                const list = Array.isArray(rawData) ? rawData : [];
+
+                const newData = list.map((item) => ({
                     id: item.id,
-                    transactionId: item.transactionReference,
-                    date: item.transactionDate?.slice(0, 10),
-                    service: item.description,
-                    status: item.transactionStatus,
+                    transactionId: item.transactionReference || item.reference || item.transactionId || item.id,
+                    date: (item.transactionDate || item.date || item.createdAt)?.slice(0, 10),
+                    service: item.description || item.service || item.type || "Payment",
+                    status: item.transactionStatus || item.status || "Successful",
                     amount: item.amount,
-                    paymentMethod: item.paymentMethod
-                }));;
+                    paymentMethod: item.paymentMethod || "N/A"
+                }));
                 setPayments(newData);
-                setTotalPages(data.data.totalPages);
+
+                const totalPagesVal = data.data?.totalPages || data.totalPages || 1;
+                setTotalPages(totalPagesVal);
             }
         } catch (error) {
             console.log(error);
+            setNotification({ type: 'error', message: formatErrorMessage(error, 'Error fetching transaction history.') });
         }
-    }
+    };
 
     useEffect(() => {
         // Add serial numbers to wastes data

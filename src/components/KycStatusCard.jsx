@@ -70,7 +70,7 @@ const getStatusDisplay = (status, onReupload) => {
 
 
 // --- KYC Status Card Component ---
-function KycStatusCard() {
+function KycStatusCard({ endpoint = '/resident/kyc/status' }) {
     const [kycData, setKycData] = useState(defaultKycData);
     const navigate = useNavigate(); // Uncomment if using React Router
 
@@ -79,10 +79,12 @@ function KycStatusCard() {
         setKycData(prevData => prevData.map(item => ({ ...item, status: 'loading' })));
 
         try {
-            const { data } = await api.get(`/ResidentKYC/view-resident-kyc?residentID=${useAuthStore.getState().token}`);
+            const { data } = await api.get(endpoint);
 
-            if (data.succeeded && data.data) {
-                const { documentStatus, addressStatus } = data.data;
+            const statusInfo = data.data || data;
+            if (statusInfo) {
+                const documentStatus = statusInfo.documentStatus || 'pending';
+                const addressStatus = statusInfo.addressStatus || 'pending';
 
                 setKycData(prevData =>
                     prevData.map(item => {

@@ -80,7 +80,7 @@ const Topbar = () => {
         const fetchNotifications = async () => {
 
             try {
-                const { data } = await api.get("/Notification/resident-msg-list");
+                const { data } = await api.get("/notifications");
 
                 if (data.succeeded) {
                     const formattedNotifications = data.data.data.map(notification => ({
@@ -95,7 +95,7 @@ const Topbar = () => {
 
                 }
             } catch {
-                console.log("an error has occured")
+                console.log("an error has occurred")
             }
         }
 

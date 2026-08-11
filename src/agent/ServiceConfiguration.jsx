@@ -276,7 +276,7 @@ function ProfilePage() {
                                                         type="text"
                                                         id="payerId"
                                                         name="payerId"
-                                                        value={profileData.payerId}
+                                                        value={profileData.payerId || ""}
                                                         readOnly
                                                         className="w-full p-4 border border-zinc-300 rounded-md  bg-zinc-100 cursor-not-allowed focus:outline-none"
                                                     />
@@ -289,7 +289,7 @@ function ProfilePage() {
                                                         type="text"
                                                         id="agencyName"
                                                         name="agencyName"
-                                                        value={profileData.agencyName}
+                                                        value={profileData.agencyName || ""}
                                                         onChange={handleProfileChange}
                                                         required
                                                         className="w-full p-4 border border-zinc-300 rounded-md  focus:ring-indigo-500 focus:border-indigo-500"
@@ -304,7 +304,7 @@ function ProfilePage() {
                                                             type="text"
                                                             id="firstName"
                                                             name="firstName"
-                                                            value={profileData.firstName}
+                                                            value={profileData.firstName || ""}
                                                             onChange={handleProfileChange}
                                                             required
                                                             className="w-full p-4 border border-zinc-300 rounded-md  focus:ring-indigo-500 focus:border-indigo-500"
@@ -316,7 +316,7 @@ function ProfilePage() {
                                                             type="text"
                                                             id="lastName"
                                                             name="lastName"
-                                                            value={profileData.lastName}
+                                                            value={profileData.lastName || ""}
                                                             onChange={handleProfileChange}
                                                             required
                                                             className="w-full p-4 border border-zinc-300 rounded-md  focus:ring-indigo-500 focus:border-indigo-500"
@@ -333,7 +333,7 @@ function ProfilePage() {
                                                             id="email"
                                                             name="email"
                                                             readOnly
-                                                            value={profileData.email}
+                                                            value={profileData.email || ""}
                                                             required
                                                             className="w-full p-4 border border-zinc-300   bg-zinc-100 rounded-md cursor-not-allowed focus:outline-none"
                                                         />
@@ -344,7 +344,7 @@ function ProfilePage() {
                                                             type="tel"
                                                             id="phone"
                                                             name="phone"
-                                                            value={profileData.phone}
+                                                            value={profileData.phone || ""}
                                                             onChange={handleProfileChange}
                                                             className="w-full p-4 border border-zinc-300 rounded-md  focus:ring-indigo-500 focus:border-indigo-500"
                                                         />

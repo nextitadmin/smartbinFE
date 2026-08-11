@@ -8,7 +8,7 @@ const AppManager = lazy(() => import("../facilityManager/ApplicationManager"));
 const BillConfirm = lazy(() => import("../facilityManager/Billconfirm"));
 const NewKycApplication = lazy(() => import("../facilityManager/NewKYCApplication"));
 const ApplyForSmartBinForm = lazy(() => import("../facilityManager/ApplyForSmartBinForm"));
-const KYCApplication = lazy(() => import("../facilityManager/AgentKYCApplicationForm"));
+const KYCApplication = lazy(() => import("../facilityManager/KYCApplicationForm"));
 const Headless = lazy(() => import("../facilityManager/ApplyForSmartBinFormHeadless"));
 const Bills = lazy(() => import("../facilityManager/Bills"));
 const Wastes = lazy(() => import("../facilityManager/Wastes"));

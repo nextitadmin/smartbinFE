@@ -166,6 +166,7 @@ const Dashboard = () => {
     // ── API Data State ──
     const [dashboardData, setDashboardData] = useState(null);
     const [chartDetails, setChartDetails] = useState([]);
+    const [walletBalance, setWalletBalance] = useState('');
 
     // ── Form / UI State ──
     const [topUpAmount, setTopUpAmount] = useState('');
@@ -204,6 +205,32 @@ const Dashboard = () => {
     }, [notification]);
 
     // ── Fetch dashboard data ──
+    const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
+        if (!err) return defaultMsg;
+        if (typeof err === 'string') return err;
+        if (err.response?.data?.message) {
+            const msg = err.response.data.message;
+            if (Array.isArray(msg)) {
+                return msg.join(', ');
+            }
+            return msg;
+        }
+        if (err.message) return err.message;
+        return defaultMsg;
+    };
+
+    const fetchBalance = async () => {
+        try {
+            const { data } = await api.get("/wallets");
+            const succeeded = data.success || data.succeeded;
+            if (succeeded && data.data) {
+                setWalletBalance(`₦${Number(data.data.balance).toLocaleString()}`);
+            }
+        } catch (error) {
+            console.error("Error fetching wallet balance:", error);
+        }
+    };
+
     const fetchDashboard = async () => {
         try {
             const { data } = await api.get('/agents/dashboard');
@@ -220,6 +247,7 @@ const Dashboard = () => {
 
     useEffect(() => {
         fetchDashboard();
+        fetchBalance();
     }, []);
 
     // ── Payment handlers ──
@@ -240,13 +268,14 @@ const Dashboard = () => {
             if (data.succeeded) {
                 setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
                 closeModal('payment');
+                fetchBalance();
             } else {
-                setNotification({ type: 'error', message: data.message || 'Error editing subscription!' });
+                setNotification({ type: 'error', message: formatErrorMessage(data.message) || 'Error editing subscription!' });
                 handleSubscriptionBack();
             }
         } catch (error) {
             console.error('Payment error:', error);
-            setNotification({ type: 'error', message: 'Error editing subscription!' });
+            setNotification({ type: 'error', message: formatErrorMessage(error, 'Error editing subscription!') });
             handleSubscriptionBack();
         }
     };
@@ -302,30 +331,27 @@ const Dashboard = () => {
     };
 
     const handleTopUpSubmit = async () => {
-        if (!topUpAmount || topUpAmount < 100 || topUpAmount > 1000000) {
-            setNotification({ type: 'error', message: 'Enter a valid amount' });
+        if (!topUpAmount || Number(topUpAmount) < 5000 || Number(topUpAmount) > 1000000) {
+            setNotification({ type: 'error', message: 'Enter a valid amount (minimum ₦5,000)' });
             return;
         }
         try {
             const clientRef = 'SBTP-' + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
             const { data } = await api.post('/wallets/topup', {
-                userId: useAuthStore.getState().token,
-                walletAcctNo: '',
-                amount: topUpAmount,
+                amount: Number(topUpAmount),
                 reference: clientRef,
-                channel: 'Alat',
-                narration: '',
             });
-            if (data.succeeded) {
+            if (data.succeeded || data.success) {
                 setNotification({ type: 'success', message: data.message || 'TopUp successful!' });
                 closeModal('topup');
                 openModal('success');
+                fetchBalance();
             } else {
-                setNotification({ type: 'error', message: data.message || 'Error during TopUp!' });
+                setNotification({ type: 'error', message: formatErrorMessage(data.message) || 'Error during TopUp!' });
             }
         } catch (error) {
             console.error('Top-up error:', error);
-            setNotification({ type: 'error', message: 'Error!' });
+            setNotification({ type: 'error', message: formatErrorMessage(error, 'Error during TopUp!') });
         }
     };
 
@@ -387,7 +413,7 @@ const Dashboard = () => {
                                             <p className="text-white text-xs font-light">Available Balance</p>
                                             <div className="flex items-center w-full justify-between mt-2">
                                                 <h2 className="text-white text-3xl font-sans mt-1 mr-20">
-                                                    {formatNaira(d.walletBalance)}
+                                                    {walletBalance || '₦0'}
                                                 </h2>
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="text-white opacity-75 mr-8" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
@@ -477,7 +503,7 @@ const Dashboard = () => {
                             <label className="px-6 py-4 rounded-lg flex items-center gap-4">
                                 <WalletIcon />
                                 <span className="text-sm font-medium text-zinc-800 flex-grow">
-                                    Pay from wallet ({formatNaira(d.walletBalance)})
+                                    Pay from wallet ({walletBalance || '₦0'})
                                 </span>
                                 <input type="radio" name="paymentMethod" value="wallet" checked={selectedPaymentMethod === 'wallet'} onChange={() => setSelectedPaymentMethod('wallet')} className="custom-radio" />
                             </label>

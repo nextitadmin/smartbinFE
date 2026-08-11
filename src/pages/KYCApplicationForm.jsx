@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import api from "../api/axiosConfig.js"
 import useAuthStore from '../store/authStore';
+import useResidentStore from '../store/useResidentStore';
 import { uploadFile } from '../utils/fileUpload.js'; // Import the uploadFile function
 // For the transitions and file input styles
 const KYCApplication = () => {
@@ -128,6 +129,11 @@ const KYCApplication = () => {
                 setNotification({ type: 'error', message: 'Fill all the details' });
                 return;
             }
+            const ninRegex = /^\d{11}$/;
+            if (!ninRegex.test(formData.documents.idNumber)) {
+                setNotification({ type: 'error', message: 'NIN must be exactly 11 digits and contain only numbers.' });
+                return;
+            }
         }
         if (currentStage === 3) {
             // Updated validation for new address fields
@@ -221,6 +227,16 @@ const KYCApplication = () => {
     }
 
     const handleSubmit = async () => {
+        const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
+            if (!err) return defaultMsg;
+            const responseData = err.response?.data;
+            const msg = responseData?.message || responseData?.Message || err.message;
+            if (Array.isArray(msg)) {
+                return msg.join(', ');
+            }
+            return msg || defaultMsg;
+        };
+
         // Ensure all validations pass one last time (optional, as nextStage should handle it)
         if (!formData.address.buildingType || !formData.address.houseNumber || !formData.address.address || !formData.address.localGovernment) {
             setNotification({ type: 'error', message: 'Please ensure all address details are filled correctly.' });
@@ -241,25 +257,27 @@ const KYCApplication = () => {
             }
             const processedImageString = file ? await uploadFileWrapper(file) : null;
 
-            // Updated payload with new address fields
+            // Updated payload with new structured schema format
             const payload = {
-                residentID: useAuthStore.getState().token,
-                firstName: formData.personal.firstName,
-                lastName: formData.personal.lastName,
-                gender: formData.personal.gender,
-                nationality: formData.personal.nationality,
-                phoneNumber: formData.personal.phone,
-                email: formData.personal.email,
-                // New address fields in payload (adjust keys based on backend expectation)
-                buildingType: formData.address.buildingType,
-                houseNo: formData.address.houseNumber,
-                flatNo: formData.address.flatNumber,
-                residentialAddress: formData.address.address, // Assuming 'address' field is for street
-                lga: formData.address.localGovernment,
-                closestLandmark: formData.address.closestLandmark,
-                idType: 'nin',
-                idNumber: formData.documents.idNumber,
-                idImage: processedImageString,
+                personalInformation: {
+                    firstName: formData.personal.firstName,
+                    lastName: formData.personal.lastName,
+                    nationality: formData.personal.nationality,
+                    gender: formData.personal.gender,
+                    lawmaCustomerType: useResidentStore.getState().residentInfo?.lawmaCustomerType || ""
+                },
+                identityInformation: {
+                    NIN: formData.documents.idNumber,
+                    idDocument: processedImageString || ""
+                },
+                addressInformation: {
+                    buildingType: formData.address.buildingType,
+                    houseNumber: formData.address.houseNumber,
+                    flatNumber: formData.address.flatNumber || "",
+                    address: formData.address.address,
+                    localGovernment: formData.address.localGovernment,
+                    closestLandmark: formData.address.closestLandmark || ""
+                }
             };
 
             const { data } = await api.post(
@@ -268,14 +286,68 @@ const KYCApplication = () => {
             );
 
             if (data.success) {
-                setNotification({ type: 'success', message: 'Submitted successfully!' });
-                setCurrentStage(4); // Move to confirmation stage
+                try {
+                    // Update personal info via PATCH
+                    const personalPayload = {
+                        firstName: formData.personal.firstName,
+                        lastName: formData.personal.lastName,
+                        nationality: formData.personal.nationality,
+                        gender: formData.personal.gender,
+                        lawmaCustomerType: useResidentStore.getState().residentInfo?.lawmaCustomerType || ""
+                    };
+
+                    await api.patch(
+                        '/resident/kyc/personal-info',
+                        personalPayload
+                    );
+
+                    // Update address via PATCH
+                    const addressPayload = {
+                        buildingType: formData.address.buildingType,
+                        houseNumber: formData.address.houseNumber,
+                        flatNumber: formData.address.flatNumber || "",
+                        address: formData.address.address,
+                        localGovernment: formData.address.localGovernment,
+                        closestLandmark: formData.address.closestLandmark || ""
+                    };
+
+                    await api.patch(
+                        '/resident/kyc/address',
+                        addressPayload
+                    );
+
+                    // Update ID verification via PATCH
+                    const verificationPayload = {
+                        NinNo: formData.documents.idNumber,
+                        idDocument: processedImageString || ""
+                    };
+
+                    const verificationRes = await api.patch(
+                        '/resident/kyc/id-verification',
+                        verificationPayload
+                    );
+
+                    if (verificationRes.data.success || verificationRes.data.succeeded) {
+                        setNotification({ type: 'success', message: 'Submitted successfully!' });
+                        setCurrentStage(4); // Move to confirmation stage
+                    } else {
+                        const errorMsg = Array.isArray(verificationRes.data.message) ? verificationRes.data.message.join(', ') : (verificationRes.data.message || "ID Verification failed");
+                        setNotification({ type: 'error', message: errorMsg });
+                    }
+                } catch (verificationError) {
+                    console.error("Error verifying ID documents / updating personal info:", verificationError);
+                    setNotification({
+                        type: 'error',
+                        message: formatErrorMessage(verificationError, "KYC submission update failed. Check console for details.")
+                    });
+                }
             } else {
-                setNotification({ type: 'error', message: data.message || "Error submitting" });
+                const errorMsg = Array.isArray(data.message) ? data.message.join(', ') : (data.message || "Error submitting");
+                setNotification({ type: 'error', message: errorMsg });
             }
         } catch (error) {
             console.log("Error creating KYC", error);
-            setNotification({ type: 'error', message: "Error submitting. Check console for details." });
+            setNotification({ type: 'error', message: formatErrorMessage(error, "Error submitting. Check console for details.") });
         }
     };
 

@@ -314,6 +314,16 @@ const KYCApplication = () => {
 
     // --- New Submission Handler ---
     const handleSubmit = async () => {
+        const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
+            if (!err) return defaultMsg;
+            const responseData = err.response?.data;
+            const msg = responseData?.message || responseData?.Message || err.message;
+            if (Array.isArray(msg)) {
+                return msg.join(', ');
+            }
+            return msg || defaultMsg;
+        };
+
         // Basic validation
         if (member.length === 0) {
             setNotification({ type: "error", message: "Please add at least one member before submitting." });
@@ -370,7 +380,7 @@ const KYCApplication = () => {
                     gender: m.gender || "",
                     jobTitle: m.jobTitle || "",
                     address: m.address || "",
-                    idDocumentNo: m.idNumber || "", // Use the NIN from personal section
+                    NinNo: m.idNumber || "", // Use the NIN from personal section
                     idDocument: memberIdImageUrl || "" // Use the uploaded URL or empty string
                 };
             }));
@@ -386,7 +396,7 @@ const KYCApplication = () => {
                     address: formData.company.address || ""
                 },
                 businessRegistrationCertificate: {
-                    idDocumentNo: formData.documents.idNumber || "", // NIN for the certificate
+                    NinNo: formData.documents.idNumber || "", // NIN for the certificate
                     idDocument: certificateImageUrl || "" // Use the uploaded URL
                 },
                 authorizedSignatories: membersWithDocuments
@@ -399,8 +409,81 @@ const KYCApplication = () => {
             const response = await api.post("/corporate/kyc", payload);
 
             // 7. Handle successful response
-            console.log("KYC Submission Successful:", response.data);
-            setSubmissionStatus('success');
+            if (response.data.success || response.data.succeeded) {
+                try {
+                    // Update company info via PATCH
+                    const companyInfoPayload = {
+                        address: formData.company.address || "",
+                        businessRegistrationNumber: formData.company.regNo || "",
+                        businessSector: formData.company.businessSector || ""
+                    };
+
+                    await api.patch(
+                        "/corporate/kyc/add-company-info",
+                        companyInfoPayload
+                    );
+
+                    // Update ID verification via PATCH
+                    const verificationPayload = {
+                        NinNo: formData.documents.idNumber,
+                        idDocument: certificateImageUrl
+                    };
+
+                    const verificationRes = await api.patch(
+                        "/corporate/kyc/add-id-verification",
+                        verificationPayload
+                    );
+
+                    // Add each authorized signatory as a corporate member via POST
+                    for (const memberDoc of membersWithDocuments) {
+                        const memberPayload = {
+                            firstName: memberDoc.firstName,
+                            lastName: memberDoc.lastName,
+                            email: memberDoc.email,
+                            phoneNumber: memberDoc.phoneNumber,
+                            nationality: memberDoc.nationality,
+                            gender: memberDoc.gender,
+                            jobTitle: memberDoc.jobTitle,
+                            address: memberDoc.address,
+                            NinNo: memberDoc.NinNo,
+                            idDocument: memberDoc.idDocument
+                        };
+
+                        await api.post(
+                            "/corporate/kyc/add-corporate-member",
+                            memberPayload
+                        );
+                    }
+
+                    if (verificationRes.data.success || verificationRes.data.succeeded) {
+                        console.log("KYC Submission and ID Verification Successful:", response.data, verificationRes.data);
+                        setSubmissionStatus('success');
+                    } else {
+                        console.error("ID Verification failed:", verificationRes.data);
+                        setSubmissionStatus('error');
+                        const errorMsg = Array.isArray(verificationRes.data.message) ? verificationRes.data.message.join(', ') : (verificationRes.data.message || "ID Verification failed.");
+                        setNotification({
+                            type: "error",
+                            message: errorMsg,
+                        });
+                    }
+                } catch (verificationError) {
+                    console.error("Error during ID verification PATCH:", verificationError);
+                    setSubmissionStatus('error');
+                    setNotification({
+                        type: "error",
+                        message: formatErrorMessage(verificationError, "ID Verification failed. Check console for details."),
+                    });
+                }
+            } else {
+                console.error("KYC Submission failed:", response.data);
+                setSubmissionStatus('error');
+                const errorMsg = Array.isArray(response.data.message) ? response.data.message.join(', ') : (response.data.message || "An error occurred during submission. Please try again.");
+                setNotification({
+                    type: "error",
+                    message: errorMsg,
+                });
+            }
 
         } catch (error) {
             // 8. Handle errors during upload or API call
@@ -408,7 +491,7 @@ const KYCApplication = () => {
             setSubmissionStatus('error');
             setNotification({
                 type: "error",
-                message: error.message || "An error occurred during submission. Please try again.",
+                message: formatErrorMessage(error, "An error occurred during submission. Please try again."),
             });
         }
     };

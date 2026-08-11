@@ -123,6 +123,11 @@ const KYCApplication = () => {
                 setNotification({ type: 'error', message: 'Fill all the details' });
                 return;
             }
+            const ninRegex = /^\d{11}$/;
+            if (!ninRegex.test(formData.documents.idNumber)) {
+                setNotification({ type: 'error', message: 'NIN must be exactly 11 digits and contain only numbers.' });
+                return;
+            }
         }
         if (currentStage === 3) {
             // Updated validation for new address fields
@@ -216,6 +221,16 @@ const KYCApplication = () => {
     }
 
     const handleSubmit = async () => {
+        const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
+            if (!err) return defaultMsg;
+            const responseData = err.response?.data;
+            const msg = responseData?.message || responseData?.Message || err.message;
+            if (Array.isArray(msg)) {
+                return msg.join(', ');
+            }
+            return msg || defaultMsg;
+        };
+
         // Ensure all validations pass one last time (optional, as nextStage should handle it)
         if (!formData.address.buildingType || !formData.address.houseNumber || !formData.address.address || !formData.address.localGovernment) {
             setNotification({ type: 'error', message: 'Please ensure all address details are filled correctly.' });
@@ -236,25 +251,27 @@ const KYCApplication = () => {
             }
             const processedImageString = file ? await uploadFileWrapper(file) : null;
 
-            // Updated payload with new address fields
+            // Updated payload to match single POST schema format with NinNo
             const payload = {
-                residentID: useAuthStore.getState().token,
-                firstName: formData.personal.firstName,
-                lastName: formData.personal.lastName,
-                gender: formData.personal.gender,
-                nationality: formData.personal.nationality,
-                phoneNumber: formData.personal.phone,
-                email: formData.personal.email,
-                // New address fields in payload (adjust keys based on backend expectation)
-                buildingType: formData.address.buildingType,
-                houseNumber: formData.address.houseNumber,
-                flatNumber: formData.address.flatNumber,
-                streetAddress: formData.address.address, // Assuming 'address' field is for street
-                localGovernment: formData.address.localGovernment,
-                closestLandmark: formData.address.closestLandmark,
-                idType: formData.documents.idType,
-                idNumber: formData.documents.idNumber,
-                idImage: processedImageString,
+                personalInformation: {
+                    firstName: formData.personal.firstName,
+                    lastName: formData.personal.lastName,
+                    nationality: formData.personal.nationality,
+                    gender: formData.personal.gender,
+                    lawmaCustomerType: "Residential" // Default type
+                },
+                identityInformation: {
+                    NinNo: formData.documents.idNumber,
+                    idDocument: processedImageString || ""
+                },
+                addressInformation: {
+                    buildingType: formData.address.buildingType,
+                    houseNumber: formData.address.houseNumber,
+                    flatNumber: formData.address.flatNumber || "",
+                    address: formData.address.address,
+                    localGovernment: formData.address.localGovernment,
+                    closestLandmark: formData.address.closestLandmark || ""
+                }
             };
 
             const { data } = await api.post(
@@ -262,15 +279,16 @@ const KYCApplication = () => {
                 payload
             );
 
-            if (data.succeeded) {
+            if (data.succeeded || data.success) {
                 setNotification({ type: 'success', message: 'Submitted successfully!' });
                 setCurrentStage(4); // Move to confirmation stage
             } else {
-                setNotification({ type: 'error', message: data.message || "Error submitting" });
+                const errorMsg = Array.isArray(data.message) ? data.message.join(', ') : (data.message || "Error submitting");
+                setNotification({ type: 'error', message: errorMsg });
             }
         } catch (error) {
             console.log("Error creating KYC", error);
-            setNotification({ type: 'error', message: "Error submitting. Check console for details." });
+            setNotification({ type: 'error', message: formatErrorMessage(error, "Error submitting. Check console for details.") });
         }
     };
 
