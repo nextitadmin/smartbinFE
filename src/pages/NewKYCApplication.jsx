@@ -24,8 +24,8 @@ function NewKycApplication() {
 
     const checkStatus = async () => {
         try {
-            const { data } = await api.get(`/ResidentKYC/check-resident-kyc-status?residentID=${useAuthStore.getState().token}`)
-            if (data.succeeded) {
+            const { data } = await api.get('/resident/kyc/status')
+            if (data.succeeded || data.success) {
                 setKycStatus(true);  
             } else {
                 setKycStatus(false); 

@@ -165,9 +165,23 @@ const Dashboard = () => {
     fetchCorporate();
   }, []);
 
+  const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
+    if (!err) return defaultMsg;
+    if (typeof err === 'string') return err;
+    if (err.response?.data?.message) {
+      const msg = err.response.data.message;
+      if (Array.isArray(msg)) {
+        return msg.join(', ');
+      }
+      return msg;
+    }
+    if (err.message) return err.message;
+    return defaultMsg;
+  };
+
   const fetchBalance = async () => {
     try {
-      const { data } = await api.get("/corporate/wallets");
+      const { data } = await api.get("/wallets");
 
       const balance = data?.data?.balance ?? 0;
 
@@ -254,7 +268,7 @@ const Dashboard = () => {
       console.log(" Amount in naira:", amountInNaira);
       
       // Call backend to initiate AlatPay payment for subscription
-      const { data } = await api.post("/corporate/wallets/charge", {
+      const { data } = await api.post("/wallets/charge", {
         userId,
         amount: amountInNaira, // Send amount in naira
         channel: "ALATPay",
@@ -293,14 +307,11 @@ const Dashboard = () => {
           setNotification({ type: "error", message: "No payment reference received" });
         }
       } else {
-        setNotification({
-          type: "error",
-          message: data.message || "Error during AlatPay payment!",
-        });
+        setNotification({ type: "error", message: formatErrorMessage(data.message) || "Failed to initiate payment." });
       }
     } catch (error) {
-      console.error(" Error in submitSubscriptionAlatPay:", error);
-      setNotification({ type: "error", message: "AlatPay payment failed!" });
+      console.error(" AlatPay Subscription Error:", error);
+      setNotification({ type: "error", message: formatErrorMessage(error, "Error initiating payment.") });
     }
   };
 
@@ -335,7 +346,8 @@ const Dashboard = () => {
 
     // Get current wallet balance for comparison
     try {
-      const balanceResponse = await api.get("/corporate/wallets");
+      const userId = useAuthStore.getState().user?.id;
+      const balanceResponse = await api.get("/wallets");
       const walletBalance = balanceResponse?.data?.data?.balance ?? 0;
       
       console.log("Amount to charge (in kobo):", amount);
@@ -344,29 +356,22 @@ const Dashboard = () => {
       console.log("Is balance sufficient?", walletBalance >= amountInNaira);
       
       if (walletBalance < amountInNaira) {
-        console.log("Insufficient balance detected - showing error modal");
-        setIsInsufficientBalance(true);
-        openModal("error");
+        setNotification({ type: "error", message: "Insufficient balance in wallet." });
         return;
       }
-    } catch (error) {
-      console.error("Error fetching wallet balance:", error);
-    }
 
-    console.log("Amount to charge (in naira):", amountInNaira);
-
-    try {
+      // 2. Debit wallet
       const requestData = {
-        userId: useAuthStore.getState().token,
-        drAccountNo: corporate.accountNo,
+        userId,
+        drAccountNo: corporate?.accountNo || "",
         amount: amountInNaira, // Send amount in naira
         narration: "Subscription Payment",
         paymentPurpose: "Subscription Application",
       };
       
-      console.log("Request data to /corporate/wallets/charge:", requestData);
+      console.log("Request data to /wallets/charge:", requestData);
       
-      const response = await api.post("/corporate/wallets/charge", requestData);
+      const response = await api.post("/wallets/charge", requestData);
       const data = response.data;
       console.log("Response from debit-wallet:", data);
       
@@ -410,40 +415,11 @@ const Dashboard = () => {
         fetchBalance();
       } else {
         console.error("Wallet payment failed:", data.message);
-        
-        // Check if the error is due to insufficient funds
-        const errorMessage = data.message?.toLowerCase() || '';
-        if (errorMessage.includes('insufficient') || errorMessage.includes('balance') || errorMessage.includes('fund')) {
-          console.log("Insufficient funds detected, showing error modal");
-          setIsInsufficientBalance(true);
-          openModal("error");
-        } else {
-          setNotification({
-            type: "error",
-            message: data.message || "Error processing wallet payment",
-          });
-        }
+        setNotification({ type: "error", message: formatErrorMessage(data.message) || "Error processing wallet payment" });
       }
     } catch (error) {
       console.error("Error processing wallet payment:", error);
-      console.error("Error details:", {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
-      
-      // Check if the error is due to insufficient funds
-      const errorMessage = error.response?.data?.message?.toLowerCase() || error.message?.toLowerCase() || '';
-      if (errorMessage.includes('insufficient') || errorMessage.includes('balance') || errorMessage.includes('fund')) {
-        console.log("Insufficient funds detected in error response, showing error modal");
-        setIsInsufficientBalance(true);
-        openModal("error");
-      } else {
-        setNotification({
-          type: "error",
-          message: "Error processing wallet payment",
-        });
-      }
+      setNotification({ type: "error", message: formatErrorMessage(error, "Error processing wallet payment") });
     }
   };
 
@@ -675,18 +651,19 @@ const Dashboard = () => {
   const submitTopUpAfterPayment = async () => {
     const userId = useAuthStore.getState().user?.id;
 
-    if (!topUpAmount || topUpAmount < 100 || topUpAmount > 1000000) {
-      setNotification({ type: "error", message: "Enter a valid amount" });
+    if (!topUpAmount || Number(topUpAmount) < 5000 || Number(topUpAmount) > 1000000) {
+      setNotification({ type: "error", message: "Enter a valid amount (minimum ₦5,000)" });
       return;
     }
 
     try {
-      const { data } = await api.post("/corporate/wallets/topup", {
-        userId,
-        walletAcctNo: "",
-        amount: topUpAmount,
-        channel: "ALATPay",
-        narration: "",
+      // 1. Create client-side reference
+      const clientRef = "SBCP-" + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
+
+      // 2. Call backend to initiate top-up
+      const { data } = await api.post("/wallets/topup", {
+        amount: Number(topUpAmount),
+        reference: clientRef,
       });
 
       console.log("TopUp Response:", data);
@@ -714,14 +691,11 @@ const Dashboard = () => {
         closeModal("topup"); // Close top-up modal
         openModal("success"); // Show success modal
       } else {
-        setNotification({
-          type: "error",
-          message: data.message || "Error during TopUp!",
-        });
+        setNotification({ type: "error", message: formatErrorMessage(data.message) || "Error during TopUp!" });
       }
     } catch (error) {
-      console.error(error);
-      setNotification({ type: "error", message: "TopUp failed!" });
+      console.error("Error during top-up:", error);
+      setNotification({ type: "error", message: formatErrorMessage(error, "Error during TopUp!") });
     }
   };
 
@@ -1262,13 +1236,11 @@ const Dashboard = () => {
             <div className="px-6 py-4 flex flex-col items-center gap-3">
               {selectedPaymentMethod === "card" ? (
                 <Pay4ItButton
-                  amount={
-                    (subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice || 0) / 100
-                  }
+                  amount={subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan) ? parseInt(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan).price.replace(/[^\d]/g, '')) * 100 : 0}
                   customerName={useCorporateStore.getState().corporateInfo.companyName || "Corporate User"}
-                  email={useAuthStore.getState().email || "corporate@email.com"}
+                  email={corporateInfo.email || ""}
                   userType="corporate"
-                  customEndpoint="/corporate/wallets/charge"
+                  customEndpoint="/wallets/charge"
                   customPayload={{ paymentPurpose: "Subscription Application" }}
                   onSuccess={(res) => {
                     console.log("Pay4It subscription success:", res);

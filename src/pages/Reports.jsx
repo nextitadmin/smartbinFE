@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import api from '../api/axiosConfig';
 import { useNavigate } from 'react-router-dom';
+import useResidentStore from '../store/useResidentStore';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -82,16 +83,16 @@ const CheckIcon = ({ className = 'h-5 w-5' }) => (
 
 const REPORT_TYPES = [
     { name: 'Payment History', value: 'payment' },
-    { name: 'Bin Request',     value: 'bin' },
-    { name: 'Waste pickup',    value: 'waste' },
+    { name: 'Bin Request', value: 'bin' },
+    { name: 'Waste pickup', value: 'waste' },
 ];
 
 const selectedReportType = (report) => {
     switch (report) {
         case 'Payment History': return 'payment';
-        case 'Bin Request':     return 'bin';
-        case 'Waste pickup':    return 'waste';
-        default:                return '';
+        case 'Bin Request': return 'bin';
+        case 'Waste pickup': return 'waste';
+        default: return '';
     }
 };
 
@@ -136,18 +137,49 @@ const ReportsPage = () => {
     // the API responds — previously it ran immediately after calling fetchReportsAPI(),
     // which meant dummy/stale data was visible before the response arrived.
 
+    const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
+        if (!err) return defaultMsg;
+        if (typeof err === 'string') return err;
+
+        // Axios error: err.response.data.message
+        // Raw response body: err.message directly (string or array)
+        const msg = err.response?.data?.message ?? err.message;
+
+        if (Array.isArray(msg)) return msg.join(', ');
+        if (typeof msg === 'string' && msg.trim()) return msg;
+
+        return defaultMsg;
+    };
+
     const fetchReportsAPI = async () => {
         setIsLoading(true);
         try {
-            const { data } = await api.get('/AuditReport/my-report-logs');
-            if (data.succeeded) {
-                const reportList = (data.data.data ?? []).map((item) => ({
-                    id:             item.id,
-                    reportType:     item.type,
-                    reportTitle:    item.title,
-                    period:         item.period,
-                    generationDate: item.requestDate,
-                }));
+            const { data } = await api.get('/resident/reports');
+            const succeeded = data.succeeded || data.success;
+            if (succeeded) {
+                const rawList = data.data?.data || data.data?.items || data.data || data.items || data;
+                const list = Array.isArray(rawList) ? rawList : [];
+
+                const reportList = list.map((item) => {
+                    const formatPeriodStr = (start, end) => {
+                        if (!start || !end) return '';
+                        try {
+                            const s = new Date(start).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+                            const e = new Date(end).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+                            return `${s} - ${e}`;
+                        } catch {
+                            return '';
+                        }
+                    };
+
+                    return {
+                        id: item.id,
+                        reportType: item.type,
+                        reportTitle: item.reportName || item.title || 'Untitled Report',
+                        period: item.period || formatPeriodStr(item.startDate, item.endDate),
+                        generationDate: item.requestDate || item.createdAt || item.date || new Date().toISOString(),
+                    };
+                });
                 setReports(reportList);
             }
         } catch (error) {
@@ -181,7 +213,7 @@ const ReportsPage = () => {
         if (searchTerm) {
             filtered = filtered.filter((r) =>
                 (r.reportTitle ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (r.reportType  ?? '').toLowerCase().includes(searchTerm.toLowerCase())
+                (r.reportType ?? '').toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
         if (filterReportType !== 'All') {
@@ -237,23 +269,30 @@ const ReportsPage = () => {
 
         setIsGeneratingReport(true);
         const selectedType = selectedReportType(newReportType);
-        const url =
-            selectedType === 'bin'   ? '/AuditReport/bin-report-request' :
-            selectedType === 'waste' ? '/AuditReport/waste-report-request' :
-                                       '/AuditReport/payment-report-request';
+        const reportTypeParam = selectedType === 'payment' ? 'revenue' : selectedType;
+
+        const residentInfo = useResidentStore.getState().residentInfo;
+        const customerName = `${residentInfo?.firstName || ""} ${residentInfo?.lastName || ""}`.trim() || "Resident Customer";
+
+        const payload = {
+            reportName: newReportName,
+            customerType: "Resident",
+            customerName: customerName,
+            type: reportTypeParam,
+            startDate: new Date(newReportStartDate).toISOString(),
+            endDate: new Date(newReportEndDate).toISOString()
+        };
 
         try {
-            const { data } = await api.get(
-                `${url}?ReportName=${newReportName}&ReportType=${selectedType}&StartDate=${newReportStartDate}&EndDate=${newReportEndDate}`
-            );
-            if (data.succeeded) {
+            const { data } = await api.post('/resident/reports', payload);
+            if (data.succeeded || data.success) {
                 showNotification(data.message || 'Report generated successfully!', 'success');
                 handleCloseModal();
                 const reportObject = {
-                    period:         formatPeriod(newReportStartDate, newReportEndDate),
+                    period: formatPeriod(newReportStartDate, newReportEndDate),
                     generationDate: formatGenerationDate(new Date()),
-                    title:          newReportName,
-                    data:           data.data,
+                    title: newReportName,
+                    data: data.data,
                 };
                 if (selectedType === 'bin') {
                     localStorage.setItem('binreport', JSON.stringify(reportObject));
@@ -264,12 +303,44 @@ const ReportsPage = () => {
                 }
                 fetchReportsAPI();
             } else {
-                showNotification(data.message || 'Failed to generate report.', 'error');
+                showNotification(formatErrorMessage(data, 'Failed to generate report.'), 'error');
             }
         } catch (error) {
-            showNotification(error.message || 'An error occurred while generating the report.', 'error');
+            showNotification(formatErrorMessage(error, 'An error occurred while generating the report.'), 'error');
         } finally {
             setIsGeneratingReport(false);
+        }
+    };
+
+    const handleViewReport = async (report) => {
+        setIsLoading(true);
+        try {
+            const { data } = await api.get(`/resident/reports/${report.id}`);
+            const reportData = data.data || data;
+
+            const reportObject = {
+                period: report.period,
+                generationDate: formatGenerationDate(report.generationDate),
+                title: report.reportTitle,
+                data: reportData,
+            };
+
+            const type = (report.reportType || '').toLowerCase();
+            if (type === 'bin' || type === 'smartbin-request') {
+                localStorage.setItem('binreport', JSON.stringify(reportObject));
+                navigate('/smartbinreport');
+            } else if (type === 'waste' || type === 'waste-pickup' || type === 'waste-disposed') {
+                localStorage.setItem('wastereport', JSON.stringify(reportObject));
+                navigate('/wastereport');
+            } else {
+                localStorage.setItem('paymentreport', JSON.stringify(reportObject));
+                navigate('/payment-report');
+            }
+        } catch (error) {
+            console.error("Error fetching report details:", error);
+            showNotification(formatErrorMessage(error, 'Error loading report details.'), 'error');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -282,10 +353,10 @@ const ReportsPage = () => {
     };
 
     const tableHeaders = [
-        { key: 'reportTitle',    label: 'Report Title' },
+        { key: 'reportTitle', label: 'Report Title' },
         { key: 'generationDate', label: 'Generation Date' },
-        { key: 'period',         label: 'Period' },
-        { key: 'reportType',     label: 'Report Type' },
+        { key: 'period', label: 'Period' },
+        { key: 'reportType', label: 'Report Type' },
     ];
 
     // ─── Render ───────────────────────────────────────────────────────────────
@@ -415,8 +486,11 @@ const ReportsPage = () => {
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{report.period}</td>
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{report.reportType}</td>
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500">
-                                                                <button className="text-zinc-400 hover:text-zinc-600">
-                                                                    <EllipsisVerticalIcon className="h-5 w-5" />
+                                                                <button
+                                                                    onClick={() => handleViewReport(report)}
+                                                                    className="text-green-700 hover:text-green-800 font-medium underline focus:outline-none"
+                                                                >
+                                                                    View
                                                                 </button>
                                                             </td>
                                                         </tr>

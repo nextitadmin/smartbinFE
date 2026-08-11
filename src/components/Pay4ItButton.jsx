@@ -25,26 +25,38 @@ const Pay4ItButton = ({
     setTimeout(() => setNotification({ show: false, message: '', type: '' }), 5000);
   };
 
+  // Extracts a clean, displayable error message from a backend response.
+  // Handles both string messages and array-of-strings messages (e.g. class-validator style errors),
+  // and only falls back to a generic message when the backend gives nothing usable.
+  const extractErrorMessage = (error, fallback = 'Something went wrong. Please try again.') => {
+    const responseMessage = error?.response?.data?.message;
+
+    if (Array.isArray(responseMessage)) {
+      return responseMessage.join(', ');
+    }
+    if (typeof responseMessage === 'string' && responseMessage.trim()) {
+      return responseMessage;
+    }
+    if (typeof error?.message === 'string' && error.message.trim()) {
+      return error.message;
+    }
+    return fallback;
+  };
+
 
 
   const fetchTransactionReference = async () => {
     let endpoint = customEndpoint;
     if (!endpoint) {
-      endpoint = '/wallets/topup'; // Default fallback (Resident)
-      if (userType === 'corporate') {
-        endpoint = '/corporate/wallets/topup';
-      } else if (userType === 'facilityManager') {
-        endpoint = '/wallets/topup';
-      } else if (userType === 'agent') {
-        endpoint = '/wallets/topup';
-      }
+      endpoint = '/wallets/topup'; // Default fallback
     }
 
     const userId = useAuthStore.getState().user?.id || useAuthStore.getState().token;
 
     try {
       const clientRef = 'SBTP-' + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
-      const response = await api.post(endpoint, {
+
+      let payload = {
         userId,
         walletAcctNo: '',
         amount: Number(amount),
@@ -52,7 +64,16 @@ const Pay4ItButton = ({
         channel: 'ALATPay',
         narration: description,
         ...customPayload,
-      });
+      };
+
+      if (endpoint.endsWith('/wallets/topup')) {
+        payload = {
+          amount: Number(amount),
+          reference: clientRef,
+        };
+      }
+
+      const response = await api.post(endpoint, payload);
 
       const responseData = response.data;
       if (responseData?.succeeded || responseData?.success) {
@@ -68,10 +89,10 @@ const Pay4ItButton = ({
           return { reference, callbackUrl };
         }
       }
-      throw new Error(responseData?.message || 'Failed to initialize transaction reference from backend.');
+      throw new Error(extractErrorMessage({ response }, 'Failed to initialize transaction reference from backend.'));
     } catch (error) {
       console.error('Error fetching transaction reference:', error);
-      throw error;
+      throw new Error(extractErrorMessage(error, 'Failed to initialize transaction reference from backend.'));
     }
   };
 
@@ -88,8 +109,8 @@ const Pay4ItButton = ({
   const handlePaymentClick = async (e) => {
     if (e) e.preventDefault();
 
-    if (!amount || amount < 100) {
-      showNotification('Enter a valid amount', 'error');
+    if (!amount || amount < 5000) {
+      showNotification('Enter a valid amount (minimum ₦5,000)', 'error');
       return;
     }
 

@@ -87,7 +87,7 @@ function NewKycApplication() {
                         <div className="flex flex-col">
                             {
                                 kycStatus ? (
-                                    <KycStatusCard />
+                                    <KycStatusCard endpoint="/agent/kyc/status" />
                                 ) : (
                                     <div className="max-w-xl w-full flex flex-col items-center justify-center text-center">
                                         <img src="./images/documenticon.svg" alt="KYC Icon" className="my-4" />

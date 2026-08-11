@@ -251,29 +251,23 @@ const PaymentReceipts = () => {
     const handleTopUpSubmit = async (e) => {
         e.preventDefault();
         console.log("Top Up Amount Submitted:", topUpAmount);
-        // Basic Validation Example
-        if (!topUpAmount || topUpAmount < 100 || topUpAmount > 1000000) {
-            setNotification({ type: 'error', message: 'Enter a valid amount' });
+        if (!topUpAmount || Number(topUpAmount) < 5000 || Number(topUpAmount) > 1000000) {
+            setNotification({ type: 'error', message: 'Enter a valid amount (minimum ₦5,000)' });
             return;
         }
         try {
             const clientRef = 'SBTP-' + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
             const { data } = await api.post('/wallets/topup',
                 {
-                    userId: useAuthStore.getState().token,
-                    walletAcctNo: "",
-                    amount: topUpAmount,
+                    amount: Number(topUpAmount),
                     reference: clientRef,
-                    channel: "card",
-                    narration: ""
                 }
             );
 
-            if (data.succeeded) {
+            if (data.succeeded || data.success) {
                 setNotification({ type: 'success', message: data.message || 'TopUp successfully!' });
                 closeModal('topup'); // Close the top-up modal
                 openModal('success');
-
             }
             else {
                 setNotification({ type: 'error', message: data.message || 'Error during TopUp!' });

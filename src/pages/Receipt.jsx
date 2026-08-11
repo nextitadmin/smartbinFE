@@ -47,21 +47,37 @@ const ReceiptPage = () => {
     let navigate = useNavigate()
     const [receiptData, setReceiptData] = useState({});
 
+    const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
+        if (!err) return defaultMsg;
+        if (typeof err === 'string') return err;
+        if (err.response?.data?.message) {
+            const msg = err.response.data.message;
+            if (Array.isArray(msg)) {
+                return msg.join(', ');
+            }
+            return msg;
+        }
+        if (err.message) return err.message;
+        return defaultMsg;
+    };
+
     const fetchData = async () => {
         const currentId = localStorage.getItem('receiptId');
         try {
-            const { data }  = await api.get(`/Wallet/transaction-receipt?transacitonId=${currentId}`);
-            if (data.succeeded){
-                const date = new Date(data.data.transDate);
+            const { data }  = await api.get(`/residents/payment/receipt/${currentId}`);
+            const succeeded = data.succeeded || data.success;
+            if (succeeded){
+                const responseData = data.data || data;
+                const date = new Date(responseData.transDate || responseData.transactionDate || responseData.date || responseData.createdAt || new Date());
                 const newData = {
-                    recipientName: data.data.payerName,
+                    recipientName: responseData.payerName || responseData.recipientName || responseData.fullName || "Resident",
                     transactionId: currentId,
-                    paymentId: useResidentStore.getState().residentInfo.payerID,
-                    transactionRef: data.data.transRef,
-                    phoneNumber: data.data.phoneNo,
+                    paymentId: responseData.payerId || responseData.paymentId || useResidentStore.getState().residentInfo.payerID || "N/A",
+                    transactionRef: responseData.transRef || responseData.transactionReference || responseData.reference || "N/A",
+                    phoneNumber: responseData.phoneNo || responseData.phoneNumber || "N/A",
                     transactionDate: `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`,
                     paymentItems: [
-                        { description: data.data.description, amount: data.data.amount },
+                        { description: responseData.description || responseData.service || "Payment", amount: responseData.amount },
                     ],
                     currencySymbol: "₦",
                 }
@@ -69,8 +85,9 @@ const ReceiptPage = () => {
             }
         } catch (error) {
             console.log(error);
+            alert(formatErrorMessage(error, 'Error fetching receipt details.'));
         }
-}
+    };
 
     useEffect(() => {
         fetchData();

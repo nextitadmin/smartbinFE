@@ -93,7 +93,7 @@ const PaymentReceipts = () => {
 
   const fetchBalance = async () => {
     try {
-      const { data } = await api.get("/corporate/wallets");
+      const { data } = await api.get("/wallets");
 
       const balance = data?.data?.balance ?? 0;
       setWalletBalance(formatCurrency(balance));
@@ -355,18 +355,16 @@ const PaymentReceipts = () => {
   const submitTopUpAfterPayment = async () => {
     const userId = useAuthStore.getState().user?.id;
 
-    if (!topUpAmount || topUpAmount < 100 || topUpAmount > 1000000) {
-      setNotification({ type: "error", message: "Enter a valid amount" });
+    if (!topUpAmount || Number(topUpAmount) < 5000 || Number(topUpAmount) > 1000000) {
+      setNotification({ type: "error", message: "Enter a valid amount (minimum ₦5,000)" });
       return;
     }
 
     try {
-      const { data } = await api.post("/corporate/wallets/topup", {
-        userId,
-        walletAcctNo: "",
-        amount: topUpAmount,
-        channel: "ALATPay",
-        narration: "",
+      const clientRef = "SBCP-" + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
+      const { data } = await api.post("/wallets/topup", {
+        amount: Number(topUpAmount),
+        reference: clientRef,
       });
 
       console.log("TopUp Response:", data);

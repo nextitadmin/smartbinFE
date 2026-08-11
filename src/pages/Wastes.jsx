@@ -20,7 +20,8 @@ const Wastes = () => {
     const itemsPerPage = 6;
     const [otherReason, setOtherReason] = useState('');
     const [notification, setNotification] = useState(null);
-    const [pickUpAmount, setPickUpAmount] = useState(0);
+    const [pickUpAmount, setPickUpAmount] = useState(3500);
+    const [walletBalance, setWalletBalance] = useState(0);
     const [debitType, setDebitType] = useState(''); // 'wallet' or 'smartbin'
     const noteOptions = ['An Occasion', 'An Emergency', 'Other reasons'];
 
@@ -43,26 +44,48 @@ const Wastes = () => {
         }
     }, [notification]);
 
+    const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
+        if (!err) return defaultMsg;
+        if (typeof err === 'string') return err;
+        if (err.response?.data?.message) {
+            const msg = err.response.data.message;
+            if (Array.isArray(msg)) {
+                return msg.join(', ');
+            }
+            return msg;
+        }
+        if (err.message) return err.message;
+        return defaultMsg;
+    };
+
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/WasteMgmt/my-waste-applications?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
-            if (data.succeeded) {
-                const newData = data.data.data.map((item, index) => ({
+            const { data } = await api.get('/waste-management/pickups');
+            const succeeded = data.succeeded || data.success;
+            if (succeeded) {
+                const rawData = data.data?.data || data.data?.items || data.data || data.items || data;
+                const list = Array.isArray(rawData) ? rawData : [];
+
+                const newData = list.map((item, index) => ({
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
-                    wasteId: item.wasteID,
-                    date: item.requestDate?.slice(0, 10),
-                    address: item.address,
-                    status: item.statusName,
-                    representative: item.pickupBy
-                }));;
+                    wasteId: item.wasteID || item.wasteId || item.id,
+                    date: (item.requestDate || item.date || item.createdAt || item.generatedDate)?.slice(0, 10),
+                    address: item.address || "N/A",
+                    status: item.statusName || item.status || "Pending",
+                    representative: item.pickupBy || item.representative || item.assignedTo || "N/A"
+                }));
                 setApplications(newData);
-                setTotalPages(data.data.totalPages);
-                setTotalItems(data.data.totalCount);
+
+                const totalPagesVal = data.data?.totalPages || data.totalPages || 1;
+                const totalCountVal = data.data?.totalCount || data.data?.totalItems || data.totalCount || list.length;
+                setTotalPages(totalPagesVal);
+                setTotalItems(totalCountVal);
             }
         } catch (error) {
             console.log(error);
+            setNotification({ type: 'error', message: formatErrorMessage(error, 'Error loading waste pickup requests.') });
         }
-    }
+    };
 
     useEffect(() => {
         // Add serial numbers to wastes data
@@ -237,30 +260,28 @@ const Wastes = () => {
         };
     };
 
-
-
-
-
     const fetchPickUpAmount = async () => {
-
         try {
-            const response = await api.get("/Wallet/fetch-amount?paymentType=waste");
+            const response = await api.get("/wallets");
 
             console.log("Response from fetch-amount:", response);
-            const data = response.data.data;
-            if (response.data.succeeded) {
-                setPickUpAmount(data.amountToDebit);
-                setDebitType(data.debitType);
-                console.log(debitType, " debit type");
-                console.log("Smart bin amount fetched:", data.amountToDebit);
+            const data = response.data?.data || response.data;
+            const succeeded = response.data?.succeeded || response.data?.success;
+            if (succeeded && data) {
+                setWalletBalance(data.balance || 0);
+                if (data.amountToDebit) {
+                    setPickUpAmount(data.amountToDebit);
+                }
+                setDebitType(data.debitType || data.status || 'standard');
+                console.log(data.debitType || data.status || 'standard', " debit type");
+                console.log("Smart bin amount fetched:", data.amountToDebit || 3500);
             } else {
-                console.error("Failed to fetch smart bin amount:", response.message);
+                console.error("Failed to fetch smart bin amount:", response.data?.message || 'Unknown error');
             }
         } catch (error) {
             console.error("Error fetching smart bin amount:", error);
-
         }
-    }
+    };
 
     useEffect(() => {
         fetchPickUpAmount();
@@ -356,13 +377,13 @@ const Wastes = () => {
 
             } else {
                 console.error("Wallet payment failed:", data.message);
-                setNotification({ type: 'error', message: data.message || "Error processing wallet payment" });
+                setNotification({ type: 'error', message: formatErrorMessage(data.message) || "Error processing wallet payment" });
             }
 
         }
         catch (error) {
             console.error("Error processing wallet payment:", error);
-            setNotification({ type: 'error', message: "Error processing wallet payment" });
+            setNotification({ type: 'error', message: formatErrorMessage(error, "Error processing wallet payment") });
         }
 
 
@@ -376,29 +397,34 @@ const Wastes = () => {
 
     const SubmitPickupRequest = async (response) => {
         if (pickupRequestData.date && pickupRequestData.time && pickupRequestData.phone && pickupRequestData.address && pickupRequestData.note) {
-            const newDate = combineDateAndTime(pickupRequestData.date, pickupRequestData.time);
             try {
-                const { data } = await api.post("/WasteMgmt/new-waste-req", {
-                    address: pickupRequestData.address,
-                    pickupDate: newDate,
-                    phoneNo: pickupRequestData.phone,
-                    transRef: response.ref,
-                    amountPaid: pickUpAmount,
-                    note : otherReason || pickupRequestData.note,
-                    paymentChannel: response.channel
-                });
+                const residentInfo = useResidentStore.getState().residentInfo;
+                const customerName = `${residentInfo?.firstName || ""} ${residentInfo?.lastName || ""}`.trim() || "Resident Customer";
 
-                if (data.succeeded) {
+                const payload = {
+                    pickupDate: pickupRequestData.date,
+                    pickupTime: pickupRequestData.time,
+                    phoneNumber: pickupRequestData.phone,
+                    address: pickupRequestData.address,
+                    branch: residentInfo?.lga || "Main",
+                    transactionReference: response.ref,
+                    description: otherReason || pickupRequestData.note,
+                    customerName: customerName
+                };
+
+                const { data } = await api.post("/waste-management/pickups", payload);
+
+                if (data.succeeded || data.success) {
                     setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
                     console.log("Submitting Pickup Request:", pickupRequestData);
                     setOtherReason('');
                     fetchData();
                 }
                 else {
-                    setNotification({ type: 'error', message: data.message || "Error submitting" });
+                    setNotification({ type: 'error', message: formatErrorMessage(data.message) || "Error submitting" });
                 }
             } catch (error) {
-                setNotification({ type: 'error', message: "Error submitting" });
+                setNotification({ type: 'error', message: formatErrorMessage(error, "Error submitting") });
                 console.log("API Error:", error);
             }
         } else {
@@ -635,7 +661,7 @@ const Wastes = () => {
                             <label className="px-6 py-4 rounded-lg flex items-center gap-4">
                                 <WalletIcon />
                                 <span className="text-sm font-medium text-zinc-800 flex-grow">
-                                    {`Pay from wallet (${pickUpAmount})`}
+                                    {`Pay from wallet (Balance: ₦${Number(walletBalance).toLocaleString()}) - Fee: ₦${Number(pickUpAmount).toLocaleString()}`}
                                 </span>
                                 <input
                                     type="radio"

@@ -57,25 +57,27 @@ function ProfilePage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: string } | null
-  const FacilityMgr = useFacilityMgrStore.getState().facilityMgrInfo;
+  const FacilityMgr = useFacilityMgrStore((state) => state.facilityMgrInfo);
+  const fetchFacilityManagerInfo = useFacilityMgrStore((state) => state.fetchFacilityManagerInfo);
   const navigate = useNavigate();
-  const setDashboard = useFacilityMgrStore((state) => state.setfacilityMgrInfo);
   // --- Update Handlers ---
 
   useEffect(() => {
     if (FacilityMgr) {
-      const names = FacilityMgr.fullName ? FacilityMgr.fullName.split(" ") : [];
-
       setProfileData({
-        payerId: FacilityMgr.payerId || "",
-        firstName: names[0] || "",
-        lastName: names.slice(1).join(" ") || "",
-        email: FacilityMgr.email || "",
-        phone: FacilityMgr.phoneNumber || "",
-        profileImageUrl: FacilityMgr.profilePicture || "/images/emptyimage.png",
+        payerId: FacilityMgr.payerID || "",
+        firstName: FacilityMgr.firstName || "",
+        lastName: FacilityMgr.lastName || "",
+        email: FacilityMgr.emailAddress || "",
+        phone: FacilityMgr.phoneNo || "",
+        profileImageUrl: FacilityMgr.passport || "/images/emptyimage.png",
       });
     }
   }, [FacilityMgr]);
+
+  useEffect(() => {
+    fetchFacilityManagerInfo();
+  }, []);
 
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
@@ -131,11 +133,7 @@ function ProfilePage() {
 
   const fetchResident = async () => {
     try {
-      const { data } = await api.get("/facility-managers/profile");
-
-      if (data.success) {
-        setDashboard(data.data);
-      }
+      await fetchFacilityManagerInfo();
     } catch (error) {
       console.log(error);
     }
@@ -304,7 +302,7 @@ function ProfilePage() {
                             type="text"
                             id="payerId"
                             name="payerId"
-                            value={profileData.payerId}
+                            value={profileData.payerId || ""}
                             readOnly
                             className="w-full p-4 border border-zinc-300 rounded-md  bg-zinc-100 cursor-not-allowed focus:outline-none"
                           />
@@ -323,7 +321,7 @@ function ProfilePage() {
                               type="text"
                               id="firstName"
                               name="firstName"
-                              value={profileData.firstName}
+                              value={profileData.firstName || ""}
                               onChange={handleProfileChange}
                               required
                               className="w-full p-4 border border-zinc-300 rounded-md  focus:ring-indigo-500 focus:border-indigo-500"
@@ -340,7 +338,7 @@ function ProfilePage() {
                               type="text"
                               id="lastName"
                               name="lastName"
-                              value={profileData.lastName}
+                              value={profileData.lastName || ""}
                               onChange={handleProfileChange}
                               required
                               className="w-full p-4 border border-zinc-300 rounded-md  focus:ring-indigo-500 focus:border-indigo-500"
@@ -362,7 +360,7 @@ function ProfilePage() {
                               id="email"
                               name="email"
                               readOnly
-                              value={profileData.email}
+                              value={profileData.email || ""}
                               required
                               className="w-full p-4 border border-zinc-300   bg-zinc-100 rounded-md cursor-not-allowed focus:outline-none"
                             />
@@ -378,7 +376,7 @@ function ProfilePage() {
                               type="tel"
                               id="phone"
                               name="phone"
-                              value={profileData.phone}
+                              value={profileData.phone || ""}
                               onChange={handleProfileChange}
                               className="w-full p-4 border border-zinc-300 rounded-md  focus:ring-indigo-500 focus:border-indigo-500"
                             />

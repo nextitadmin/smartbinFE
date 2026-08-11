@@ -28,27 +28,48 @@ const PaymentReceipts = () => {
 
 
 
+    const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
+        if (!err) return defaultMsg;
+        if (typeof err === 'string') return err;
+        if (err.response?.data?.message) {
+            const msg = err.response.data.message;
+            if (Array.isArray(msg)) {
+                return msg.join(', ');
+            }
+            return msg;
+        }
+        if (err.message) return err.message;
+        return defaultMsg;
+    };
+
     const fetchData = async () => {
         try {
-            const { data } = await api.get('/wallets');
-            if (data.succeeded) {
-                const newData = data.data.data.map((item, index) => ({
+            const { data } = await api.get(`/residents/payment?page=${currentPage}&limit=${itemsPerPage}`);
+            const succeeded = data.succeeded || data.success;
+            if (succeeded) {
+                const rawData = data.data?.data || data.data?.items || data.data || data.items || data;
+                const list = Array.isArray(rawData) ? rawData : [];
+
+                const newData = list.map((item, index) => ({
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
                     id: item.id,
-                    transactionRef: item.transactionReference,
-                    date: item.transactionDate?.slice(0, 10),
-                    service: item.description,
-                    status: item.transactionStatus,
+                    transactionRef: item.transactionReference || item.reference || item.transactionId || item.id,
+                    date: (item.transactionDate || item.date || item.createdAt)?.slice(0, 10),
+                    service: item.description || item.service || item.type || "Payment",
+                    status: item.transactionStatus || item.status || "Successful",
                     amount: item.amount,
-                    paymentMethod: item.paymentMethod
-                }));;
+                    paymentMethod: item.paymentMethod || "N/A"
+                }));
                 setPayments(newData);
-                setTotalPages(data.data.totalPages);
+
+                const totalPagesVal = data.data?.totalPages || data.totalPages || 1;
+                setTotalPages(totalPagesVal);
             }
         } catch (error) {
             console.log(error);
+            setNotification({ type: 'error', message: formatErrorMessage(error, 'Error fetching transaction history.') });
         }
-    }
+    };
 
     useEffect(() => {
         // Add serial numbers to wastes data
@@ -250,33 +271,29 @@ const PaymentReceipts = () => {
     const handleTopUpSubmit = async (e) => {
         e.preventDefault();
         console.log("Top Up Amount Submitted:", topUpAmount);
-        // Basic Validation Example
-        if (!topUpAmount || topUpAmount < 100 || topUpAmount > 1000000) {
-            setNotification({ type: 'error', message: 'Enter a valid amount' });
+        if (!topUpAmount || Number(topUpAmount) < 5000 || Number(topUpAmount) > 1000000) {
+            setNotification({ type: 'error', message: 'Enter a valid amount (minimum ₦5,000)' });
             return;
         }
         try {
+            const clientRef = 'SBTP-' + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
             const { data } = await api.post('/wallets/topup',
                 {
-                    userId: useAuthStore.getState().token,
-                    walletAcctNo: "",
-                    amount: topUpAmount,
-                    channel: "card",
-                    narration: ""
+                    amount: Number(topUpAmount),
+                    reference: clientRef
                 }
             );
 
-            if (data.succeeded) {
+            if (data.succeeded || data.success) {
                 setNotification({ type: 'success', message: data.message || 'TopUp successfully!' });
                 closeModal('topup'); // Close the top-up modal
                 openModal('success');
-
             }
             else {
-                setNotification({ type: 'error', message: data.message || 'Error during TopUp!' });
+                setNotification({ type: 'error', message: formatErrorMessage(data.message) || 'Error during TopUp!' });
             }
         } catch (error) {
-            setNotification({ type: 'error', message: 'Error!' });
+            setNotification({ type: 'error', message: formatErrorMessage(error, 'Error during TopUp!') });
         }
 
 

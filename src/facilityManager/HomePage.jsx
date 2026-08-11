@@ -91,6 +91,7 @@ const Dashboard = () => {
     const [topUpAmount, setTopUpAmount] = useState('');
     const [chartDetails, setChartDetails] = useState([]);
     const [dashboardDetails, setDashboardDetails] = useState({});
+    const [walletBalance, setWalletBalance] = useState('');
 
     // Payment modal data
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card');
@@ -147,6 +148,32 @@ const Dashboard = () => {
 
 
     // }
+    const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
+        if (!err) return defaultMsg;
+        if (typeof err === 'string') return err;
+        if (err.response?.data?.message) {
+            const msg = err.response.data.message;
+            if (Array.isArray(msg)) {
+                return msg.join(', ');
+            }
+            return msg;
+        }
+        if (err.message) return err.message;
+        return defaultMsg;
+    };
+
+    const fetchBalance = async () => {
+        try {
+            const { data } = await api.get("/wallets");
+            const succeeded = data.success || data.succeeded;
+            if (succeeded && data.data) {
+                setWalletBalance(`₦${Number(data.data.balance).toLocaleString()}`);
+            }
+        } catch (error) {
+            console.error("Error fetching wallet balance:", error);
+        }
+    };
+
     const fetchFacilityMgr = async () => {
         try {
             const { data } = await api.get("/facility-managers/dashboard");
@@ -170,6 +197,7 @@ const Dashboard = () => {
     useEffect(() => {
         fetchFacilityMgr();
         fetchFacilityMgrInfo();
+        fetchBalance();
     }, []);
 
     const handlePaymentWithWallet = async () => {
@@ -201,18 +229,19 @@ const Dashboard = () => {
 
                 await handlePayment({ reference: successRef, channel: "wallet" }).finally(() => {
                     console.log("Payment with wallet completed");
+                    fetchBalance();
                 });// Return the response for further processing
                 setNotification({ type: 'success', message: 'Payment successful!' });
 
             } else {
                 console.error("Wallet payment failed:", data.message);
-                setNotification({ type: 'error', message: data.message || "Error processing wallet payment" });
+                setNotification({ type: 'error', message: formatErrorMessage(data.message) || "Error processing wallet payment" });
             }
 
         }
         catch (error) {
             console.error("Error processing wallet payment:", error);
-            setNotification({ type: 'error', message: "Error processing wallet payment" });
+            setNotification({ type: 'error', message: formatErrorMessage(error, "Error processing wallet payment") });
         }
 
 
@@ -257,12 +286,12 @@ const Dashboard = () => {
                 closeModal('payment');
             }
             else {
-                setNotification({ type: 'error', message: data.message || 'Error editing subscription!' });
+                setNotification({ type: 'error', message: formatErrorMessage(data.message) || 'Error editing subscription!' });
                 handleSubscriptionBack();
             }
         } catch (error) {
             console.error("Error during payment:", error);
-            setNotification({ type: 'error', message: 'Error editing subscription!' });
+            setNotification({ type: 'error', message: formatErrorMessage(error, 'Error editing subscription!') });
             handleSubscriptionBack();
         }
 
@@ -366,33 +395,31 @@ const Dashboard = () => {
     const handleTopUpSubmit = async () => {
         console.log("Top Up Amount Submitted:", topUpAmount);
         // Basic Validation Example
-        if (!topUpAmount || topUpAmount < 100 || topUpAmount > 1000000) {
-            setNotification({ type: 'error', message: 'Enter a valid amount' });
+        if (!topUpAmount || Number(topUpAmount) < 5000 || Number(topUpAmount) > 1000000) {
+            setNotification({ type: 'error', message: 'Enter a valid amount (minimum ₦5,000)' });
             return;
         }
         try {
+            const clientRef = 'SBTP-' + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
             const { data } = await api.post('/wallets/topup',
                 {
-                    userId: useAuthStore.getState().token,
-                    walletAcctNo: "",
-                    amount: topUpAmount,
-                    channel: "Alat",
-                    narration: ""
+                    amount: Number(topUpAmount),
+                    reference: clientRef,
                 }
             );
 
-            if (data.succeeded) {
+            if (data.succeeded || data.success) {
                 setNotification({ type: 'success', message: data.message || 'TopUp successfully!' });
                 closeModal('topup'); // Close the top-up modal
                 openModal('success');
-
+                fetchBalance();
             }
             else {
-                setNotification({ type: 'error', message: data.message || 'Error during TopUp!' });
+                setNotification({ type: 'error', message: formatErrorMessage(data.message) || 'Error during TopUp!' });
             }
         } catch (error) {
             console.error("Error during top-up:", error);
-            setNotification({ type: 'error', message: 'Error!' });
+            setNotification({ type: 'error', message: formatErrorMessage(error, 'Error during TopUp!') });
         }
 
 
@@ -505,7 +532,7 @@ const Dashboard = () => {
                                         <div className="w-full">
                                             <p className="text-white text-xs font-light ">Available Balance</p>
                                             <div className="flex items-center ">
-                                                <h2 className="text-white text-3xl font-sans mt-1 mr-20">{dashboardDetails.walletBalance ?? ''}
+                                                <h2 className="text-white text-3xl font-sans mt-1 mr-20">{walletBalance || '₦0'}
                                                 </h2>
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="text-white opacity-75" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
