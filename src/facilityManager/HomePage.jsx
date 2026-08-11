@@ -18,15 +18,7 @@ import useTokenStore from '../store/tokenStore';
 
 
 
-const AlatIcon = () => (
-    <span className="font-medium text-zinc-800 flex items-center gap-1">
-        <img
-            src="/images/alat-logo.png"
-            alt="Alat Logo"
-            className="w-10 h-10 mx-2 inline-block rounded-sm"
-        />
-    </span>
-);
+const AlatIcon = () => null;
 
 const WalletIcon = () => (
     <svg className="w-8 h-8 mx-2 inline-block rounded-sm" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -96,7 +88,7 @@ const Dashboard = () => {
     // Payment modal data
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card');
     const paymentOptions = [
-        { id: 'card', text: 'Pay with Alat By Wema', icon: AlatIcon },
+        { id: 'card', text: 'Pay by card/bank/transfer', icon: AlatIcon },
     ];
 
     const [notification, setNotification] = useState(null);
@@ -900,12 +892,7 @@ const Dashboard = () => {
                                     <div className="flex justify-between items-center py-2">
                                         <span className="text-zinc-500">Payment Method</span>
                                         <span className="font-medium text-zinc-800 flex items-center gap-1">
-                                            <img
-                                                src="/images/alat-logo.png"
-                                                alt="Alat Logo"
-                                                className="w-10 h-10 mx-2 inline-block rounded-sm"
-                                            />{" "}
-                                            Alat By Wema
+                                            Pay by card/bank/transfer
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-center py-2">
@@ -1017,13 +1004,8 @@ const Dashboard = () => {
                                                 Choose Payment method
                                             </label>
                                             <div className="mt-1 mb-4 flex items-center gap-2 p-3 border border-zinc-300 rounded-xl bg-zinc-50">
-                                                <img
-                                                    src="/images/alat-logo.png"
-                                                    alt="Alat Logo"
-                                                    className="w-8 h-8 rounded-sm"
-                                                />{" "}
                                                 <span className="font-medium text-zinc-800">
-                                                    Alat By Wema
+                                                    Pay by card/bank/transfer
                                                 </span>
                                             </div>
                                         </div>
