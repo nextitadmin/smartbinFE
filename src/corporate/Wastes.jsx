@@ -31,7 +31,7 @@ const Wastes = () => {
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card');
     // Assuming AlatIcon is defined or imported
     const paymentOptions = [
-        { id: 'card', text: 'Pay with Alat By Wema', icon: AlatIcon }, // Ensure AlatIcon is available
+        { id: 'card', text: 'Pay by card/bank/transfer', icon: AlatIcon }, // Ensure AlatIcon is available
     ];
 
     // --- Pickup modal data (Initial state for the modal) ---
@@ -796,15 +796,7 @@ const Wastes = () => {
 };
 
 // --- Icons (Keep or move to shared file) ---
-const AlatIcon = () => (
-    <span className="font-medium text-zinc-800 flex items-center gap-1">
-        <img
-            src="/images/alat-logo.png"
-            alt="Alat Logo"
-            className="w-10 h-10 mx-2 inline-block rounded-sm"
-        />
-    </span>
-);
+const AlatIcon = () => null;
 
 const WalletIcon = () => (
     <svg className="w-8 h-8 mx-2 inline-block rounded-sm" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

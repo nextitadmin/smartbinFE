@@ -579,12 +579,7 @@ const PaymentReceipts = () => {
                                 <div className="flex justify-between items-center py-2">
                                     <span className="text-zinc-500">Payment Method</span>
                                     <span className="font-medium text-zinc-800 flex items-center gap-1">
-                                        <img
-                                            src="/images/alat-logo.png"
-                                            alt="Alat Logo"
-                                            className="w-10 h-10 mx-2 inline-block rounded-sm"
-                                        />{" "}
-                                        Alat By Wema
+                                        Pay by card/bank/transfer
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center py-2">
@@ -696,13 +691,8 @@ const PaymentReceipts = () => {
                                                 Choose Payment method
                                             </label>
                                             <div className="mt-1 mb-4 flex items-center gap-2 p-3 border border-zinc-300 rounded-xl bg-zinc-50">
-                                                <img
-                                                    src="/images/alat-logo.png"
-                                                    alt="Alat Logo"
-                                                    className="w-8 h-8 rounded-sm"
-                                                />{" "}
                                                 <span className="font-medium text-zinc-800">
-                                                    Alat By Wema
+                                                    Pay by card/bank/transfer
                                                 </span>
                                             </div>
                                         </div>
