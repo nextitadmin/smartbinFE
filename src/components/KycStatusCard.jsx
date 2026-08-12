@@ -83,8 +83,8 @@ function KycStatusCard({ endpoint = '/resident/kyc/status' }) {
 
             const statusInfo = data.data || data;
             if (statusInfo) {
-                const documentStatus = statusInfo.documentStatus || 'pending';
-                const addressStatus = statusInfo.addressStatus || 'pending';
+                const documentStatus = statusInfo.identityVerificationStatus || 'pending';
+                const addressStatus = statusInfo.addressVerificationStatus || 'pending';
 
                 setKycData(prevData =>
                     prevData.map(item => {

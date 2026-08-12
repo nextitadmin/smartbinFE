@@ -76,17 +76,25 @@ const KYCApplication = () => {
         { value: 'other', label: 'Other' }
     ];
 
-    const localGovernmentOptions = [
-        { value: 'lg1', label: 'Local Government Area 1' },
-        { value: 'lg2', label: 'Local Government Area 2' },
-        // Add more LGAs as needed
-    ];
+    const [localGovernmentOptions, setLocalGovernmentOptions] = useState([]);
+
+    const fetchLga = async () => {
+        try {
+            const { data } = await api.get("/utility/get-lgas");
+            if (data.success) {
+                const lgas = data.data;
+                setLocalGovernmentOptions(lgas);
+            }
+        } catch (error) {
+            console.log("Error fetching lga", error);
+        }
+    };
 
 
     const checkStatus = async () => {
         try {
             const { data } = await api.get('/agent/kyc/status');
-            if (data.succeeded) {
+            if ((data.succeeded || data.success) && data.data && data.data.hasSubmittedIdentity) {
                 navigate('/newkycapplication');
             }
         } catch (error) {
@@ -95,6 +103,7 @@ const KYCApplication = () => {
     }
 
     useEffect(() => {
+        fetchLga();
         checkStatus();
     }, [])
 
@@ -512,9 +521,19 @@ const KYCApplication = () => {
                                                         className="w-full p-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition duration-150 ease-in-out text-sm placeholder-zinc-400 bg-white"
                                                     >
                                                         <option value="">Choose LG</option>
-                                                        {localGovernmentOptions.map(option => (
-                                                            <option key={option.value} value={option.value}>{option.label}</option>
-                                                        ))}
+                                                        {localGovernmentOptions.map((item) => {
+                                                            const value = typeof item === 'string'
+                                                                ? item
+                                                                : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                                            const label = typeof item === 'string'
+                                                                ? item
+                                                                : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                                            return (
+                                                                <option key={value || label} value={value}>
+                                                                    {label}
+                                                                </option>
+                                                            );
+                                                        })}
                                                     </select>
                                                 </div>
 

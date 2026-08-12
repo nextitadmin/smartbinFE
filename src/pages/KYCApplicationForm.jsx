@@ -91,7 +91,7 @@ const KYCApplication = () => {
     const checkStatus = async () => {
         try {
             const { data } = await api.get('/resident/kyc/status')
-            if (data.succeeded) {
+            if ((data.succeeded || data.success) && data.data && data.data.hasSubmittedIdentity) {
                 navigate('/newkycapplication');
             }
         } catch (error) {
@@ -237,7 +237,6 @@ const KYCApplication = () => {
             return msg || defaultMsg;
         };
 
-        // Ensure all validations pass one last time (optional, as nextStage should handle it)
         if (!formData.address.buildingType || !formData.address.houseNumber || !formData.address.address || !formData.address.localGovernment) {
             setNotification({ type: 'error', message: 'Please ensure all address details are filled correctly.' });
             return;
@@ -245,7 +244,6 @@ const KYCApplication = () => {
 
         try {
             const file = formData.documents.file;
-
 
             const uploadFileWrapper = async (file) => {
                 try {
@@ -257,17 +255,16 @@ const KYCApplication = () => {
             }
             const processedImageString = file ? await uploadFileWrapper(file) : null;
 
-            // Updated payload with new structured schema format
             const payload = {
                 personalInformation: {
                     firstName: formData.personal.firstName,
                     lastName: formData.personal.lastName,
                     nationality: formData.personal.nationality,
                     gender: formData.personal.gender,
-                    lawmaCustomerType: useResidentStore.getState().residentInfo?.lawmaCustomerType || ""
+                    lawmaCustomerType: "Existing" // Default type
                 },
                 identityInformation: {
-                    NIN: formData.documents.idNumber,
+                    NinNo: formData.documents.idNumber,
                     idDocument: processedImageString || ""
                 },
                 addressInformation: {
@@ -281,11 +278,11 @@ const KYCApplication = () => {
             };
 
             const { data } = await api.post(
-                '/resident/kyc',
+                '/facility-manager/kyc',
                 payload
             );
 
-            if (data.success) {
+            if (data.succeeded || data.success) {
                 try {
                     // Update personal info via PATCH
                     const personalPayload = {
@@ -293,11 +290,11 @@ const KYCApplication = () => {
                         lastName: formData.personal.lastName,
                         nationality: formData.personal.nationality,
                         gender: formData.personal.gender,
-                        lawmaCustomerType: useResidentStore.getState().residentInfo?.lawmaCustomerType || ""
+                        lawmaCustomerType: "Existing"
                     };
 
                     await api.patch(
-                        '/resident/kyc/personal-info',
+                        '/facility-manager/kyc/personal-info',
                         personalPayload
                     );
 
@@ -312,7 +309,7 @@ const KYCApplication = () => {
                     };
 
                     await api.patch(
-                        '/resident/kyc/address',
+                        '/facility-manager/kyc/address',
                         addressPayload
                     );
 
@@ -323,13 +320,13 @@ const KYCApplication = () => {
                     };
 
                     const verificationRes = await api.patch(
-                        '/resident/kyc/id-verification',
+                        '/facility-manager/kyc/id-verification',
                         verificationPayload
                     );
 
                     if (verificationRes.data.success || verificationRes.data.succeeded) {
                         setNotification({ type: 'success', message: 'Submitted successfully!' });
-                        setCurrentStage(4); // Move to confirmation stage
+                        setCurrentStage(4);
                     } else {
                         const errorMsg = Array.isArray(verificationRes.data.message) ? verificationRes.data.message.join(', ') : (verificationRes.data.message || "ID Verification failed");
                         setNotification({ type: 'error', message: errorMsg });
@@ -590,18 +587,18 @@ const KYCApplication = () => {
                                                     >
                                                         <option value="">Choose LG</option>
                                                         {localGovernmentOptions.map((item) => {
-                                                             const value = typeof item === 'string'
-                                                                 ? item
-                                                                 : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
-                                                             const label = typeof item === 'string'
-                                                                 ? item
-                                                                 : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
-                                                             return (
-                                                                 <option key={value || label} value={value}>
-                                                                     {label}
-                                                                 </option>
-                                                             );
-                                                         })}
+                                                            const value = typeof item === 'string'
+                                                                ? item
+                                                                : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                                            const label = typeof item === 'string'
+                                                                ? item
+                                                                : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                                            return (
+                                                                <option key={value || label} value={value}>
+                                                                    {label}
+                                                                </option>
+                                                            );
+                                                        })}
                                                     </select>
                                                 </div>
 

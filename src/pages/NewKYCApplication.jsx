@@ -25,7 +25,7 @@ function NewKycApplication() {
     const checkStatus = async () => {
         try {
             const { data } = await api.get('/resident/kyc/status')
-            if (data.succeeded || data.success) {
+            if ((data.succeeded || data.success) && data.data && data.data.hasSubmittedIdentity) {
                 setKycStatus(true);  
             } else {
                 setKycStatus(false); 
