@@ -46,6 +46,46 @@ const CreatePayerID = () => {
 
     const navigate = useNavigate();
 
+    const formatErrorMessage = (errorObjOrMsg) => {
+        if (!errorObjOrMsg) return '';
+        
+        const cleanMessage = (msg) => {
+            if (typeof msg === 'string') {
+                const lowerMsg = msg.toLowerCase();
+                if (lowerMsg.includes('nin') && (lowerMsg.includes('exists') || lowerMsg.includes('duplicate') || lowerMsg.includes('already'))) {
+                    return 'This NIN number is already registered. Please check the number or use another NIN.';
+                }
+                if (lowerMsg.includes('duplicate key') || lowerMsg.includes('e11000')) {
+                    if (lowerMsg.includes('nin')) {
+                        return 'This NIN number is already registered. Please check the number or use another NIN.';
+                    }
+                    if (lowerMsg.includes('email')) {
+                        return 'This email address is already registered.';
+                    }
+                    if (lowerMsg.includes('phone')) {
+                        return 'This phone number is already registered.';
+                    }
+                    return 'A record with this unique information already exists.';
+                }
+            }
+            return msg;
+        };
+
+        if (typeof errorObjOrMsg === 'string') return cleanMessage(errorObjOrMsg);
+        if (Array.isArray(errorObjOrMsg)) {
+            return errorObjOrMsg.map(item => typeof item === 'object' ? JSON.stringify(item) : cleanMessage(item)).join(', ');
+        }
+        if (typeof errorObjOrMsg === 'object') {
+            if (errorObjOrMsg.message) return cleanMessage(errorObjOrMsg.message);
+            const values = Object.values(errorObjOrMsg).flat();
+            if (values.length > 0) {
+                return values.map(item => typeof item === 'object' ? JSON.stringify(item) : cleanMessage(item)).join(', ');
+            }
+            return JSON.stringify(errorObjOrMsg);
+        }
+        return String(errorObjOrMsg);
+    };
+
     // Handle form submission
     const handleSubmit = async (e) => {
         console.log("Form submitted with data:", formData);
@@ -60,14 +100,15 @@ const CreatePayerID = () => {
                 navigate('/facilitymgrcreateidsuccess');
             }
             else {
-                setNotification({ type: 'error', message: data.message || 'Error creating payer Id' });
+                setNotification({ type: 'error', message: formatErrorMessage(data.message) || 'Error creating payer Id' });
             }
         } catch (error) {
             console.error("Error is", error);
             console.error("Full error response:", error?.response);
+            const errMsg = error.response?.data?.message || error.response?.data?.errors || error.message || 'Error creating payer Id';
             setNotification({
               type: 'error',
-              message: error?.response?.data?.message || 'Error creating payer Id',
+              message: formatErrorMessage(errMsg),
             });
           }
     };

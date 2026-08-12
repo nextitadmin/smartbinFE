@@ -37,15 +37,38 @@ const CreatePayerID = () => {
 
     const formatErrorMessage = (errorObjOrMsg) => {
         if (!errorObjOrMsg) return '';
-        if (typeof errorObjOrMsg === 'string') return errorObjOrMsg;
+        
+        const cleanMessage = (msg) => {
+            if (typeof msg === 'string') {
+                const lowerMsg = msg.toLowerCase();
+                if (lowerMsg.includes('nin') && (lowerMsg.includes('exists') || lowerMsg.includes('duplicate') || lowerMsg.includes('already'))) {
+                    return 'This NIN number is already registered. Please check the number or use another NIN.';
+                }
+                if (lowerMsg.includes('duplicate key') || lowerMsg.includes('e11000')) {
+                    if (lowerMsg.includes('nin')) {
+                        return 'This NIN number is already registered. Please check the number or use another NIN.';
+                    }
+                    if (lowerMsg.includes('email')) {
+                        return 'This email address is already registered.';
+                    }
+                    if (lowerMsg.includes('phone')) {
+                        return 'This phone number is already registered.';
+                    }
+                    return 'A record with this unique information already exists.';
+                }
+            }
+            return msg;
+        };
+
+        if (typeof errorObjOrMsg === 'string') return cleanMessage(errorObjOrMsg);
         if (Array.isArray(errorObjOrMsg)) {
-            return errorObjOrMsg.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(', ');
+            return errorObjOrMsg.map(item => typeof item === 'object' ? JSON.stringify(item) : cleanMessage(item)).join(', ');
         }
         if (typeof errorObjOrMsg === 'object') {
-            if (errorObjOrMsg.message) return errorObjOrMsg.message;
+            if (errorObjOrMsg.message) return cleanMessage(errorObjOrMsg.message);
             const values = Object.values(errorObjOrMsg).flat();
             if (values.length > 0) {
-                return values.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(', ');
+                return values.map(item => typeof item === 'object' ? JSON.stringify(item) : cleanMessage(item)).join(', ');
             }
             return JSON.stringify(errorObjOrMsg);
         }

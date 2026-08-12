@@ -270,7 +270,7 @@ const KYCApplication = () => {
                     lawmaCustomerType: "Existing" // Default type
                 },
                 identityInformation: {
-                    NIN: formData.documents.idNumber,
+                    NinNo: formData.documents.idNumber,
                     idDocument: processedImageString || ""
                 },
                 addressInformation: {

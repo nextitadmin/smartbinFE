@@ -278,7 +278,7 @@ const KYCApplication = () => {
             };
 
             const { data } = await api.post(
-                '/facility-manager/kyc',
+                '/resident/kyc',
                 payload
             );
 
@@ -294,7 +294,7 @@ const KYCApplication = () => {
                     };
 
                     await api.patch(
-                        '/facility-manager/kyc/personal-info',
+                        '/resident/kyc/personal-info',
                         personalPayload
                     );
 
@@ -309,7 +309,7 @@ const KYCApplication = () => {
                     };
 
                     await api.patch(
-                        '/facility-manager/kyc/address',
+                        '/resident/kyc/address',
                         addressPayload
                     );
 
@@ -320,7 +320,7 @@ const KYCApplication = () => {
                     };
 
                     const verificationRes = await api.patch(
-                        '/facility-manager/kyc/id-verification',
+                        '/resident/kyc/id-verification',
                         verificationPayload
                     );
 
