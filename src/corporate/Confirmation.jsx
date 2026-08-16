@@ -85,7 +85,6 @@ const EmailVerification = () => {
         const loginEndpoints = {
             agent: "/agents/verify-login",
             corporate: "/corporate/verify-login",
-            corporate: "/corporate/login",
             facilitymgr: "/facility-managers/login/verify",
         };
         const url = loginEndpoints[userType]

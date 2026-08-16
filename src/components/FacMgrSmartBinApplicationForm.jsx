@@ -130,7 +130,7 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
             if ((data.succeeded || data.success) && Array.isArray(data.data)) {
                 setOptions(prev => ({
                     ...prev,
-                    lgas: data.data.map(item => typeof item === 'string' ? item : item.text || item.name || '' ).filter(Boolean)
+                    lgas: data.data.map(item => typeof item === 'string' ? item : item.text || item.name || '').filter(Boolean)
                 }));
             }
         } catch (error) {
@@ -375,216 +375,216 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                         </button>
                     </div>
                     <form onSubmit={submitApplication} className="flex-1 overflow-y-auto p-6 bg-white">
-                            <div className="grid grid-cols-1 md:grid-cols-6 gap-x-5 gap-y-6">
-                                <div className="md:col-span-3">
-                                    <label htmlFor="TenantName" className="block text-sm font-medium text-zinc-700 mb-1">Tenant Name</label>
-                                    <select
-                                        name="TenantName"
-                                        value={formData.tenantId}
-                                        onChange={handleInputChange}
-                                        required
-                                        className="form-select w-full border border-zinc-300 p-3 rounded-xl"
-                                        style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                    >
-                                        <option disabled value="">Select Tenant</option>
-                                        {tenantsList.map((tenant) => (
-                                            <option key={tenant.id} value={tenant.id}>
-                                                {tenant.fullName}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="md:col-span-3">
-                                    <label htmlFor="binType" className="block text-sm font-medium text-zinc-700 mb-1">Bin Type</label>
-                                    <select
-                                        id="binType"
-                                        disabled={isDisabled}
-                                        style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                        name="binType"
-                                        value={formData.binType || 'Smart'}
-                                        onChange={handleInputChange}
-                                        required
-                                        className="form-select w-full border border-zinc-300 p-3 rounded-xl bg-white outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent text-sm"
-                                    >
-                                        <option value="Smart">Smart</option>
-                                        <option value="Non Smart">Non Smart</option>
-                                    </select>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1">Email address</label>
-                                    <input
-                                        type="email"
-                                        id="email"
-                                        disabled={isDisabled}
-                                        style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                        name="email"
-                                        value={formData.email}
-                                        onChange={handleInputChange}
-                                        required
-                                        className="form-input w-full border border-zinc-300 p-4 rounded-xl"
-                                        autoComplete="email"
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label htmlFor="phoneNo" className="block text-sm font-medium text-zinc-700 mb-1">Telephone</label>
-                                    <input
-                                        type="tel"
-                                        id="phoneNo"
-                                        disabled={isDisabled}
-                                        style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                        name="phoneNo"
-                                        value={formData.phoneNo}
-                                        onChange={handleInputChange}
-                                        required
-                                        className="form-input w-full border border-zinc-300 p-4 rounded-xl"
-                                        autoComplete="tel"
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label htmlFor="payerId" className="block text-sm font-medium text-zinc-700 mb-1">Payer ID</label>
-                                    <input
-                                        type="text"
-                                        id="payerId"
-                                        disabled={isDisabled}
-                                        style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                        name="payerId"
-                                        value={formData.payerId}
-                                        onChange={handleInputChange}
-                                        required
-                                        className="form-input w-full border border-zinc-300 p-4 rounded-xl"
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label htmlFor="lawmaCustomerType" className="block text-sm font-medium text-zinc-700 mb-1">LAWMA Customer type</label>
-                                    <select
-                                        id="lawmaCustomerType"
-                                        disabled={isDisabled}
-                                        style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                        name="lawmaCustomerType"
-                                        value={formData.lawmaCustomerType}
-                                        onChange={handleInputChange}
-                                        required
-                                        className="form-select w-full border border-zinc-300 p-3 rounded-xl"
-                                    >
-                                        <option disabled value="">Select Customer Type</option>
-                                        {options.lawmaCustomerTypes.map(option => (
-                                            <option key={option} value={option}>{option}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-6 gap-x-5 gap-y-6 mt-12">
-                                <div className="md:col-span-2">
-                                    <label htmlFor="buildingType" className="block text-sm font-medium text-zinc-700 mb-1">Building Type</label>
-                                    <select
-                                        id="buildingType"
-                                        name="buildingType"
-                                        disabled={isDisabled}
-                                        style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                        value={formData.buildingType}
-                                        onChange={handleInputChange}
-                                        required
-                                        className="form-select w-full border border-zinc-300 p-3 rounded-xl"
-                                    >
-                                        <option disabled value=""> Building Type</option>
-                                        {options.buildingTypes.map(option => (
-                                            <option key={option} value={option}>{option}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label htmlFor="houseNo" className="block text-sm font-medium text-zinc-700 mb-1">House/Building Name</label>
-                                    <input
-                                        type="text"
-                                        id="houseNo"
-                                        disabled={isDisabled}
-                                        style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                        name="houseNo"
-                                        value={formData.houseNo}
-                                        onChange={handleInputChange}
-                                        placeholder="House/Building Name"
-                                        // required // Optional based on requirements
-                                        className="form-input w-full border border-zinc-300 p-4 rounded-xl"
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label htmlFor="flatNo" className="block text-sm font-medium text-zinc-700 mb-1">Flat number</label>
-                                    <input
-                                        type="text"
-                                        id="flatNo"
-                                        disabled={isDisabled}
-                                        style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                        name="flatNo"
-                                        value={formData.flatNo}
-                                        onChange={handleInputChange}
-                                        placeholder="Flat Number"
-                                        // required // Optional based on requirements
-                                        className="form-input w-full border border-zinc-300 p-4 rounded-xl"
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label htmlFor="lga" className="block text-sm font-medium text-zinc-700 mb-1">Local Government</label>
-                                    <select
-                                        id="lga"
-                                        name="lga"
-                                        disabled={isDisabled}
-                                        style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                        value={formData.lga}
-                                        onChange={handleInputChange}
-                                        required
-                                        className="form-select w-full border border-zinc-300 p-3 rounded-xl"
-                                    >
-                                        <option disabled value="">Select Local Government</option>
-                                        {options.lgas.map((option, index) => (
-                                            <option key={`${option}-${index}`} value={option}>{option}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label htmlFor="closestLandmark" className="block text-sm font-medium text-zinc-700 mb-1">Closest Landmark</label>
-                                    <input
-                                        type="text"
-                                        disabled={isDisabled}
-                                        style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                        id="closestLandmark"
-                                        name='closestLandmark'
-                                        onChange={handleInputChange}
-                                        value={formData.closestLandmark}
-                                        placeholder="Landmark"
-                                        className="w-full p-4 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition duration-150 ease-in-out text-sm placeholder-zinc-400"
-                                    />
-                                </div>
-                                <div className="md:col-span-6">
-                                    <label htmlFor="streetName" className="block text-sm font-medium text-zinc-700 mb-1">Full Address <span className="text-red-500">*</span></label>
-                                    <input
-                                        id="streetName"
-                                        value={formData.streetName}
-                                        disabled={isDisabled}
-                                        style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
-                                        name='streetName'
-                                        onChange={handleInputChange}
-                                        required
-                                        placeholder="Enter your full address"
-                                        className="w-full p-4 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition duration-150 ease-in-out text-sm placeholder-zinc-400"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-3 pt-8 mt-12 mb-4">
-                                <button
-                                    type="button"
-                                    onClick={cancelForm}
-                                    className="px-5 py-2 bg-white border border-green-700 rounded-md shadow-sm text-sm font-medium text-green-700 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        <div className="grid grid-cols-1 md:grid-cols-6 gap-x-5 gap-y-6">
+                            <div className="md:col-span-3">
+                                <label htmlFor="TenantName" className="block text-sm font-medium text-zinc-700 mb-1">Tenant Name</label>
+                                <select
+                                    name="TenantName"
+                                    value={formData.tenantId}
+                                    onChange={handleInputChange}
+                                    required
+                                    className="form-select w-full border border-zinc-300 p-3 rounded-xl"
+                                    style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
                                 >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-6 py-2 bg-green-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                                >
-                                    Next
-                                </button>
+                                    <option disabled value="">Select Tenant</option>
+                                    {tenantsList.map((tenant) => (
+                                        <option key={tenant.id} value={tenant.id}>
+                                            {tenant.fullName}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
-                        </form>
+                            <div className="md:col-span-3">
+                                <label htmlFor="binType" className="block text-sm font-medium text-zinc-700 mb-1">Bin Type</label>
+                                <select
+                                    id="binType"
+                                    disabled={isDisabled}
+                                    style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
+                                    name="binType"
+                                    value={formData.binType || 'Smart'}
+                                    onChange={handleInputChange}
+                                    required
+                                    className="form-select w-full border border-zinc-300 p-3 rounded-xl bg-white outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent text-sm"
+                                >
+                                    <option value="Smart">Smart</option>
+                                    <option value="Non Smart">Non Smart</option>
+                                </select>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1">Email address</label>
+                                <input
+                                    type="email"
+                                    id="email"
+                                    disabled={isDisabled}
+                                    style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
+                                    name="email"
+                                    value={formData.email}
+                                    onChange={handleInputChange}
+                                    required
+                                    className="form-input w-full border border-zinc-300 p-4 rounded-xl"
+                                    autoComplete="email"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label htmlFor="phoneNo" className="block text-sm font-medium text-zinc-700 mb-1">Telephone</label>
+                                <input
+                                    type="tel"
+                                    id="phoneNo"
+                                    disabled={isDisabled}
+                                    style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
+                                    name="phoneNo"
+                                    value={formData.phoneNo}
+                                    onChange={handleInputChange}
+                                    required
+                                    className="form-input w-full border border-zinc-300 p-4 rounded-xl"
+                                    autoComplete="tel"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label htmlFor="payerId" className="block text-sm font-medium text-zinc-700 mb-1">Payer ID</label>
+                                <input
+                                    type="text"
+                                    id="payerId"
+                                    disabled={isDisabled}
+                                    style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
+                                    name="payerId"
+                                    value={formData.payerId}
+                                    onChange={handleInputChange}
+                                    required
+                                    className="form-input w-full border border-zinc-300 p-4 rounded-xl"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label htmlFor="lawmaCustomerType" className="block text-sm font-medium text-zinc-700 mb-1">LAWMA Customer type</label>
+                                <select
+                                    id="lawmaCustomerType"
+                                    disabled={isDisabled}
+                                    style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
+                                    name="lawmaCustomerType"
+                                    value={formData.lawmaCustomerType}
+                                    onChange={handleInputChange}
+                                    required
+                                    className="form-select w-full border border-zinc-300 p-3 rounded-xl"
+                                >
+                                    <option disabled value="">Select Customer Type</option>
+                                    {options.lawmaCustomerTypes.map(option => (
+                                        <option key={option} value={option}>{option}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-6 gap-x-5 gap-y-6 mt-12">
+                            <div className="md:col-span-2">
+                                <label htmlFor="buildingType" className="block text-sm font-medium text-zinc-700 mb-1">Building Type</label>
+                                <select
+                                    id="buildingType"
+                                    name="buildingType"
+                                    disabled={isDisabled}
+                                    style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
+                                    value={formData.buildingType}
+                                    onChange={handleInputChange}
+                                    required
+                                    className="form-select w-full border border-zinc-300 p-3 rounded-xl"
+                                >
+                                    <option disabled value=""> Building Type</option>
+                                    {options.buildingTypes.map(option => (
+                                        <option key={option} value={option}>{option}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label htmlFor="houseNo" className="block text-sm font-medium text-zinc-700 mb-1">House/Building Name</label>
+                                <input
+                                    type="text"
+                                    id="houseNo"
+                                    disabled={isDisabled}
+                                    style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
+                                    name="houseNo"
+                                    value={formData.houseNo}
+                                    onChange={handleInputChange}
+                                    placeholder="House/Building Name"
+                                    // required // Optional based on requirements
+                                    className="form-input w-full border border-zinc-300 p-4 rounded-xl"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label htmlFor="flatNo" className="block text-sm font-medium text-zinc-700 mb-1">Flat number</label>
+                                <input
+                                    type="text"
+                                    id="flatNo"
+                                    disabled={isDisabled}
+                                    style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
+                                    name="flatNo"
+                                    value={formData.flatNo}
+                                    onChange={handleInputChange}
+                                    placeholder="Flat Number"
+                                    // required // Optional based on requirements
+                                    className="form-input w-full border border-zinc-300 p-4 rounded-xl"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label htmlFor="lga" className="block text-sm font-medium text-zinc-700 mb-1">Local Government</label>
+                                <select
+                                    id="lga"
+                                    name="lga"
+                                    disabled={isDisabled}
+                                    style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
+                                    value={formData.lga}
+                                    onChange={handleInputChange}
+                                    required
+                                    className="form-select w-full border border-zinc-300 p-3 rounded-xl"
+                                >
+                                    <option disabled value="">Select Local Government</option>
+                                    {options.lgas.map((option, index) => (
+                                        <option key={`${option}-${index}`} value={option}>{option}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label htmlFor="closestLandmark" className="block text-sm font-medium text-zinc-700 mb-1">Closest Landmark</label>
+                                <input
+                                    type="text"
+                                    disabled={isDisabled}
+                                    style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
+                                    id="closestLandmark"
+                                    name='closestLandmark'
+                                    onChange={handleInputChange}
+                                    value={formData.closestLandmark}
+                                    placeholder="Landmark"
+                                    className="w-full p-4 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition duration-150 ease-in-out text-sm placeholder-zinc-400"
+                                />
+                            </div>
+                            <div className="md:col-span-6">
+                                <label htmlFor="streetName" className="block text-sm font-medium text-zinc-700 mb-1">Full Address <span className="text-red-500">*</span></label>
+                                <input
+                                    id="streetName"
+                                    value={formData.streetName}
+                                    disabled={isDisabled}
+                                    style={{ backgroundColor: isDisabled ? '#f4f4f5' : 'white' }}
+                                    name='streetName'
+                                    onChange={handleInputChange}
+                                    required
+                                    placeholder="Enter your full address"
+                                    className="w-full p-4 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition duration-150 ease-in-out text-sm placeholder-zinc-400"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 pt-8 mt-12 mb-4">
+                            <button
+                                type="button"
+                                onClick={cancelForm}
+                                className="px-5 py-2 bg-white border border-green-700 rounded-md shadow-sm text-sm font-medium text-green-700 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-6 py-2 bg-green-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </form>
                 </main>
             </div>
 
@@ -639,7 +639,7 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                                 <AlatPayButton
                                     amount={smartBinAmount}
                                     onTransaction={(response) => { handlePayment(response); }} // Pass response correctly
-                                    buttonText="Pay Now with ALATPay"
+                                    buttonText="Pay Now "
                                     buttonClassName="btn btn-primary w-full"
                                 />
                             ) : (

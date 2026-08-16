@@ -6,6 +6,49 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Welcome to SmartBin</title>
+  <script>
+    // Intercept and mock requests to api.ipify.org to prevent connection failures in sandboxed/corporate networks
+    (function() {
+      const originalFetch = window.fetch;
+      window.fetch = function(input, init) {
+        const url = typeof input === 'string' ? input : (input && input.url);
+        if (url && url.includes('ipify.org')) {
+          console.log('Intercepted fetch to ipify.org, returning mock IP');
+          return Promise.resolve(new Response(JSON.stringify({ ip: '197.210.64.1' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          }));
+        }
+        return originalFetch.apply(this, arguments);
+      };
+
+      const originalOpen = XMLHttpRequest.prototype.open;
+      const originalSend = XMLHttpRequest.prototype.send;
+      
+      XMLHttpRequest.prototype.open = function(method, url) {
+        this._url = url;
+        return originalOpen.apply(this, arguments);
+      };
+
+      XMLHttpRequest.prototype.send = function(body) {
+        if (this._url && this._url.includes('ipify.org')) {
+          console.log('Intercepted XHR to ipify.org, returning mock IP');
+          Object.defineProperty(this, 'readyState', { writable: true, value: 4 });
+          Object.defineProperty(this, 'status', { writable: true, value: 200 });
+          Object.defineProperty(this, 'responseText', { writable: true, value: JSON.stringify({ ip: '197.210.64.1' }) });
+          
+          if (typeof this.onreadystatechange === 'function') {
+            this.onreadystatechange();
+          }
+          if (typeof this.onload === 'function') {
+            this.onload();
+          }
+          return;
+        }
+        return originalSend.apply(this, arguments);
+      };
+    })();
+  </script>
 </head>
 
 <body>

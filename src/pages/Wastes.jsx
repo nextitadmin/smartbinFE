@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Topbar from '../components/Topbar';
 import Sidebar from '../components/Sidebar';
 import api from '../api/axiosConfig';
-import AlatPayButton from '../components/AlatPayButton';
+import Pay4ItButton from '../components/Pay4ItButton';
 import useAuthStore from '../store/authStore';
 import useResidentStore from '../store/useResidentStore';
 
@@ -20,7 +20,7 @@ const Wastes = () => {
     const itemsPerPage = 6;
     const [otherReason, setOtherReason] = useState('');
     const [notification, setNotification] = useState(null);
-    const [pickUpAmount, setPickUpAmount] = useState(3500);
+    const [pickUpAmount, setPickUpAmount] = useState(5000);
     const [walletBalance, setWalletBalance] = useState(0);
     const [debitType, setDebitType] = useState(''); // 'wallet' or 'smartbin'
     const noteOptions = ['An Occasion', 'An Emergency', 'Other reasons'];
@@ -215,7 +215,7 @@ const Wastes = () => {
         time: '',
         phone: '',
         address: '',
-        note : ''
+        note: ''
     });
 
     // Subscription modal data
@@ -240,7 +240,7 @@ const Wastes = () => {
                 time: '',
                 phone: '',
                 address: '',
-                note : ''
+                note: ''
             });
             setOtherReason('');
         };
@@ -255,7 +255,7 @@ const Wastes = () => {
             //     time: '',
             //     phone: '',
             //     address: ''
-                    // note : ''
+            // note : ''
             // });
         };
     };
@@ -345,34 +345,33 @@ const Wastes = () => {
     };
 
     const handlePaymentWithWallet = async () => {
-
-
-
         try {
+            const amount = pickUpAmount;
+
             const response = await api.post("/wallets/charge", {
-                userId: useAuthStore.getState().token, // Assuming you have a userId in your auth store
-                drAccountNo: Resident.accountNo,
-                amount: pickUpAmount,
-                narration: "Waste Pickup Payment",
-                paymentPurpose: "Waste Pickup Application"
+                amount,
+                reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase()
             });
             const data = response.data;
 
-            console.log("Response from debit-wallet:", data);
+            console.log("Response from wallets/charge:", data);
 
-            if (data.succeeded) {
-                console.log("Wallet payment successful:", data.succeeded, "and message:", data.message);
-
-                let successMessage = data.message.split('|');
-                let successRef; // Assuming the first part is the reference
-                if (successMessage.length > 1) {
-                    successRef = successMessage[1];
+            if (data.succeeded || data.success) {
+                console.log("Wallet payment successful:", data);
+                 let successRef;
+                 if (data.message && data.message.includes('|')) {
+                     successRef = data.message.split('|')[1]?.trim();
+                 }
+                 if (!successRef) {
+                     successRef = data.data?.transactionReference || data.data?.reference || data.data?.transRef || data.reference;
+                 }
+                if (!successRef) {
+                    successRef = 'N/A';
                 }
-
 
                 await handlePayment({ reference: successRef, channel: "wallet" }).finally(() => {
                     console.log("Payment with wallet completed");
-                });// Return the response for further processing
+                });
                 setNotification({ type: 'success', message: 'Payment successful!' });
 
             } else {
@@ -385,11 +384,6 @@ const Wastes = () => {
             console.error("Error processing wallet payment:", error);
             setNotification({ type: 'error', message: formatErrorMessage(error, "Error processing wallet payment") });
         }
-
-
-        // Mock response for wallet payment
-
-
 
     }
 
@@ -703,11 +697,20 @@ const Wastes = () => {
                             {
                                 selectedPaymentMethod === 'card' ?
                                     (
-                                        <AlatPayButton
-                                            //all details provided by the api request in the component
+                                        <Pay4ItButton
                                             amount={pickUpAmount}
-                                            onTransaction={() => { handlePayment }}
-                                            buttonText="Pay Now with ALATPay"
+                                            email={useResidentStore.getState().residentInfo?.emailAddress || useAuthStore.getState().email || "resident@email.com"}
+                                            customerName={`${useResidentStore.getState().residentInfo?.firstName || ''} ${useResidentStore.getState().residentInfo?.lastName || ''}`.trim() || "Resident User"}
+                                            userType="resident"
+                                            onSuccess={(res) => {
+                                                console.log("Pay4It pickup success:", res);
+                                                const finalRef = res.reference || res.tranref;
+                                                handlePayment({ data: { reference: finalRef } });
+                                            }}
+                                            onClose={() => {
+                                                console.log("Pay4It window closed");
+                                            }}
+                                            buttonText="Make Payment"
                                             buttonClassName="btn btn-primary w-full"
                                         />
                                     )
@@ -820,12 +823,12 @@ const Wastes = () => {
                                     rows="3"
                                     className="form-input"
                                     placeholder="Contact address"
-                                > 
+                                >
                                     <option disabled value="">Select reason for pickup</option>
                                     {noteOptions.map(option => (
                                         <option key={option} value={option}>{option}</option>
                                     ))}
-                                </select>                                
+                                </select>
                             </div>
                             {
                                 pickupRequestData.note === "Other reasons" && (

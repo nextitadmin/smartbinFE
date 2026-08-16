@@ -244,8 +244,7 @@ function KycStatusCard() {
 
     const handleReupload = (itemId) => {
         console.log(`Reupload requested for item: ${itemId}`);
-        // Add navigation or modal trigger as needed
-        // Example: navigate(`/kyc/reupload/${itemId}`);
+        navigate('/kycapplication');
     };
 
     const handleRetry = () => {

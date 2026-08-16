@@ -877,7 +877,7 @@ const SmartBinApplication = () => {
                                 <AlatPayButton
                                     amount={smartBinAmount}
                                     onTransaction={handlePayment}
-                                    buttonText="Pay Now with ALATPay"
+                                    buttonText="Pay Now "
                                     buttonClassName="btn btn-primary w-full"
                                 />
                             ) : (

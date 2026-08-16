@@ -91,7 +91,7 @@ const Dashboard = () => {
                     outstandingBill: `₦${data.data.totalOutstandingBill.toLocaleString()}`,
                     binApplications: data.data.smartbinApplicationsCount, // Assuming count
                     walletBalance: `₦${data.data.walletBalance}`, // Note: API typo 'avaliable'
-                    estimatedSubscriptionFee: `₦${data.data.estimatedAnnualSubscriptionFee}`,
+                    estimatedSubscriptionFee: `₦${data.data.estimatedAnnualSubscription}`,
                     nextPickupDate: data.data.nextPickUpDate === "N/A" ? "N/A" : new Date().toISOString() // Simplified, adjust if date is provided
                 });
                 // Chart data is not in the new response, so leaving chartDetails as empty array
@@ -156,25 +156,30 @@ const Dashboard = () => {
     const handlePaymentWithWallet = async () => {
         const selectedPlan = subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan);
         try {
-            const response = await api.post("/Wallet/debit-wallet", {
-                userId: useAuthStore.getState().token, // Assuming you have a userId in your auth store
-                drAccountNo: resident.accountNo,
-                amount: parseInt(selectedPlan.price.replace(/[^\d]/g, '')),
-                narration: "Subscription Payment",
-                paymentPurpose: "Subscription Application"
+            const amount = selectedPlan.originalPrice ? (selectedPlan.originalPrice / 100) : parseInt(String(selectedPlan.price).replace(/[^\d]/g, ''));
+
+            const response = await api.post("/wallets/charge", {
+                amount,
+                reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase()
             });
             const data = response.data;
-            console.log("Response from debit-wallet:", data);
+            console.log("Response from wallets/charge:", data);
+
             if (data.succeeded || data.success) {
-                console.log("Wallet payment successful:", data.succeeded, "and message:", data.message);
-                let successMessage = data.message.split('|');
+                console.log("Wallet payment successful:", data);
                 let successRef;
-                if (successMessage.length > 1) {
-                    successRef = successMessage[1];
+                if (data.message && data.message.includes('|')) {
+                    successRef = data.message.split('|')[1]?.trim();
+                }
+                if (!successRef) {
+                    successRef = data.data?.transactionReference || data.data?.reference || data.data?.transRef || data.reference;
+                }
+                if (!successRef) {
+                    successRef = 'N/A';
                 }
                 await handlePayment({ reference: successRef, channel: "wallet" }).finally(() => {
                     console.log("Payment with wallet completed");
-                });// Return the response for further processing
+                });
                 setNotification({ type: 'success', message: 'Payment successful!' });
             } else {
                 console.error("Wallet payment failed:", data.message);
@@ -192,31 +197,69 @@ const Dashboard = () => {
     const handlePayment = async (response) => {
         let ref, channel;
         if (selectedPaymentMethod === 'wallet') {
-            ref = response.reference;
+            ref = response?.reference || response?.data?.reference || response?.tranref;
             channel = "wallet";
         }
         else if (selectedPaymentMethod === 'card') {
-            ref = response.data.reference;
+            ref = response?.data?.reference || response?.reference || response?.tranref;
             channel = "card";
         };
         if (!selectedPaymentMethod) {
             setNotification({ type: 'error', message: 'Select a payment method' });
             return;
         }
+        if (!ref) {
+            setNotification({ type: 'error', message: 'Payment reference is missing' });
+            return;
+        }
         const selectedPlan = subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)
+
+        let transactionReferenceToSend = ref;
+
+        // If card, we must first charge the wallet to get a valid charge reference
+        if (selectedPaymentMethod === 'card') {
+            try {
+                const amount = selectedPlan.originalPrice ? (selectedPlan.originalPrice / 100) : parseInt(String(selectedPlan.price).replace(/[^\d]/g, ''));
+                const chargeResponse = await api.post("/wallets/charge", {
+                    amount,
+                    reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase()
+                });
+                const chargeData = chargeResponse.data;
+                if (chargeData.succeeded || chargeData.success) {
+                    let chargeRef;
+                    if (chargeData.message && chargeData.message.includes('|')) {
+                        chargeRef = chargeData.message.split('|')[1]?.trim();
+                    }
+                    if (!chargeRef) {
+                        chargeRef = chargeData.data?.transactionReference || chargeData.data?.reference || chargeData.data?.transRef || chargeData.reference;
+                    }
+                    if (chargeRef) {
+                        transactionReferenceToSend = chargeRef;
+                    }
+                } else {
+                    setNotification({ type: 'error', message: chargeData.message || 'Failed to process subscription charge' });
+                    handleSubscriptionBack();
+                    return;
+                }
+            } catch (error) {
+                console.error("Error processing subscription charge:", error);
+                setNotification({ type: 'error', message: 'Failed to process subscription charge' });
+                handleSubscriptionBack();
+                return;
+            }
+        }
+
         const dataToSend = {
-            residentID: useAuthStore.getState().token,
-            amount: parseInt(selectedPlan.price.replace(/[^\d]/g, '')),
-            mode: selectedPaymentMethod,
-            subscriptionChoiceMonth: selectedPlan.id,
-            transRef: ref
+            plan: selectedPlan.id,
+            transactionReference: String(transactionReferenceToSend)
         };
         try {
-            const { data } = await api.post('/Wallet/new-subscription', dataToSend);
+            const { data } = await api.post('/subscription/subscribe', dataToSend);
             if (data.succeeded || data.success) {
                 setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
                 setIsSubscriptionModalOpen(false);
                 closeModal('payment');
+                fetchResident();
                 fetchBalance();
             }
             else {
@@ -253,26 +296,32 @@ const Dashboard = () => {
     //     { id: 1, duration: '1 year', price: '₦35,000', pricePerMonth: '₦2,917 per month' },
     // ];
 
-    // useEffect(() => {
-    //     const fetchSubscriptions = async () => {
-    //         try {
-    //             const { data } = await api.get('/Wallet/fetch-monthly-subscriptions');
-    //             if (data.succeeded) {
-    //                 const newPlans = data.data.map((item) => ({
-    //                     id: item.month,
-    //                     duration: `${item.month} months`,
-    //                     price: `₦${item.amount}`,
-    //                     pricePerMonth: `₦${item.amount} per month`,
-    //                 }));
-    //                 setSubscriptionPlans(newPlans);
-    //             }
-    //         } catch (error) {
-    //             console.error("Error fetching subscription plans:", error);
-    //             setNotification({ type: 'error', message: 'Error fetching subscription!' });
-    //         }
-    //     };
-    //     fetchSubscriptions();
-    // }, []);
+    useEffect(() => {
+        const fetchSubscriptions = async () => {
+            try {
+                const { data } = await api.get('/subscription/plans');
+                if (data.success && Array.isArray(data.data)) {
+                    const newPlans = data.data.map((item) => {
+                        const priceInNaira = item.price / 100;
+                        const pricePerMonthVal = Math.round(priceInNaira / item.duration);
+                        return {
+                            ...item,
+                            id: item._id,
+                            duration: `${item.duration} ${item.duration === 1 ? 'month' : 'months'}`,
+                            price: `₦${priceInNaira.toLocaleString()}`,
+                            pricePerMonth: `₦${pricePerMonthVal.toLocaleString()} per month`,
+                            originalPrice: item.price
+                        };
+                    });
+                    setSubscriptionPlans(newPlans);
+                }
+            } catch (error) {
+                console.error("Error fetching subscription plans:", error);
+                setNotification({ type: 'error', message: 'Error fetching subscription plans!' });
+            }
+        };
+        fetchSubscriptions();
+    }, []);
 
     const handleSubscriptionBack = () => {
         setIsPaymentModalOpen(false) // Open payment modal
@@ -580,7 +629,7 @@ const Dashboard = () => {
                                 <label className="px-6 py-4 rounded-lg flex items-center gap-4">
                                     <WalletIcon />
                                     <span className="text-sm font-medium text-zinc-800 flex-grow">
-                                        {`Pay from wallet (${parseInt(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.price?.replace(/[^\d]/g, '') || 0)})`}
+                                        {`Pay from wallet (₦${((subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice || 0) / 100 || parseInt(String(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.price || '0').replace(/[^\d]/g, '') || 0)).toLocaleString()})`}
                                     </span>
                                     <input
                                         type="radio"
@@ -621,7 +670,7 @@ const Dashboard = () => {
                                     selectedPaymentMethod === 'card' ?
                                         (
                                             <Pay4ItButton
-                                                amount={parseInt(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.price?.replace(/[^\d]/g, '') || 0) / 100}
+                                                amount={subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice ? (subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan).originalPrice / 100) : (parseInt(String(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.price || '0').replace(/[^\d]/g, '') || 0))}
                                                 email={useResidentStore.getState().residentInfo?.emailAddress || useAuthStore.getState().email || "resident@email.com"}
                                                 customerName={`${useResidentStore.getState().residentInfo?.firstName || ''} ${useResidentStore.getState().residentInfo?.lastName || ''}`.trim() || "Resident User"}
                                                 userType="resident"
@@ -633,7 +682,7 @@ const Dashboard = () => {
                                                 onClose={() => {
                                                     console.log("Pay4It window closed");
                                                 }}
-                                                buttonText="Pay Now with Pay4It"
+                                                buttonText="Make Payment"
                                                 buttonClassName="btn btn-primary w-full"
                                             />
                                         )

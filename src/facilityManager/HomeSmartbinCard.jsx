@@ -1313,7 +1313,7 @@ const SmartBinTableCard = () => {
                                             //all details provided by the api request in the component
                                             amount={smartBinAmount}
                                             onTransaction={() => { handlePayment }}
-                                            buttonText="Pay Now with ALATPay"
+                                            buttonText="Pay Now "
                                             buttonClassName="btn btn-primary w-full"
                                         />
                                     )

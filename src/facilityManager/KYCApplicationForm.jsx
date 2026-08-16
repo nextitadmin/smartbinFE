@@ -4,6 +4,7 @@ import Sidebar from '../components/FacilityMgrSideBar';
 import Topbar from '../components/FacilityMgrTopBar';
 import api from "../api/axiosConfig.js"
 import useAuthStore from '../store/authStore';
+import useFacilityMgrStore from '../store/useFacilityMgrStore';
 import { uploadFile } from '../utils/fileUpload.js'; // Import the uploadFile function
 
 // For the transitions and file input styles
@@ -91,11 +92,21 @@ const KYCApplication = () => {
     };
 
 
+    const { facilityMgrInfo, fetchFacilityManagerInfo } = useFacilityMgrStore();
+
     const checkStatus = async () => {
         try {
             const { data } = await api.get('/facility-manager/kyc/status')
-            if ((data.succeeded || data.success) && data.data && data.data.hasSubmittedIdentity) {
-                navigate('/newkycapplication');
+            if ((data.succeeded || data.success) && data.data) {
+                const { hasSubmittedIdentity, identityVerificationStatus, addressVerificationStatus } = data.data;
+                const identityStatus = (identityVerificationStatus || '').toLowerCase();
+                const addressStatus = (addressVerificationStatus || '').toLowerCase();
+
+                if (hasSubmittedIdentity && 
+                    identityStatus !== 'rejected' && identityStatus !== '0' && 
+                    addressStatus !== 'rejected' && addressStatus !== '0') {
+                    navigate('/newkycapplication');
+                }
             }
         } catch (error) {
             console.log(error);
@@ -105,7 +116,30 @@ const KYCApplication = () => {
     useEffect(() => {
         fetchLga();
         checkStatus();
+        fetchFacilityManagerInfo();
     }, [])
+
+    useEffect(() => {
+        if (facilityMgrInfo) {
+            setFormData(prev => ({
+                ...prev,
+                personal: {
+                    ...prev.personal,
+                    firstName: prev.personal.firstName || facilityMgrInfo.firstName || '',
+                    lastName: prev.personal.lastName || facilityMgrInfo.lastName || '',
+                    email: prev.personal.email || facilityMgrInfo.emailAddress || '',
+                    phone: prev.personal.phone || facilityMgrInfo.phoneNo || '',
+                },
+                address: {
+                    ...prev.address,
+                    address: prev.address.address || facilityMgrInfo.address || '',
+                    buildingType: prev.address.buildingType || facilityMgrInfo.buildingType || '',
+                    closestLandmark: prev.address.closestLandmark || facilityMgrInfo.landMark || '',
+                    localGovernment: prev.address.localGovernment || facilityMgrInfo.lga || '',
+                }
+            }));
+        }
+    }, [facilityMgrInfo]);
 
     // --- Handlers ---
     const handleInputChange = (section, field, value) => {

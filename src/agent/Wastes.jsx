@@ -109,15 +109,14 @@ const CustomDatePicker = ({ value, onChange, minDate }) => {
                 type="button"
                 disabled={isDisabled}
                 onClick={() => handleDayClick(day)}
-                className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-all ${
-                    isSelected
+                className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-all ${isSelected
                         ? 'bg-green-700 text-white'
                         : isToday
-                        ? 'border border-green-700 text-green-700 font-semibold'
-                        : isDisabled
-                        ? 'text-zinc-300 cursor-not-allowed'
-                        : 'text-zinc-700 hover:bg-zinc-100'
-                }`}
+                            ? 'border border-green-700 text-green-700 font-semibold'
+                            : isDisabled
+                                ? 'text-zinc-300 cursor-not-allowed'
+                                : 'text-zinc-700 hover:bg-zinc-100'
+                    }`}
             >
                 {day}
             </button>
@@ -172,133 +171,133 @@ const CustomDatePicker = ({ value, onChange, minDate }) => {
 const SmartBinApplication = () => {
     // --- State ---
     const [applications, setApplications] = useState([
-    {
-        "sn" : 1,
-        "wasteId": "#999935",
-        "subsTransferId": null,
-        "phoneNo": "07015607352",
-        "address": "Ibeju Royalty",
-        "payerID": null,
-        "createdBy": null,
-        "date": "2025-05-16T00:00:00",
-        "weight": 0,
-        "pickupBy": "",
-        "customerName" : "John Boyega",
-        "pickupDate": null,
-        "paymentType": "Wema",
-        "paymentTransRef": null,
-        "amountPaid": 0,
-        "status": "PENDING",
-        "loggerName": null,
-        "id": "08dd8cd8-67f3-49fc-80f0-4525254151a1",
-        "isDeleted": false
-    },
-    {
-        "sn" : 2,
-        "wasteId": "#316596",
-        "subsTransferId": null,
-        "phoneNo": "07015607398",
-        "address": "sdfghjk",
-        "payerID": null,
-        "createdBy": null,
-        "date": "2025-05-14T00:00:00",
-        "weight": 0,
-        "pickupBy": "",
-        "customerName" : "John Boyega",
-        "pickupDate": null,
-        "paymentType": "Wema",
-        "paymentTransRef": null,
-        "amountPaid": 0,
-        "status": "PENDING",
-        "loggerName": null,
-        "id": "08dd8b52-77a6-4b33-80e2-93195fd275c4",
-        "isDeleted": false
-    },
-    {
-        "sn" : 3,
-        "wasteId": "#168473",
-        "subsTransferId": null,
-        "phoneNo": "07015607398",
-        "address": "Ibeju lekki",
-        "payerID": null,
-        "createdBy": null,
-        "date": "2025-05-14T00:00:00",
-        "weight": 0,
-        "pickupBy": "",
-        "customerName" : "John Boyega",
-        "pickupDate": null,
-        "paymentType": "Wema",
-        "paymentTransRef": null,
-        "amountPaid": 0,
-        "status": "PENDING",
-        "loggerName": null,
-        "id": "08dd8c9a-aac5-4120-850d-a0f754ef5e58",
-        "isDeleted": false
-    },
-    {
-        "sn" : 4,
-        "wasteId": "#374937",
-        "subsTransferId": null,
-        "phoneNo": "07015607398",
-        "address": "sdfghjk",
-        "payerID": null,
-        "createdBy": null,
-        "date": "2025-05-10T00:00:00",
-        "weight": 0,
-        "pickupBy": "",
-        "customerName" : "John Boyega",
-        "pickupDate": null,
-        "paymentType": "Wema",
-        "paymentTransRef": null,
-        "amountPaid": 0,
-        "status": "PENDING",
-        "loggerName": null,
-        "id": "08dd8a83-f4f3-467a-8b1d-d8dcc4bef37b",
-        "isDeleted": false
-    },
-    {
-        "sn" : 5,
-        "wasteId": "#064665",
-        "subsTransferId": null,
-        "phoneNo": "07034563743",
-        "address": "string",
-        "payerID": null,
-        "createdBy": null,
-        "date": "2025-05-07T11:51:54.218",
-        "weight": 0,
-        "pickupBy": "",
-        "customerName" : "John Boyega",
-        "pickupDate": null,
-        "paymentType": "Wema",
-        "paymentTransRef": null,
-        "amountPaid": 0,
-        "status": "PENDING",
-        "loggerName": null,
-        "id": "08dd8a41-8c28-475c-8e93-c81c61f23797",
-        "isDeleted": false
-    },
-    {
-        "sn" : 6,
-        "wasteId": "#408805",
-        "subsTransferId": null,
-        "phoneNo": "07015607352",
-        "address": "Lagos",
-        "payerID": null,
-        "createdBy": null,
-        "date": "2025-05-07T00:00:00",
-        "weight": 0,
-        "pickupBy": "",
-        "customerName" : "John Boyega",
-        "pickupDate": null,
-        "paymentType": "Wema",
-        "paymentTransRef": null,
-        "amountPaid": 0,
-        "status": "PENDING",
-        "loggerName": null,
-        "id": "08dd8a4f-2587-46f0-8428-3ab6ac322b33",
-        "isDeleted": false
-    }
-]);
+        {
+            "sn": 1,
+            "wasteId": "#999935",
+            "subsTransferId": null,
+            "phoneNo": "07015607352",
+            "address": "Ibeju Royalty",
+            "payerID": null,
+            "createdBy": null,
+            "date": "2025-05-16T00:00:00",
+            "weight": 0,
+            "pickupBy": "",
+            "customerName": "John Boyega",
+            "pickupDate": null,
+            "paymentType": "Wema",
+            "paymentTransRef": null,
+            "amountPaid": 0,
+            "status": "PENDING",
+            "loggerName": null,
+            "id": "08dd8cd8-67f3-49fc-80f0-4525254151a1",
+            "isDeleted": false
+        },
+        {
+            "sn": 2,
+            "wasteId": "#316596",
+            "subsTransferId": null,
+            "phoneNo": "07015607398",
+            "address": "sdfghjk",
+            "payerID": null,
+            "createdBy": null,
+            "date": "2025-05-14T00:00:00",
+            "weight": 0,
+            "pickupBy": "",
+            "customerName": "John Boyega",
+            "pickupDate": null,
+            "paymentType": "Wema",
+            "paymentTransRef": null,
+            "amountPaid": 0,
+            "status": "PENDING",
+            "loggerName": null,
+            "id": "08dd8b52-77a6-4b33-80e2-93195fd275c4",
+            "isDeleted": false
+        },
+        {
+            "sn": 3,
+            "wasteId": "#168473",
+            "subsTransferId": null,
+            "phoneNo": "07015607398",
+            "address": "Ibeju lekki",
+            "payerID": null,
+            "createdBy": null,
+            "date": "2025-05-14T00:00:00",
+            "weight": 0,
+            "pickupBy": "",
+            "customerName": "John Boyega",
+            "pickupDate": null,
+            "paymentType": "Wema",
+            "paymentTransRef": null,
+            "amountPaid": 0,
+            "status": "PENDING",
+            "loggerName": null,
+            "id": "08dd8c9a-aac5-4120-850d-a0f754ef5e58",
+            "isDeleted": false
+        },
+        {
+            "sn": 4,
+            "wasteId": "#374937",
+            "subsTransferId": null,
+            "phoneNo": "07015607398",
+            "address": "sdfghjk",
+            "payerID": null,
+            "createdBy": null,
+            "date": "2025-05-10T00:00:00",
+            "weight": 0,
+            "pickupBy": "",
+            "customerName": "John Boyega",
+            "pickupDate": null,
+            "paymentType": "Wema",
+            "paymentTransRef": null,
+            "amountPaid": 0,
+            "status": "PENDING",
+            "loggerName": null,
+            "id": "08dd8a83-f4f3-467a-8b1d-d8dcc4bef37b",
+            "isDeleted": false
+        },
+        {
+            "sn": 5,
+            "wasteId": "#064665",
+            "subsTransferId": null,
+            "phoneNo": "07034563743",
+            "address": "string",
+            "payerID": null,
+            "createdBy": null,
+            "date": "2025-05-07T11:51:54.218",
+            "weight": 0,
+            "pickupBy": "",
+            "customerName": "John Boyega",
+            "pickupDate": null,
+            "paymentType": "Wema",
+            "paymentTransRef": null,
+            "amountPaid": 0,
+            "status": "PENDING",
+            "loggerName": null,
+            "id": "08dd8a41-8c28-475c-8e93-c81c61f23797",
+            "isDeleted": false
+        },
+        {
+            "sn": 6,
+            "wasteId": "#408805",
+            "subsTransferId": null,
+            "phoneNo": "07015607352",
+            "address": "Lagos",
+            "payerID": null,
+            "createdBy": null,
+            "date": "2025-05-07T00:00:00",
+            "weight": 0,
+            "pickupBy": "",
+            "customerName": "John Boyega",
+            "pickupDate": null,
+            "paymentType": "Wema",
+            "paymentTransRef": null,
+            "amountPaid": 0,
+            "status": "PENDING",
+            "loggerName": null,
+            "id": "08dd8a4f-2587-46f0-8428-3ab6ac322b33",
+            "isDeleted": false
+        }
+    ]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortColumn, setSortColumn] = useState('date');
     const [sortDirection, setSortDirection] = useState('dsc');
@@ -310,7 +309,7 @@ const SmartBinApplication = () => {
     const [isCustomerOpen, setIsCustomerOpen] = useState(false);
     const [isCustomerListOpen, setIsCustomerListOpen] = useState(false);
     const [customerNameList, setCustomerNameList] = useState(['John Babatunde', 'Alima Philips']);
-    const Agent  = useAgentStore.getState().agentInfo;
+    const Agent = useAgentStore.getState().agentInfo;
     const [pickUpAmount, setPickUpAmount] = useState(0);
     const [debitType, setDebitType] = useState('');
 
@@ -333,9 +332,9 @@ const SmartBinApplication = () => {
 
     // const fetchCustomerNameList = async () => {
     //     try {
-            
+
     //     } catch (error) {
-            
+
     //     }
     // }
 
@@ -379,7 +378,7 @@ const SmartBinApplication = () => {
     //                 address: item.address,
     //                 status: item.status,
     //                 representative: item.pickupBy
-                    //    customerName : item.customerName
+    //    customerName : item.customerName
     //             }));;
     //             setApplications(newData);
     //             setTotalPages(data.data.totalPages);
@@ -397,7 +396,7 @@ const SmartBinApplication = () => {
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
-        const parts = dateString.slice(0,10).split('-');
+        const parts = dateString.slice(0, 10).split('-');
         if (parts.length === 3) {
             return `${parts[0]}-${parts[1]}-${parts[2]}`;
         }
@@ -558,66 +557,66 @@ const SmartBinApplication = () => {
             setIsPickupModalOpen(false);
             // setPickupRequestData({
             //      date: '',
-                    // time: '',
-                    // phone: '',
-                    // address: '',
-                    // customerName : "",
-                    // customerType : ""
+            // time: '',
+            // phone: '',
+            // address: '',
+            // customerName : "",
+            // customerType : ""
             // });
         };
     };
-    
-        const handlePaymentWithWallet = async () => {
-    
-    
-    
-            try {
-                const response = await api.post("/Wallet/debit-wallet", {
-                    userId: useAuthStore.getState().token, // Assuming you have a userId in your auth store
-                    drAccountNo: Agent.accountNo,
-                    amount: pickUpAmount,
-                    narration: "Waste Pickup Payment",
-                    paymentPurpose: "Waste Pickup Application"
-                });
-                const data = response.data;
-    
-                console.log("Response from debit-wallet:", data);
-    
-                if (data.succeeded) {
-                    console.log("Wallet payment successful:", data.succeeded, "and message:", data.message);
-    
-                    let successMessage = data.message.split('|');
-                    let successRef; // Assuming the first part is the reference
-                    if (successMessage.length > 1) {
-                        successRef = successMessage[1];
-                    }
-    
-    
-                    await handlePayment({ reference: successRef, channel: "wallet" }).finally(() => {
-                        console.log("Payment with wallet completed");
-                    });// Return the response for further processing
-                    setNotification({ type: 'success', message: 'Payment successful!' });
-    
-                } else {
-                    console.error("Wallet payment failed:", data.message);
-                    setNotification({ type: 'error', message: data.message || "Error processing wallet payment" });
+
+    const handlePaymentWithWallet = async () => {
+
+
+
+        try {
+            const response = await api.post("/Wallet/debit-wallet", {
+                userId: useAuthStore.getState().token, // Assuming you have a userId in your auth store
+                drAccountNo: Agent.accountNo,
+                amount: pickUpAmount,
+                narration: "Waste Pickup Payment",
+                paymentPurpose: "Waste Pickup Application"
+            });
+            const data = response.data;
+
+            console.log("Response from debit-wallet:", data);
+
+            if (data.succeeded) {
+                console.log("Wallet payment successful:", data.succeeded, "and message:", data.message);
+
+                let successMessage = data.message.split('|');
+                let successRef; // Assuming the first part is the reference
+                if (successMessage.length > 1) {
+                    successRef = successMessage[1];
                 }
-    
+
+
+                await handlePayment({ reference: successRef, channel: "wallet" }).finally(() => {
+                    console.log("Payment with wallet completed");
+                });// Return the response for further processing
+                setNotification({ type: 'success', message: 'Payment successful!' });
+
+            } else {
+                console.error("Wallet payment failed:", data.message);
+                setNotification({ type: 'error', message: data.message || "Error processing wallet payment" });
             }
-            catch (error) {
-                console.error("Error processing wallet payment:", error);
-                setNotification({ type: 'error', message: "Error processing wallet payment" });
-            }
-    
-    
-            // Mock response for wallet payment
-    
-    
-    
+
+        }
+        catch (error) {
+            console.error("Error processing wallet payment:", error);
+            setNotification({ type: 'error', message: "Error processing wallet payment" });
         }
 
+
+        // Mock response for wallet payment
+
+
+
+    }
+
     // Action handlers
-     const handlePayment = async (response) => {
+    const handlePayment = async (response) => {
 
         let ref, channel;
         let amount = 10
@@ -714,11 +713,11 @@ const SmartBinApplication = () => {
     };
 
     const setNewCustomerType = (type) => {
-        setPickupRequestData({...pickupRequestData, customerType : type})
+        setPickupRequestData({ ...pickupRequestData, customerType: type })
     };
 
     const setNewCustomerName = (type) => {
-        setPickupRequestData({...pickupRequestData, customerName : type})
+        setPickupRequestData({ ...pickupRequestData, customerName: type })
     };
 
     const handlePickupDataChange = (e) => {
@@ -909,7 +908,7 @@ const SmartBinApplication = () => {
                             <label className="px-6 py-4 rounded-lg flex items-center gap-4">
                                 <WalletIcon />
                                 <span className="text-sm font-medium text-zinc-800 flex-grow">
-                                {`Pay from wallet (${pickUpAmount})`}
+                                    {`Pay from wallet (${pickUpAmount})`}
                                 </span>
                                 <input
                                     type="radio"
@@ -955,7 +954,7 @@ const SmartBinApplication = () => {
                                             //all details provided by the api request in the component
                                             amount={100}
                                             onTransaction={() => { handlePayment }}
-                                            buttonText="Pay Now with ALATPay"
+                                            buttonText="Pay Now "
                                             buttonClassName="btn btn-primary w-full"
                                         />
                                     )

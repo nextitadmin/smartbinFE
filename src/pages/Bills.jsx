@@ -37,7 +37,7 @@ const SmartBinApplication = () => {
         }
     }, [notification]);
 
-    const fetchData = async() => {
+    const fetchData = async () => {
         try {
             const { data } = await api.get(`/resident/bills?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
             if (data.succeeded || data.success) {
@@ -61,8 +61,8 @@ const SmartBinApplication = () => {
     }
 
     useEffect(() => {
-       fetchData();
-    },[currentPage]);
+        fetchData();
+    }, [currentPage]);
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -121,7 +121,7 @@ const SmartBinApplication = () => {
         });
     }, [filteredApplications, sortColumn, sortDirection]);
 
-  
+
 
 
     // --- Methods ---
@@ -179,7 +179,7 @@ const SmartBinApplication = () => {
         setNotification({ type: 'error', message: "Coming soon.." })
     };
 
-    const handleRowAction = (appId,amount) => {
+    const handleRowAction = (appId, amount) => {
         openModal('payment');
         setCurrentId(appId);
         setCurrentAmount(amount)
@@ -230,21 +230,21 @@ const SmartBinApplication = () => {
             setNotification({ type: 'error', message: "Select a payment method" })
             return;
         }
-        const dataToSend ={
+        const dataToSend = {
             billID: currentId,
             paymentMode: selectedPaymentMethod,
             amount: currentAmount
         };
         try {
-            const { data } = await  api.post('/wallets/pay-my-bill', dataToSend);
-            if(data.succeeded){
+            const { data } = await api.post('/wallets/pay-my-bill', dataToSend);
+            if (data.succeeded) {
                 setNotification({ type: 'success', message: data.message || 'Paid successfully!' });
                 setCurrentId('');
                 setCurrentAmount('');
                 closeModal('payment');
             }
-            else{
-                setNotification({ type: 'error', message: data.message || "Error submitting"  });
+            else {
+                setNotification({ type: 'error', message: data.message || "Error submitting" });
                 setCurrentId('');
                 setCurrentAmount('');
                 closeModal('payment');
@@ -397,7 +397,7 @@ const SmartBinApplication = () => {
                                                                 disabled={app.status === 'PENDING' ? false : true}
                                                                 className="p-1 text-zinc-500 hover:text-zinc-700"
                                                             >
-                                                                <span className='text-green-600'>{ app.status === 'PENDING' ? "Pay now" : "Paid"}</span>
+                                                                <span className='text-green-600'>{app.status === 'PENDING' ? "Make Payment" : "Paid"}</span>
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -460,7 +460,7 @@ const SmartBinApplication = () => {
                             <label className="px-6 py-4 rounded-lg flex items-center gap-4">
                                 <WalletIcon />
                                 <span className="text-sm font-medium text-zinc-800 flex-grow">
-                                    Pay from wallet 
+                                    Pay from wallet
                                 </span>
                                 <input
                                     type="radio"
@@ -516,26 +516,26 @@ const SmartBinApplication = () => {
                 </div>
             )}
             {notification && (
-            <div
-                // Using fixed positioning to overlay on the page
-                className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 ${notification.type === 'success' ? 'bg-green-100 border border-green-400 text-green-800' : 'bg-red-100 border border-red-400 text-red-800'
-                    }`}
-                // ARIA roles for accessibility
-                role={notification.type === 'error' ? 'alert' : 'status'}
-            >
-                <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">{notification.message}</p>
-                    {/* Close button for the notification */}
-                    <button
-                        onClick={clearNotification}
-                        className={`ml-4 text-xl font-semibold leading-none ${notification.type === 'success' ? 'text-green-800 hover:text-green-900' : 'text-red-800 hover:text-red-900'} focus:outline-none`}
-                        aria-label="Close notification"
-                    >
-                        &times; {/* Unicode multiplication sign for 'x' */}
-                    </button>
+                <div
+                    // Using fixed positioning to overlay on the page
+                    className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 ${notification.type === 'success' ? 'bg-green-100 border border-green-400 text-green-800' : 'bg-red-100 border border-red-400 text-red-800'
+                        }`}
+                    // ARIA roles for accessibility
+                    role={notification.type === 'error' ? 'alert' : 'status'}
+                >
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">{notification.message}</p>
+                        {/* Close button for the notification */}
+                        <button
+                            onClick={clearNotification}
+                            className={`ml-4 text-xl font-semibold leading-none ${notification.type === 'success' ? 'text-green-800 hover:text-green-900' : 'text-red-800 hover:text-red-900'} focus:outline-none`}
+                            aria-label="Close notification"
+                        >
+                            &times; {/* Unicode multiplication sign for 'x' */}
+                        </button>
+                    </div>
                 </div>
-            </div>
-        )}
+            )}
         </div>
     );
 };

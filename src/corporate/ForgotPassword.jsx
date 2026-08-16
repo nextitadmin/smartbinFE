@@ -259,7 +259,7 @@ export default function ForgotPassword() {
             {/* Forgot password */}
             <NavLink to="/" className="text-green-700  block">
               <div className="text-sm text-green-700  cursor-pointer hover:underline">
-                I remember my Payer ID
+                I remember my Password
               </div>
             </NavLink>
           </form>

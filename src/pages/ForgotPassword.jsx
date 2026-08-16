@@ -26,20 +26,20 @@ export default function ForgotPassword() {
     }
   }, [notification]);
 
-//    const getClientIP = async () => {
+  //    const getClientIP = async () => {
 
-//       try {
-//           const res = await axios.get("https://api.ipify.org?format=json");
-//           return res.data.ip;
-//       } catch (err) {
-//           console.error("Failed to get IP address", err);
-//           return null;
-//       }
-//   };
+  //       try {
+  //           const res = await axios.get("https://api.ipify.org?format=json");
+  //           return res.data.ip;
+  //       } catch (err) {
+  //           console.error("Failed to get IP address", err);
+  //           return null;
+  //       }
+  //   };
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-  
+
     if (!email || !userType) {
       setNotification({
         type: "error",
@@ -47,10 +47,10 @@ const handleSubmit = async (e) => {
       });
       return;
     }
-  
+
     // Store userType in localStorage
     localStorage.setItem("userType", userType);
-  
+
     const requestMap = {
       resident: {
         method: "post",
@@ -73,9 +73,9 @@ const handleSubmit = async (e) => {
         data: { email },
       },
     };
-  
+
     const config = requestMap[userType];
-  
+
     if (!config) {
       setNotification({
         type: "error",
@@ -83,25 +83,25 @@ const handleSubmit = async (e) => {
       });
       return;
     }
-  
+
     try {
       const response = await api.request(config);
       const { data } = response;
-  
+
       console.log("API Response:", data);
-  
+
       const token = data?.message?.split("|")[1];
-  
+
       const isSuccess =
         (response.status === 200 || response.status === 201) &&
         (data?.succeeded === true || data?.success === true || !!token);
-  
+
       if (isSuccess) {
         setNotification({
           type: "success",
           message: data?.message || "Reset request successful.",
         });
-  
+
         if (token) {
           setToken(token);
         }
@@ -125,8 +125,8 @@ const handleSubmit = async (e) => {
       });
     }
   };
-  
-  
+
+
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row bg-white">
@@ -183,11 +183,10 @@ const handleSubmit = async (e) => {
                       {/* Custom styled radio button circle */}
                       <div
                         className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all duration-150 ease-in-out
-                            ${
-                              isSelected
-                                ? "border-green-700 bg-green-700" // Selected state
-                                : "border-zinc-400 group-hover:border-green-700" // Default and hover states
-                            }`}
+                            ${isSelected
+                            ? "border-green-700 bg-green-700" // Selected state
+                            : "border-zinc-400 group-hover:border-green-700" // Default and hover states
+                          }`}
                       >
                         {/* Inner dot for selected state */}
                         {isSelected && (
@@ -208,11 +207,10 @@ const handleSubmit = async (e) => {
                       <span
                         // id={`${type.value}-label-userType`}
                         className={` 
-                            ${
-                              isSelected
-                                ? "text-green-700 font-medium" // Selected text style
-                                : "text-zinc-700 group-hover:text-green-700" // Default and hover text style
-                            }`}
+                            ${isSelected
+                            ? "text-green-700 font-medium" // Selected text style
+                            : "text-zinc-700 group-hover:text-green-700" // Default and hover text style
+                          }`}
                       >
                         {type.label}
                       </span>
@@ -261,7 +259,7 @@ const handleSubmit = async (e) => {
             {/* Forgot password */}
             <NavLink to="/" className="text-green-700  block">
               <div className="text-sm text-green-700  cursor-pointer hover:underline">
-                I remember my Payer ID
+                I remember my Password
               </div>
             </NavLink>
           </form>
@@ -295,11 +293,10 @@ const handleSubmit = async (e) => {
       {notification && (
         <div
           // Using fixed positioning to overlay on the page
-          className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 ${
-            notification.type === "success"
+          className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 ${notification.type === "success"
               ? "bg-green-100 border border-green-400 text-green-800"
               : "bg-red-100 border border-red-400 text-red-800"
-          }`}
+            }`}
           // ARIA roles for accessibility
           role={notification.type === "error" ? "alert" : "status"}
         >
@@ -308,11 +305,10 @@ const handleSubmit = async (e) => {
             {/* Close button for the notification */}
             <button
               onClick={clearNotification}
-              className={`ml-4 text-xl font-semibold leading-none ${
-                notification.type === "success"
+              className={`ml-4 text-xl font-semibold leading-none ${notification.type === "success"
                   ? "text-green-800 hover:text-green-900"
                   : "text-red-800 hover:text-red-900"
-              } focus:outline-none`}
+                } focus:outline-none`}
               aria-label="Close notification"
             >
               &times; {/* Unicode multiplication sign for 'x' */}

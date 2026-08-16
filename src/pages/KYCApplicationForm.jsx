@@ -88,11 +88,21 @@ const KYCApplication = () => {
     }
 
 
+    const { residentInfo, fetchResidentInfo } = useResidentStore();
+
     const checkStatus = async () => {
         try {
             const { data } = await api.get('/resident/kyc/status')
-            if ((data.succeeded || data.success) && data.data && data.data.hasSubmittedIdentity) {
-                navigate('/newkycapplication');
+            if ((data.succeeded || data.success) && data.data) {
+                const { hasSubmittedIdentity, identityVerificationStatus, addressVerificationStatus } = data.data;
+                const identityStatus = (identityVerificationStatus || '').toLowerCase();
+                const addressStatus = (addressVerificationStatus || '').toLowerCase();
+                
+                if (hasSubmittedIdentity && 
+                    identityStatus !== 'rejected' && identityStatus !== '0' && 
+                    addressStatus !== 'rejected' && addressStatus !== '0') {
+                    navigate('/newkycapplication');
+                }
             }
         } catch (error) {
             console.log(error);
@@ -102,7 +112,30 @@ const KYCApplication = () => {
     useEffect(() => {
         fetchLga();
         checkStatus();
+        fetchResidentInfo();
     }, [])
+
+    useEffect(() => {
+        if (residentInfo) {
+            setFormData(prev => ({
+                ...prev,
+                personal: {
+                    ...prev.personal,
+                    firstName: prev.personal.firstName || residentInfo.firstName || '',
+                    lastName: prev.personal.lastName || residentInfo.lastName || '',
+                    email: prev.personal.email || residentInfo.emailAddress || '',
+                    phone: prev.personal.phone || residentInfo.phoneNo || '',
+                },
+                address: {
+                    ...prev.address,
+                    address: prev.address.address || residentInfo.address || '',
+                    buildingType: prev.address.buildingType || residentInfo.buildingType || '',
+                    closestLandmark: prev.address.closestLandmark || residentInfo.landMark || '',
+                    localGovernment: prev.address.localGovernment || residentInfo.lga || '',
+                }
+            }));
+        }
+    }, [residentInfo]);
 
     // --- Handlers ---
     const handleInputChange = (section, field, value) => {

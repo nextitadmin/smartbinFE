@@ -4,6 +4,7 @@ import Sidebar from '../components/AgentSidebar';
 import Topbar from '../components/AgentTopBar';
 import api from "../api/axiosConfig.js";
 import useAuthStore from '../store/authStore';
+import useAgentStore from '../store/useAgentStore';
 
 
 
@@ -61,6 +62,7 @@ const KYCApplication = () => {
 
     });
     const navigate = useNavigate();
+    const { agentInfo, fetchAgentInfo } = useAgentStore();
     const clearNotification = () => {
         setNotification(null);
     };
@@ -70,9 +72,21 @@ const KYCApplication = () => {
             try {
                 const { data } = await api.get('/agent/kyc/status');
                 if (data.success && data.data) {
-                    const { hasSubmittedPersonalInformation, hasSubmittedAddress, hasSubmittedIdentity } = data.data;
+                    const { 
+                        hasSubmittedPersonalInformation, 
+                        hasSubmittedAddress, 
+                        hasSubmittedIdentity,
+                        identityVerificationStatus,
+                        addressVerificationStatus 
+                    } = data.data;
+
+                    const identityStatus = (identityVerificationStatus || '').toLowerCase();
+                    const addressStatus = (addressVerificationStatus || '').toLowerCase();
+                    
                     const hasStartedKyc = hasSubmittedPersonalInformation || hasSubmittedAddress || hasSubmittedIdentity;
-                    if (hasStartedKyc) {
+                    if (hasStartedKyc && 
+                        identityStatus !== 'rejected' && identityStatus !== '0' && 
+                        addressStatus !== 'rejected' && addressStatus !== '0') {
                         navigate('/newkycapplication');
                     }
                 }
@@ -82,7 +96,29 @@ const KYCApplication = () => {
         };
 
         checkKycStatus();
+        fetchAgentInfo();
     }, [navigate]);
+
+    useEffect(() => {
+        if (agentInfo) {
+            setFormData(prev => ({
+                ...prev,
+                personal: {
+                    ...prev.personal,
+                    firstName: prev.personal.firstName || agentInfo.firstName || '',
+                    lastName: prev.personal.lastName || agentInfo.lastName || '',
+                    email: prev.personal.email || agentInfo.emailAddress || '',
+                    phone: prev.personal.phone || agentInfo.phoneNo || '',
+                },
+                agency: {
+                    ...prev.agency,
+                    agencyName: prev.agency.agencyName || agentInfo.businessName || '',
+                    businessEmail: prev.agency.businessEmail || agentInfo.emailAddress || '',
+                    businessPhone: prev.agency.businessPhone || agentInfo.phoneNo || '',
+                }
+            }));
+        }
+    }, [agentInfo]);
 
     useEffect(() => {
         if (notification) {

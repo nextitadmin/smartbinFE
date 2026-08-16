@@ -110,12 +110,12 @@ const CustomDatePicker = ({ value, onChange, minDate }) => {
                 disabled={isDisabled}
                 onClick={() => handleDayClick(day)}
                 className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-all ${isSelected
-                        ? 'bg-green-700 text-white'
-                        : isToday
-                            ? 'border border-green-700 text-green-700 font-semibold'
-                            : isDisabled
-                                ? 'text-zinc-300 cursor-not-allowed'
-                                : 'text-zinc-700 hover:bg-zinc-100'
+                    ? 'bg-green-700 text-white'
+                    : isToday
+                        ? 'border border-green-700 text-green-700 font-semibold'
+                        : isDisabled
+                            ? 'text-zinc-300 cursor-not-allowed'
+                            : 'text-zinc-700 hover:bg-zinc-100'
                     }`}
             >
                 {day}
@@ -894,7 +894,7 @@ const SmartBinApplication = () => {
                                             //all details provided by the api request in the component
                                             amount={100}
                                             onTransaction={() => { handlePayment }}
-                                            buttonText="Pay Now with ALATPay"
+                                            buttonText="Pay Now "
                                             buttonClassName="btn btn-primary w-full"
                                         />
                                     )

@@ -14,7 +14,7 @@ const PaymentPage = () => {
                 //all details provided by the api request in the component
                 amount={5000}
                 onTransaction={handleTransaction}
-                buttonText="Pay Now with ALATPay"
+                buttonText="Pay Now "
                 buttonClassName="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg"
             />
         </div>

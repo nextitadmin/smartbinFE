@@ -258,7 +258,7 @@ const Dashboard = () => {
     try {
       console.log(" Submitting Subscription AlatPay payment with amount (kobo):", amount);
       console.log(" Amount in naira:", amountInNaira);
-      
+
       // Call backend to initiate AlatPay payment for subscription
       const { data } = await api.post("/wallets/charge", {
         userId,
@@ -281,12 +281,12 @@ const Dashboard = () => {
           console.log(" Backend provided reference:", reference);
           console.log(" Calling verifyAlatPayTransaction with:", reference);
           const verifyResult = await verifyAlatPayTransaction(reference);
-          
+
           if (verifyResult?.success || verifyResult?.succeeded) {
             console.log(" AlatPay verification successful, proceeding with subscription");
             // Proceed with subscription payment
-            await handlePayment({ 
-              reference: reference, 
+            await handlePayment({
+              reference: reference,
               channel: "alatPay",
               data: { reference: reference }
             });
@@ -311,7 +311,7 @@ const Dashboard = () => {
     const selectedPlan = subscriptionPlans.find(
       (item) => item.id === selectedSubscriptionPlan
     );
-    
+
     // Debug logging
     console.log("=== WALLET PAYMENT DEBUG ===");
     console.log("Selected Plan:", selectedPlan);
@@ -319,7 +319,7 @@ const Dashboard = () => {
     console.log("Corporate:", corporate);
     console.log("Corporate.accountNo:", corporate?.accountNo);
     console.log("User Token:", useAuthStore.getState().token);
-    
+
     if (!selectedPlan) {
       setNotification({ type: 'error', message: 'Please select a valid subscription plan.' });
       return;
@@ -341,12 +341,12 @@ const Dashboard = () => {
       const userId = useAuthStore.getState().user?.id;
       const balanceResponse = await api.get("/wallets");
       const walletBalance = balanceResponse?.data?.data?.balance ?? 0;
-      
+
       console.log("Amount to charge (in kobo):", amount);
       console.log("Amount to charge (in naira):", amountInNaira);
       console.log("Wallet balance (from API):", walletBalance);
       console.log("Is balance sufficient?", walletBalance >= amountInNaira);
-      
+
       if (walletBalance < amountInNaira) {
         setNotification({ type: "error", message: "Insufficient balance in wallet." });
         return;
@@ -360,20 +360,20 @@ const Dashboard = () => {
         narration: "Subscription Payment",
         paymentPurpose: "Subscription Application",
       };
-      
+
       console.log("Request data to /wallets/charge:", requestData);
-      
+
       const response = await api.post("/wallets/charge", requestData);
       const data = response.data;
       console.log("Response from debit-wallet:", data);
-      
+
       if (data.succeeded || data.success) {
         console.log("Wallet payment successful:", data.success, "and message:", data.message);
-        
+
         // Extract reference from response message or use a default
         let successRef = data.reference || data.data?.reference;
         console.log("Initial reference extraction:", successRef);
-        
+
         // If no reference in response, try to extract from message
         if (!successRef && data.message) {
           let successMessage = data.message.split('|');
@@ -383,15 +383,15 @@ const Dashboard = () => {
             console.log("Reference extracted from message:", successRef);
           }
         }
-        
+
         // If still no reference, create a timestamp-based one
         if (!successRef) {
           successRef = `WALLET_${Date.now()}`;
           console.log("Generated fallback reference:", successRef);
         }
-        
+
         console.log("Final reference to send to handlePayment:", successRef);
-        
+
         // Call handlePayment with wallet response
         await handlePayment({
           reference: successRef,
@@ -399,7 +399,7 @@ const Dashboard = () => {
         }).finally(() => {
           console.log("Payment with wallet completed");
         });
-        
+
         // Show success modal instead of notification
         setSuccessModalType('subscription');
         openModal("success");
@@ -419,9 +419,9 @@ const Dashboard = () => {
   const handlePayment = async (response) => {
     console.log("=== HANDLE PAYMENT DEBUG ===");
     console.log("Response received:", response);
-    
+
     let ref, channel;
-    
+
     if (response.channel === 'wallet') {
       ref = response.reference;
       channel = "wallet";
@@ -432,49 +432,49 @@ const Dashboard = () => {
       ref = response.data.reference;
       channel = "card";
     }
-    
+
     // console.log("Extracted ref:", ref);
     // console.log("Extracted channel:", channel);
     // console.log("Selected payment method:", selectedPaymentMethod);
-    
+
     if (!selectedPaymentMethod) {
       setNotification({ type: "error", message: "Select a payment method" });
       return;
     }
-    
+
     const selectedPlan = subscriptionPlans.find(
       (item) => item.id === selectedSubscriptionPlan
     );
-    
+
     console.log("Selected plan for subscription:", selectedPlan);
-    
+
     if (!selectedPlan) {
       setNotification({ type: "error", message: "Please select a subscription plan" });
       return;
     }
-    
+
     if (!ref) {
       setNotification({ type: "error", message: "Payment reference is missing" });
       return;
     }
-    
+
     const finalPaymentMethod = channel || selectedPaymentMethod;
     const dataToSend = {
       plan: selectedPlan.id,
       transactionReference: ref,
     };
-    
+
     // console.log("Sending subscription update with data:", dataToSend);
     // console.log("Plan ID being sent:", selectedPlan.id);
     // console.log("Transaction reference being sent:", ref);
     // console.log("Is plan ID a valid MongoDB ObjectId format?", /^[0-9a-fA-F]{24}$/.test(selectedPlan.id));
     // console.log("Payment method used:", finalPaymentMethod);
     // console.log("Selected plan details:", selectedPlan);
-    
+
     try {
       const { data } = await api.post("/subscription/subscribe", dataToSend);
       console.log("Subscription update response:", data);
-      
+
       if (data.succeeded || data.success) {
         setNotification({
           type: "success",
@@ -525,57 +525,57 @@ const Dashboard = () => {
   const [selectedBranch, setSelectedBranch] = useState("");
   const [subscriptionPlans, setSubscriptionPlans] = useState([]);
   const [branches, setBranches] = useState([]);
- 
+
   const fetchSubscriptions = async () => {
-      try {
-          const { data } = await api.get('/subscription/plans');
-          console.log("Raw subscription plans from backend:", data);
-          if (data.success) {
-              const newPlans = data.data.map((item) => {
-                  console.log("Processing subscription plan item:", item);
-                  // Convert from kobo to naira (divide by 100)
-                  const priceInNaira = item.price / 100;
-                  const pricePerMonthInNaira = (priceInNaira / (item.interval == "year" ? 12 : item.duration));
-                  
-                  const mappedPlan = {
-                      id: item._id,
-                      duration: `${item.name}`,
-                      price: `₦${priceInNaira.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                      pricePerMonth: `₦${pricePerMonthInNaira.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per month`,
-                      // Store original price in kobo for payment processing
-                      originalPrice: item.price
-                  };
-                  console.log("Mapped subscription plan:", mappedPlan);
-                  return mappedPlan;
-              });
-              console.log("Final subscription plans array:", newPlans);
-              setSubscriptionPlans(newPlans);
-          }
-      } catch (error) {
-          console.error("Error fetching subscription plans:", error);
-          setNotification({ type: 'error', message: 'Error fetching subscription!' });
+    try {
+      const { data } = await api.get('/subscription/plans');
+      console.log("Raw subscription plans from backend:", data);
+      if (data.success) {
+        const newPlans = data.data.map((item) => {
+          console.log("Processing subscription plan item:", item);
+          // Convert from kobo to naira (divide by 100)
+          const priceInNaira = item.price / 100;
+          const pricePerMonthInNaira = (priceInNaira / (item.interval == "year" ? 12 : item.duration));
+
+          const mappedPlan = {
+            id: item._id,
+            duration: `${item.name}`,
+            price: `₦${priceInNaira.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            pricePerMonth: `₦${pricePerMonthInNaira.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per month`,
+            // Store original price in kobo for payment processing
+            originalPrice: item.price
+          };
+          console.log("Mapped subscription plan:", mappedPlan);
+          return mappedPlan;
+        });
+        console.log("Final subscription plans array:", newPlans);
+        setSubscriptionPlans(newPlans);
       }
+    } catch (error) {
+      console.error("Error fetching subscription plans:", error);
+      setNotification({ type: 'error', message: 'Error fetching subscription!' });
+    }
   };
 
   const fetchBranches = async () => {
-      try {
-          const { data } = await api.get('/corporate/fetch-branches');
-          if (data.success) {
-              const newBranches = data.data.data.map((item) => ({
-                  id: item._id,
-                  name : `${item.branchName} branch`,
-                  address : item.branchAddress,
-              }));
-              setBranches(newBranches);
-          }
-      } catch (error) {
-          console.error("Error fetching branches:", error);
-          setNotification({ type: 'error', message: 'Error fetching branches!' });
+    try {
+      const { data } = await api.get('/corporate/fetch-branches');
+      if (data.success) {
+        const newBranches = data.data.data.map((item) => ({
+          id: item._id,
+          name: `${item.branchName} branch`,
+          address: item.branchAddress,
+        }));
+        setBranches(newBranches);
       }
+    } catch (error) {
+      console.error("Error fetching branches:", error);
+      setNotification({ type: 'error', message: 'Error fetching branches!' });
+    }
   };
   useEffect(() => {
-      fetchSubscriptions();
-      fetchBranches();
+    fetchSubscriptions();
+    fetchBranches();
   }, []);
 
   const handleSubscriptionBack = () => {
@@ -589,7 +589,7 @@ const Dashboard = () => {
 
   const handleBranchSelection = () => {
     setIsSubscriptionModalOpen(true);
-     setIsBranchModalOpen(false);
+    setIsBranchModalOpen(false);
   }
 
   const closeBranch = () => {
@@ -867,8 +867,8 @@ const Dashboard = () => {
                         <h2 className="text-white text-3xl font-sans mt-1 mr-20">
 
                           {showBalance ? `${walletBalance || "₦ 0.00"}` : "₦ ****"}
-         
-         </h2>
+
+                        </h2>
                         <button
                           onClick={() => setShowBalance(!showBalance)}
                           className="ml-2 focus:outline-none"
@@ -1059,9 +1059,8 @@ const Dashboard = () => {
               {branches.map((branch) => (
                 <label
                   key={branch.id}
-                  className={`bg-[#f7f6ff] p-4 rounded-xl flex items-center gap-4 ${
-                    selectedBranch === branch.id ? "border-2 border-green-700" : ""
-                  }`}
+                  className={`bg-[#f7f6ff] p-4 rounded-xl flex items-center gap-4 ${selectedBranch === branch.id ? "border-2 border-green-700" : ""
+                    }`}
                 >
                   <input
                     type="radio"
@@ -1228,7 +1227,7 @@ const Dashboard = () => {
             <div className="px-6 py-4 flex flex-col items-center gap-3">
               {selectedPaymentMethod === "card" ? (
                 <Pay4ItButton
-                  amount={subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan) ? parseInt(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan).price.replace(/[^\d]/g, '')) * 100 : 0}
+                  amount={subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan) ? (subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan).originalPrice / 100) : 0}
                   customerName={useCorporateStore.getState().corporateInfo.companyName || "Corporate User"}
                   email={corporateInfo.email || ""}
                   userType="corporate"
@@ -1242,7 +1241,7 @@ const Dashboard = () => {
                   onClose={() => {
                     console.log("Pay4It window closed");
                   }}
-                  buttonText="Pay Now with Pay4It"
+                  buttonText="Make Payment"
                   buttonClassName="btn btn-primary w-full"
                 />
               ) : (
@@ -1308,7 +1307,7 @@ const Dashboard = () => {
                 Payment Successful!
               </h2>
               <p className="text-zinc-500 mb-6">
-                {successModalType === 'subscription' 
+                {successModalType === 'subscription'
                   ? "Your subscription payment has been processed successfully"
                   : "Your wallet has been successfully funded"
                 }
@@ -1317,7 +1316,7 @@ const Dashboard = () => {
                 <div className="flex justify-between items-center py-2">
                   <span className="text-zinc-500">Amount</span>
                   <span className="font-medium text-zinc-800">
-                    {successModalType === 'subscription' 
+                    {successModalType === 'subscription'
                       ? subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.price || "₦0.00"
                       : `₦${topUpAmount}`
                     }
@@ -1556,7 +1555,7 @@ const Dashboard = () => {
                 Insufficient balance
               </h2>
               <p className="text-zinc-900 font-light mb-8 w-3/4">
-                {isInsufficientBalance 
+                {isInsufficientBalance
                   ? "Your wallet has insufficient balance to complete the subscription payment. Please top up your wallet and try again."
                   : "Your wallet could not be funded due to insufficient balance. Please try again"
                 }

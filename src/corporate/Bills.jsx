@@ -41,36 +41,36 @@ const SmartBinApplication = () => {
 
     const fetchBills = async () => {
         try {
-        //   const { data } = await api.get(
-        //     `/Wallet/bill-list?CorporateID=${userToken}&PageNo=${currentPage}&PageSize=${itemsPerPage}`
-        //   );
+            //   const { data } = await api.get(
+            //     `/Wallet/bill-list?CorporateID=${userToken}&PageNo=${currentPage}&PageSize=${itemsPerPage}`
+            //   );
 
-        const { data } = await api.get("corporate/bill")
-           
+            const { data } = await api.get("corporate/bill")
+
             if (data?.success || data?.succeeded) {
                 const responseData = data?.data?.data || data?.data || [];
-                 console.log("Fetched bills data:", responseData);              
+                console.log("Fetched bills data:", responseData);
                 const newBills = responseData.map((item, index) => ({
-                  sn: index + 1 + (currentPage - 1) * itemsPerPage,
-                  billId: item.billId,
-                  dueDate: item.dueDate?.slice(0, 10),
-                  service: item.service,
-                  status: item.status,
-                  amount: item.amount,
+                    sn: index + 1 + (currentPage - 1) * itemsPerPage,
+                    billId: item.billId,
+                    dueDate: item.dueDate?.slice(0, 10),
+                    service: item.service,
+                    status: item.status,
+                    amount: item.amount,
                 }));
-              
+
                 setApplications(newBills);
                 setTotalPages(data?.data?.totalPages || 1);
                 setTotalItems(data?.data?.totalCount || newBills.length);
-              }
+            }
         } catch (error) {
-          console.error('Error fetching bills:', error);
+            console.error('Error fetching bills:', error);
         }
-      };
-    
-      useEffect(() => {
+    };
+
+    useEffect(() => {
         fetchBills();
-      }, [currentPage]);
+    }, [currentPage]);
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -405,7 +405,7 @@ const SmartBinApplication = () => {
                                                                 disabled={app.status.toUpperCase() === 'PENDING' ? false : true}
                                                                 className="p-1 text-zinc-500 hover:text-zinc-700"
                                                             >
-                                                                <span className='text-green-600'>{app.status.toUpperCase() === 'PENDING' ? "Pay now" : "Paid"}</span>
+                                                                <span className='text-green-600'>{app.status.toUpperCase() === 'PENDING' ? "Make Payment" : "Paid"}</span>
                                                             </button>
                                                         </td>
                                                     </tr>

@@ -94,8 +94,16 @@ const KYCApplication = () => {
     const checkStatus = async () => {
         try {
             const { data } = await api.get('/agent/kyc/status');
-            if ((data.succeeded || data.success) && data.data && data.data.hasSubmittedIdentity) {
-                navigate('/newkycapplication');
+            if ((data.succeeded || data.success) && data.data) {
+                const { hasSubmittedIdentity, identityVerificationStatus, addressVerificationStatus } = data.data;
+                const identityStatus = (identityVerificationStatus || '').toLowerCase();
+                const addressStatus = (addressVerificationStatus || '').toLowerCase();
+
+                if (hasSubmittedIdentity && 
+                    identityStatus !== 'rejected' && identityStatus !== '0' && 
+                    addressStatus !== 'rejected' && addressStatus !== '0') {
+                    navigate('/newkycapplication');
+                }
             }
         } catch (error) {
             console.log(error);
