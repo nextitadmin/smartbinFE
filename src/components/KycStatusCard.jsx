@@ -112,8 +112,7 @@ function KycStatusCard({ endpoint = '/resident/kyc/status' }) {
     // --- Reupload Handler ---
     const handleReupload = (itemId) => {
         console.log(`Reupload requested for item: ${itemId}`);
-
-
+        navigate('/kycapplication');
     };
 
     return (

@@ -5,7 +5,7 @@ import useResidentStore from '../store/useResidentStore';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import ServiceConfigNav from '../components/ServiceConfigNav';
-import AlatPayButton from '../components/AlatPayButton'; // make sure this exists
+import Pay4ItButton from '../components/Pay4ItButton';
 
 const InlineLoader = ({ className = "w-5 h-5" }) => (
     <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -71,32 +71,38 @@ function SubscriptionPage() {
         { id: 'card', text: 'Pay by card/bank/transfer', icon: AlatIcon },
     ];
 
-     const clearNotification = () => {
-            setNotification(null);
-        };
-    
-    
-    
-        useEffect(() => {
-            if (notification) {
-                const timer = setTimeout(() => {
-                    clearNotification();
-                }, 5000); // Hide after 5 seconds
-                return () => clearTimeout(timer); // Cleanup timer on component unmount or notification change
-            }
-        }, [notification]);
+    const clearNotification = () => {
+        setNotification(null);
+    };
+
+
+
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => {
+                clearNotification();
+            }, 5000); // Hide after 5 seconds
+            return () => clearTimeout(timer); // Cleanup timer on component unmount or notification change
+        }
+    }, [notification]);
 
     useEffect(() => {
         const fetchSubscriptions = async () => {
             try {
                 const { data } = await api.get('/subscription/plans');
-                if (data.succeeded) {
-                    const plans = data.data.map((item) => ({
-                        id: item.month.toString(),
-                        duration: `${item.month} month${item.month > 1 ? 's' : ''}`,
-                        price: `₦${item.amount}`,
-                        pricePerMonth: `₦${item.amount} per month`,
-                    }));
+                if (data.success && Array.isArray(data.data)) {
+                    const plans = data.data.map((item) => {
+                        const priceInNaira = item.price / 100;
+                        const pricePerMonthVal = Math.round(priceInNaira / item.duration);
+                        return {
+                            ...item,
+                            id: item._id,
+                            duration: `${item.duration} ${item.duration === 1 ? 'month' : 'months'}`,
+                            price: `₦${priceInNaira.toLocaleString()}`,
+                            pricePerMonth: `₦${pricePerMonthVal.toLocaleString()} per month`,
+                            originalPrice: item.price
+                        };
+                    });
                     setSubscriptionPlans(plans);
                 }
             } catch {
@@ -108,18 +114,22 @@ function SubscriptionPage() {
 
     const fetchSubscription = async () => {
         try {
-            const response = await api.get('/subscription/plans');
+            const response = await api.get('/subscription/status');
             const { data } = response;
-            if (data.succeeded && data.data) {
-                const item = data.data;
-                const sub = {
-                    id: item.subscriptionType.toString(),
-                    duration: `${item.subscriptionType} month${item.subscriptionType > 1 ? 's' : ''}`,
-                    price: `₦${item.amount}`,
-                    pricePerMonth: `₦${item.amount} per month`,
-                };
-                setSubscription(sub);
-                setStatus('active');
+            if ((data.success || data.succeeded) && data.data) {
+                const subscriptionData = data.data;
+                if (subscriptionData && subscriptionData.status === 'active') {
+                    const sub = {
+                        id: subscriptionData.planId || 'active',
+                        duration: subscriptionData.planName || 'Active Subscription',
+                        price: `₦${subscriptionData.amount || 0}`,
+                        pricePerMonth: `₦${subscriptionData.amount || 0} per month`,
+                    };
+                    setSubscription(sub);
+                    setStatus('active');
+                } else {
+                    setStatus('inactive');
+                }
             } else {
                 setStatus('inactive');
             }
@@ -150,38 +160,35 @@ function SubscriptionPage() {
     const handlePaymentWithWallet = async () => {
         const selectedPlan = subscriptionPlans.find((item) => item.id === selectedPlanId);
 
-
         try {
-            const response = await api.post("/Wallet/debit-wallet", {
-                userId: useAuthStore.getState().token, // Assuming you have a userId in your auth store
-                drAccountNo: Resident.accountNo,
-                amount: parseInt(selectedPlan.price.replace(/[^\d]/g, '')),
-                narration: "Subscription Payment",
-                paymentPurpose: "Subscription Application"
+            const amount = selectedPlan.originalPrice ? (selectedPlan.originalPrice / 100) : parseInt(String(selectedPlan.price).replace(/[^\d]/g, ''));
+
+            const response = await api.post("/wallets/charge", {
+                amount,
+                reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase()
             });
             const data = response.data;
 
-            console.log("Response from debit-wallet:", data);
+            console.log("Response from wallets/charge:", data);
 
-            if (data.succeeded) {
-                console.log("Wallet payment successful:", data.succeeded, "and message:", data.message);
-
-                let successMessage = data.message.split('|');
-                let successRef; // Assuming the first part is the reference
-                console.log(successRef);
-                if (successMessage.length > 1) {
-                    successRef = successMessage[1];
+            if (data.succeeded || data.success) {
+                console.log("Wallet payment successful:", data);
+                let successRef;
+                if (data.message && data.message.includes('|')) {
+                    successRef = data.message.split('|')[1]?.trim();
                 }
-
-
-                 handlePayment({ reference: successRef, channel: "wallet" });
+                if (!successRef) {
+                    successRef = data.data?.transactionReference || data.data?.reference || data.data?.transRef || data.reference;
+                }
+                if (!successRef) {
+                    successRef = 'N/A';
+                }
+                handlePayment({ reference: successRef, channel: "wallet" });
                 setNotification({ type: 'success', message: 'Payment successful!' });
-
             } else {
                 console.error("Wallet payment failed:", data.message);
                 setNotification({ type: 'error', message: data.message || "Error processing wallet payment" });
             }
-
         }
         catch (error) {
             console.error("Error processing wallet payment:", error);
@@ -196,43 +203,72 @@ function SubscriptionPage() {
     }
 
 
+    // Action handlers
     const handlePayment = async (response) => {
         let ref, channel;
-
         if (selectedPaymentMethod === 'wallet') {
-            ref = response.reference;
+            ref = response?.reference || response?.data?.reference || response?.tranref;
             channel = "wallet";
-
         }
-
-
-
         else if (selectedPaymentMethod === 'card') {
-            ref = response.data.reference;
+            ref = response?.data?.reference || response?.reference || response?.tranref;
             channel = "card";
-        }
-        if (!selectedPaymentMethod || !selectedPlanId) {
-            setNotification({ type: 'error', message: 'Select a payment method and plan.' });
+        };
+        if (!selectedPaymentMethod) {
+            setNotification({ type: 'error', message: 'Select a payment method' });
             return;
         }
-
-        const selectedPlan = subscriptionPlans.find((item) => item.id === selectedPlanId);
+        if (!ref) {
+            setNotification({ type: 'error', message: 'Payment reference is missing' });
+            return;
+        }
+        const selectedPlan = subscriptionPlans.find(p => p.id === selectedPlanId);
         if (!selectedPlan) {
             setNotification({ type: 'error', message: 'Invalid plan selected.' });
             return;
         }
 
+        let transactionReferenceToSend = ref;
+
+        // If card, we must first charge the wallet to get a valid charge reference
+        if (selectedPaymentMethod === 'card') {
+            try {
+                const amount = selectedPlan.originalPrice ? (selectedPlan.originalPrice / 100) : parseInt(String(selectedPlan.price).replace(/[^\d]/g, ''));
+                const chargeResponse = await api.post("/wallets/charge", {
+                    amount,
+                    reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase()
+                });
+                const chargeData = chargeResponse.data;
+                if (chargeData.succeeded || chargeData.success) {
+                    let chargeRef;
+                    if (chargeData.message && chargeData.message.includes('|')) {
+                        chargeRef = chargeData.message.split('|')[1]?.trim();
+                    }
+                    if (!chargeRef) {
+                        chargeRef = chargeData.data?.transactionReference || chargeData.data?.reference || chargeData.data?.transRef || chargeData.reference;
+                    }
+                    if (chargeRef) {
+                        transactionReferenceToSend = chargeRef;
+                    }
+                } else {
+                    setNotification({ type: 'error', message: chargeData.message || 'Failed to process subscription charge' });
+                    return;
+                }
+            } catch (error) {
+                console.error("Error processing subscription charge:", error);
+                setNotification({ type: 'error', message: 'Failed to process subscription charge' });
+                return;
+            }
+        }
+
         const dataToSend = {
-            residentID: useAuthStore.getState().token,
-            amount: parseInt(selectedPlan.price.replace(/[^\d]/g, '')),
-            mode: selectedPaymentMethod,
-            subscriptionChoiceMonth: selectedPlan.id,
-            transRef : ref
+            plan: selectedPlan.id,
+            transactionReference: String(transactionReferenceToSend)
         };
 
         try {
-            const { data } = await api.post('/Wallet/update-subscription', dataToSend);
-            if (data.succeeded) {
+            const { data } = await api.post('/subscription/subscribe', dataToSend);
+            if (data.succeeded || data.success) {
                 setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
                 fetchSubscription();
                 setIsPaymentModalOpen(false);
@@ -296,7 +332,7 @@ function SubscriptionPage() {
                     </div>
                 </main>
 
-                 {isModalOpen && (
+                {isModalOpen && (
                     <div className="fixed inset-0 bg-black/30 flex justify-center items-center z-50 p-4" onClick={() => setIsSubscriptionModalOpen(false)}>
                         <div className="bg-white rounded-xl w-full max-w-lg p-8 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                             <div className="flex justify-between items-start mb-6">
@@ -314,9 +350,8 @@ function SubscriptionPage() {
                                     <label
                                         key={plan.id}
                                         htmlFor={plan.id}
-                                        className={`bg-[#f7f6ff] p-4 rounded-xl flex items-center gap-4 cursor-pointer transition-all duration-200 border ${
-                                            selectedPlanId === plan.id ? 'border-2 border-green-700' : 'border-2 border-transparent'
-                                        }`}
+                                        className={`bg-[#f7f6ff] p-4 rounded-xl flex items-center gap-4 cursor-pointer transition-all duration-200 border ${selectedPlanId === plan.id ? 'border-2 border-green-700' : 'border-2 border-transparent'
+                                            }`}
                                     >
                                         <input
                                             type="radio"
@@ -326,9 +361,8 @@ function SubscriptionPage() {
                                             onChange={() => setSelectedPlanId(plan.id)}
                                             className="opacity-0 w-0 h-0 fixed"
                                         />
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                                            selectedPlanId === plan.id ? 'border-green-700 bg-green-700' : 'border-zinc-400 bg-white'
-                                        }`}>
+                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPlanId === plan.id ? 'border-green-700 bg-green-700' : 'border-zinc-400 bg-white'
+                                            }`}>
                                             {selectedPlanId === plan.id && <span className="w-2 h-2 rounded-full bg-white" />}
                                         </span>
                                         <div className="flex-grow flex justify-between items-center">
@@ -355,26 +389,26 @@ function SubscriptionPage() {
                 )}
 
                 {notification && (
-                     <div
-                         // Using fixed positioning to overlay on the page
-                         className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 ${notification.type === 'success' ? 'bg-green-100 border border-green-400 text-green-800' : 'bg-red-100 border border-red-400 text-red-800'
-                             }`}
-                         // ARIA roles for accessibility
-                         role={notification.type === 'error' ? 'alert' : 'status'}
-                     >
-                         <div className="flex items-center justify-between">
-                             <p className="text-sm font-medium">{notification.message}</p>
-                             {/* Close button for the notification */}
-                             <button
-                                 onClick={clearNotification}
-                                 className={`ml-4 text-xl font-semibold leading-none ${notification.type === 'success' ? 'text-green-800 hover:text-green-900' : 'text-red-800 hover:text-red-900'} focus:outline-none`}
-                                 aria-label="Close notification"
-                             >
-                                 &times; {/* Unicode multiplication sign for 'x' */}
-                             </button>
-                         </div>
-                     </div>
-                 )}
+                    <div
+                        // Using fixed positioning to overlay on the page
+                        className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 ${notification.type === 'success' ? 'bg-green-100 border border-green-400 text-green-800' : 'bg-red-100 border border-red-400 text-red-800'
+                            }`}
+                        // ARIA roles for accessibility
+                        role={notification.type === 'error' ? 'alert' : 'status'}
+                    >
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium">{notification.message}</p>
+                            {/* Close button for the notification */}
+                            <button
+                                onClick={clearNotification}
+                                className={`ml-4 text-xl font-semibold leading-none ${notification.type === 'success' ? 'text-green-800 hover:text-green-900' : 'text-red-800 hover:text-red-900'} focus:outline-none`}
+                                aria-label="Close notification"
+                            >
+                                &times; {/* Unicode multiplication sign for 'x' */}
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Payment Modal */}
                 {isPaymentModalOpen && (
@@ -390,7 +424,7 @@ function SubscriptionPage() {
                                 <label className="px-6 py-4 rounded-lg flex items-center gap-4 border">
                                     <WalletIcon />
                                     <span className="text-sm font-medium text-zinc-800 flex-grow">
-                                        {`Pay from wallet (${parseInt(subscriptionPlans.find((item) => item.id === selectedPlanId).price.replace(/[^\d]/g, ''))})`} 
+                                        {`Pay from wallet (₦${((subscriptionPlans.find((item) => item.id === selectedPlanId)?.originalPrice || 0) / 100 || parseInt(String(subscriptionPlans.find((item) => item.id === selectedPlanId)?.price || '0').replace(/[^\d]/g, ''))).toLocaleString()})`}
                                     </span>
                                     <input
                                         type="radio"
@@ -424,14 +458,23 @@ function SubscriptionPage() {
 
                             <div className="mt-6 flex flex-col gap-3">
                                 {selectedPaymentMethod === 'card' ? (
-                                    <AlatPayButton
+                                    <Pay4ItButton
                                         amount={
-                                            parseInt(
-                                                subscriptionPlans.find((item) => item.id === selectedPlanId)?.price.replace(/[^\d]/g, '') || '0'
-                                            )
+                                            subscriptionPlans.find((item) => item.id === selectedPlanId)?.originalPrice ? (subscriptionPlans.find((item) => item.id === selectedPlanId).originalPrice / 100) : parseInt(String(subscriptionPlans.find((item) => item.id === selectedPlanId)?.price || '0').replace(/[^\d]/g, ''))
                                         }
-                                        onTransaction={handlePayment}
-                                        buttonText="Pay Now with ALATPay"
+                                        email={useResidentStore.getState().residentInfo?.emailAddress || useAuthStore.getState().email || "resident@email.com"}
+                                        customerName={`${useResidentStore.getState().residentInfo?.firstName || ''} ${useResidentStore.getState().residentInfo?.lastName || ''}`.trim() || "Resident User"}
+                                        userType="resident"
+                                        customEndpoint="/wallets/charge"
+                                        onSuccess={(res) => {
+                                            console.log("Pay4It subscription success:", res);
+                                            const finalRef = res.reference || res.tranref;
+                                            handlePayment({ data: { reference: finalRef } });
+                                        }}
+                                        onClose={() => {
+                                            console.log("Pay4It window closed");
+                                        }}
+                                        buttonText="Make Payment"
                                         buttonClassName="btn btn-primary w-full"
                                     />
                                 ) : (

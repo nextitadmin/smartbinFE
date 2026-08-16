@@ -71,6 +71,11 @@ const Pay4ItButton = ({
           amount: Number(amount),
           reference: clientRef,
         };
+      } else if (endpoint.endsWith('/wallets/charge')) {
+        payload = {
+          amount: Number(amount),
+          reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase(),
+        };
       }
 
       const response = await api.post(endpoint, payload);
@@ -109,8 +114,8 @@ const Pay4ItButton = ({
   const handlePaymentClick = async (e) => {
     if (e) e.preventDefault();
 
-    if (!amount || amount < 5000) {
-      showNotification('Enter a valid amount (minimum ₦5,000)', 'error');
+    if (!amount || amount < 1) {
+      showNotification('Enter a valid amount', 'error');
       return;
     }
 
@@ -150,7 +155,7 @@ const Pay4ItButton = ({
 
           if (isVerified) {
             showNotification('Payment verified successfully!', 'success');
-            if (onSuccess) onSuccess(response);
+            if (onSuccess) onSuccess({ ...response, reference: transactionRef });
           } else {
             showNotification('Payment processed but verification pending.', 'info');
           }

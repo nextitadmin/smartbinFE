@@ -88,11 +88,11 @@ function SubscriptionPage() {
         console.log(" verifyAlatPayTransaction CALLED with reference:", reference);
         console.log(" Reference type:", typeof reference);
         console.log(" Reference length:", reference?.length);
-        
+
         try {
             console.log(" Making API call to verify AlatPay transaction");
             console.log(" API endpoint:", `/wallets/mock-verify?reference=${reference}`);
-            
+
             const { data } = await api.get(
                 `/corporate/wallets`
             );
@@ -141,9 +141,9 @@ function SubscriptionPage() {
 
         // Check if user already has an active subscription
         if (checkActiveSubscription()) {
-            setNotification({ 
-                type: 'error', 
-                message: 'You already have an active subscription. Please wait for it to expire before subscribing again.' 
+            setNotification({
+                type: 'error',
+                message: 'You already have an active subscription. Please wait for it to expire before subscribing again.'
             });
             return;
         }
@@ -154,7 +154,7 @@ function SubscriptionPage() {
         try {
             console.log(" Submitting Subscription AlatPay payment with amount (kobo):", amount);
             console.log(" Amount in naira:", amountInNaira);
-            
+
             // Call backend to initiate AlatPay payment for subscription
             const { data } = await api.post("/corporate/wallets/charge", {
                 userId,
@@ -177,12 +177,12 @@ function SubscriptionPage() {
                     console.log(" Backend provided reference:", reference);
                     console.log(" Calling verifyAlatPayTransaction with:", reference);
                     const verifyResult = await verifyAlatPayTransaction(reference);
-                    
+
                     if (verifyResult?.success || verifyResult?.succeeded) {
                         console.log(" AlatPay verification successful, proceeding with subscription");
                         // Proceed with subscription payment
-                        await handlePayment({ 
-                            reference: reference, 
+                        await handlePayment({
+                            reference: reference,
                             channel: "alatPay",
                             data: { reference: reference }
                         });
@@ -256,7 +256,7 @@ function SubscriptionPage() {
                     // Convert from kobo to naira (divide by 100)
                     const priceInNaira = item.price / 100;
                     const pricePerMonthInNaira = (priceInNaira / (item.interval == "year" ? 12 : item.duration));
-                    
+
                     const mappedPlan = {
                         id: item._id,
                         duration: `${item.name}`,
@@ -299,12 +299,12 @@ function SubscriptionPage() {
     const fetchSubscription = async () => {
         try {
             console.log("Fetching subscription with token:", useAuthStore.getState().token);
-            
+
             // Try the subscription status endpoint first (more reliable)
             const response = await api.get('/subscription/status');
             const { data } = response;
             console.log("Subscription status response:", data);
-            
+
             if (data.success || data.succeeded) {
                 const subscriptionData = data.data || data;
                 if (subscriptionData && subscriptionData.status === 'active') {
@@ -394,7 +394,7 @@ function SubscriptionPage() {
 
     const handlePaymentWithWallet = async () => {
         const selectedPlan = subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan);
-        
+
         if (!selectedPlan) {
             setNotification({ type: 'error', message: 'Please select a valid subscription plan.' });
             return;
@@ -402,9 +402,9 @@ function SubscriptionPage() {
 
         // Check if user already has an active subscription
         if (checkActiveSubscription()) {
-            setNotification({ 
-                type: 'error', 
-                message: 'You already have an active subscription. Please wait for it to expire before subscribing again.' 
+            setNotification({
+                type: 'error',
+                message: 'You already have an active subscription. Please wait for it to expire before subscribing again.'
             });
             return;
         }
@@ -430,26 +430,26 @@ function SubscriptionPage() {
 
         try {
             const requestData = {
-                userId: useAuthStore.getState().token, 
+                userId: useAuthStore.getState().token,
                 drAccountNo: Corporate.accountNo,
                 amount: amountInNaira,
                 narration: "Subscription Payment",
                 paymentPurpose: "Subscription Application"
             };
-            
+
             console.log("Request data to /corporate/wallets/charge:", requestData);
-            
+
             const response = await api.post("/corporate/wallets/charge", requestData);
             const data = response.data;
             console.log("Response from debit-wallet:", data);
-            
+
             if (data.succeeded || data.success) {
                 console.log("Wallet payment successful:", data.success, "and message:", data.message);
-                
+
                 // Extract reference from response message or use a default
                 let successRef = data.reference || data.data?.reference;
                 console.log("Initial reference extraction:", successRef);
-                
+
                 // If no reference in response, try to extract from message
                 if (!successRef && data.message) {
                     let successMessage = data.message.split('|');
@@ -459,22 +459,22 @@ function SubscriptionPage() {
                         console.log("Reference extracted from message:", successRef);
                     }
                 }
-                
+
                 // If still no reference, create a timestamp-based one
                 if (!successRef) {
                     successRef = `WALLET_${Date.now()}`;
                     console.log("Generated fallback reference:", successRef);
                 }
-                
+
                 console.log("Final reference to send to handlePayment:", successRef);
-                
+
                 // Call handlePayment with wallet response
-                await handlePayment({ 
-                    reference: successRef, 
+                await handlePayment({
+                    reference: successRef,
                     channel: "wallet",
                     data: { reference: successRef }
                 });
-                
+
                 setNotification({ type: 'success', message: 'Payment successful!' });
                 // Refresh subscription status after successful payment
                 fetchSubscriptionStatus();
@@ -501,7 +501,7 @@ function SubscriptionPage() {
     const handlePayment = async (response) => {
         console.log("=== HANDLE PAYMENT DEBUG ===");
         console.log("Response received:", response);
-        
+
         let ref, channel;
 
         if (response.channel === 'wallet') {
@@ -545,7 +545,7 @@ function SubscriptionPage() {
         try {
             const { data } = await api.post('/subscription/subscribe', dataToSend);
             console.log("Subscription update response:", data);
-            
+
             if (data.succeeded || data.success) {
                 setNotification({ type: 'success', message: data.message || 'Subscription updated successfully!' });
                 // Refresh subscription status after successful payment
@@ -824,251 +824,251 @@ function SubscriptionPage() {
 
                 {/* Payment Modal */}
                 {isPaymentModalOpen && (
-        <div 
-          className="fixed inset-0 bg-black/30 flex justify-center items-center z-50 p-4" 
-          onClick={() => closeModal("payment")}
-        >
-          <div 
-            className="bg-white rounded-xl w-full max-w-lg relative max-h-[90vh] overflow-y-auto" 
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center py-6 px-8 border-b border-zinc-200">
-              <h3 className="text-lg font-semibold text-zinc-800">
-                Select Payment Method
-              </h3>
-              <button
-                onClick={() => closeModal("payment")}
-                aria-label="Close"
-                className="text-zinc-700 hover:text-red-600"
-              >
-                <CloseIcon />
-              </button>
-            </div>
-            <div className="py-6 px-8 space-y-4">
-              <label className="px-6 py-4 rounded-lg flex items-center gap-4">
-                <WalletIcon />
-                <span className="text-sm font-medium text-zinc-800 flex-grow">
-                  {`Pay from wallet (${subscriptionPlans
-                    .find((item) => item.id === selectedSubscriptionPlan)
-                    ?.price || "₦0.00"})`}
-                </span>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  id="wallet"
-                  value="wallet"
-                  checked={selectedPaymentMethod === "wallet"}
-                  onChange={() => setSelectedPaymentMethod("wallet")}
-                  className="custom-radio"
-                />
-              </label>
-              {paymentOptions.map((option) => {
-                const Icon = option.icon;
-                return (
-                  <label
-                    key={option.id}
-                    className="px-6 py-4 rounded-lg flex items-center gap-4"
-                  >
-                    <Icon />
-                    <span className="text-sm font-medium text-zinc-800 flex-grow">
-                      {option.text}
-                    </span>
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      id={`payment_${option.id}`}
-                      value={option.id}
-                      checked={selectedPaymentMethod === option.id}
-                      onChange={() => setSelectedPaymentMethod(option.id)}
-                      className="custom-radio"
-                    />
-                  </label>
-                );
-              })}
-            </div>
-            <div className="px-8 py-4 flex flex-col items-center gap-3">
-              {selectedPaymentMethod === "card" ? (
-                <AlatPayButton
-                  metadata={{
-                    accountNo:
-                      useCorporateStore.getState().corporateInfo.accountNo,
-                  }}
-                  customerName={
-                    useCorporateStore.getState().corporateInfo.companyName ||
-                    "Corporate User"
-                  }
-                  email={
-                    useAuthStore.getState().email || "manifestomixx@gmail.com"
-                  }
-                  redirectUrl="https://smartbin-frontend-staging.up.railway.app/payment-success"
-                  amount={
-                    subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice || 0
-                  }
-                  onTransaction={(response) => {
-                    console.log(" AlatPay onTransaction called with response:", response);
-                    // Call the new function that handles backend integration
-                    const amount = subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice || 0;
-                    submitSubscriptionAlatPay(amount);
-                  }}
-                  onClose={() => {
-                    console.log(" AlatPay window closed");
-                  }}
-                  onPaymentWindowOpen={() => {
-                    console.log(" AlatPay payment window opened");
-                  }}
-                  buttonText="Pay Now with ALATPay"
-                  buttonClassName="btn btn-primary w-full"
-                />
-              ) : (
-                <button
-                  onClick={handlePaymentWithWallet}
-                  className="btn btn-primary w-full"
-                >
-                  Make Payment
-                </button>
-              )}
-              <button
-                onClick={handleSubscriptionBack}
-                className="w-full text-center font-medium text-green-700 hover:text-green-900 py-2"
-              >
-                Go back
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Success Modal */}
-      {showSuccessModal && (
-        <div
-          onClick={() => closeModal("success")}
-          className="fixed inset-0 bg-black/10 bg-opacity-60 flex justify-center items-center z-50 p-4 transition-opacity duration-300"
-        >
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl relative p-6 py-12 md:p-8">
-            <button
-              onClick={() => closeModal("success")}
-              className="absolute top-8 right-8 text-zinc-700 hover:text-red-600"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M6 18L18 6M6 6l12 12"
-                ></path>
-              </svg>
-            </button>
-            <div className="flex flex-col items-center text-center mt-6">
-              <div className="bg-green-100 p-3 rounded-full mb-4">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="41"
-                  height="40"
-                  viewBox="0 0 41 40"
-                  fill="none"
-                >
-                  <path
-                    d="M20.5002 3.3335C11.3168 3.3335 3.8335 10.8168 3.8335 20.0002C3.8335 29.1835 11.3168 36.6668 20.5002 36.6668C29.6835 36.6668 37.1668 29.1835 37.1668 20.0002C37.1668 10.8168 29.6835 3.3335 20.5002 3.3335ZM28.4668 16.1668L19.0168 25.6168C18.7835 25.8502 18.4668 25.9835 18.1335 25.9835C17.8002 25.9835 17.4835 25.8502 17.2502 25.6168L12.5335 20.9002C12.0502 20.4168 12.0502 19.6168 12.5335 19.1335C13.0168 18.6502 13.8168 18.6502 14.3002 19.1335L18.1335 22.9668L26.7002 14.4002C27.1835 13.9168 27.9835 13.9168 28.4668 14.4002C28.9502 14.8835 28.9502 15.6668 28.4668 16.1668Z"
-                    fill="#23A26D"
-                  />
-                </svg>
-              </div>
-              <h2 className="text-2xl font-semibold text-zinc-800 mb-2">
-                Payment Successful!
-              </h2>
-              <p className="text-zinc-500 mb-6">
-                {successModalType === 'subscription' 
-                  ? "Your subscription payment has been processed successfully"
-                  : "Your wallet has been successfully funded"
-                }
-              </p>
-              <div className="w-full space-y-3 bg-[#F7F9FA] rounded-xl p-4 mb-8 text-left">
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-zinc-500">Amount</span>
-                  <span className="font-medium text-zinc-800">
-                    {successModalType === 'subscription' 
-                      ? subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.price || "₦0.00"
-                      : `₦${topUpAmount}`
-                    }
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-zinc-500">Payment Status</span>
-                  <span className="bg-green-100 text-green-700 px-2 py-1.5 rounded-full text-xs font-medium">
-                    Success
-                  </span>
-                </div>
-                <div className="my-12">
-                  <div className="my-6 w-full h-[1px] bg-zinc-300"></div>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-zinc-500">Ref Number</span>
-                  <span className="font-medium text-zinc-800">
-                    000085752257
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-zinc-500">Payment Method</span>
-                  <span className="font-medium text-zinc-800 flex items-center gap-1">
-                    {successModalType === 'subscription' ? (
-                      <>
-                        <WalletIcon />
-                        Wallet Payment
-                      </>
-                    ) : (
-                      <>
-                        <img
-                          src="/images/alat-logo.png"
-                          alt="Alat Logo"
-                          className="w-10 h-10 mx-2 inline-block rounded-sm"
-                        />
-                        Alat By Wema
-                      </>
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-zinc-500">Payment Time</span>
-                  <span className="font-medium text-zinc-800">
-                    {`${new Date().toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "2-digit",
-                      year: "numeric",
-                    })}. ${new Date().toLocaleTimeString("en-US", {
-                      hour12: false,
-                    })}`}
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={downloadReceipt}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 mb-8 border border-green-700 font-medium rounded-md text-green-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                  ></path>
-                </svg>
-                Download Receipt
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                    <div
+                        className="fixed inset-0 bg-black/30 flex justify-center items-center z-50 p-4"
+                        onClick={() => closeModal("payment")}
+                    >
+                        <div
+                            className="bg-white rounded-xl w-full max-w-lg relative max-h-[90vh] overflow-y-auto"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="flex justify-between items-center py-6 px-8 border-b border-zinc-200">
+                                <h3 className="text-lg font-semibold text-zinc-800">
+                                    Select Payment Method
+                                </h3>
+                                <button
+                                    onClick={() => closeModal("payment")}
+                                    aria-label="Close"
+                                    className="text-zinc-700 hover:text-red-600"
+                                >
+                                    <CloseIcon />
+                                </button>
+                            </div>
+                            <div className="py-6 px-8 space-y-4">
+                                <label className="px-6 py-4 rounded-lg flex items-center gap-4">
+                                    <WalletIcon />
+                                    <span className="text-sm font-medium text-zinc-800 flex-grow">
+                                        {`Pay from wallet (${subscriptionPlans
+                                            .find((item) => item.id === selectedSubscriptionPlan)
+                                            ?.price || "₦0.00"})`}
+                                    </span>
+                                    <input
+                                        type="radio"
+                                        name="paymentMethod"
+                                        id="wallet"
+                                        value="wallet"
+                                        checked={selectedPaymentMethod === "wallet"}
+                                        onChange={() => setSelectedPaymentMethod("wallet")}
+                                        className="custom-radio"
+                                    />
+                                </label>
+                                {paymentOptions.map((option) => {
+                                    const Icon = option.icon;
+                                    return (
+                                        <label
+                                            key={option.id}
+                                            className="px-6 py-4 rounded-lg flex items-center gap-4"
+                                        >
+                                            <Icon />
+                                            <span className="text-sm font-medium text-zinc-800 flex-grow">
+                                                {option.text}
+                                            </span>
+                                            <input
+                                                type="radio"
+                                                name="paymentMethod"
+                                                id={`payment_${option.id}`}
+                                                value={option.id}
+                                                checked={selectedPaymentMethod === option.id}
+                                                onChange={() => setSelectedPaymentMethod(option.id)}
+                                                className="custom-radio"
+                                            />
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                            <div className="px-8 py-4 flex flex-col items-center gap-3">
+                                {selectedPaymentMethod === "card" ? (
+                                    <AlatPayButton
+                                        metadata={{
+                                            accountNo:
+                                                useCorporateStore.getState().corporateInfo.accountNo,
+                                        }}
+                                        customerName={
+                                            useCorporateStore.getState().corporateInfo.companyName ||
+                                            "Corporate User"
+                                        }
+                                        email={
+                                            useAuthStore.getState().email || "manifestomixx@gmail.com"
+                                        }
+                                        redirectUrl="https://smartbin-frontend-staging.up.railway.app/payment-success"
+                                        amount={
+                                            subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice || 0
+                                        }
+                                        onTransaction={(response) => {
+                                            console.log(" AlatPay onTransaction called with response:", response);
+                                            // Call the new function that handles backend integration
+                                            const amount = subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice || 0;
+                                            submitSubscriptionAlatPay(amount);
+                                        }}
+                                        onClose={() => {
+                                            console.log(" AlatPay window closed");
+                                        }}
+                                        onPaymentWindowOpen={() => {
+                                            console.log(" AlatPay payment window opened");
+                                        }}
+                                        buttonText="Pay Now "
+                                        buttonClassName="btn btn-primary w-full"
+                                    />
+                                ) : (
+                                    <button
+                                        onClick={handlePaymentWithWallet}
+                                        className="btn btn-primary w-full"
+                                    >
+                                        Make Payment
+                                    </button>
+                                )}
+                                <button
+                                    onClick={handleSubscriptionBack}
+                                    className="w-full text-center font-medium text-green-700 hover:text-green-900 py-2"
+                                >
+                                    Go back
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* Success Modal */}
+                {showSuccessModal && (
+                    <div
+                        onClick={() => closeModal("success")}
+                        className="fixed inset-0 bg-black/10 bg-opacity-60 flex justify-center items-center z-50 p-4 transition-opacity duration-300"
+                    >
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl relative p-6 py-12 md:p-8">
+                            <button
+                                onClick={() => closeModal("success")}
+                                className="absolute top-8 right-8 text-zinc-700 hover:text-red-600"
+                            >
+                                <svg
+                                    className="w-6 h-6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M6 18L18 6M6 6l12 12"
+                                    ></path>
+                                </svg>
+                            </button>
+                            <div className="flex flex-col items-center text-center mt-6">
+                                <div className="bg-green-100 p-3 rounded-full mb-4">
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="41"
+                                        height="40"
+                                        viewBox="0 0 41 40"
+                                        fill="none"
+                                    >
+                                        <path
+                                            d="M20.5002 3.3335C11.3168 3.3335 3.8335 10.8168 3.8335 20.0002C3.8335 29.1835 11.3168 36.6668 20.5002 36.6668C29.6835 36.6668 37.1668 29.1835 37.1668 20.0002C37.1668 10.8168 29.6835 3.3335 20.5002 3.3335ZM28.4668 16.1668L19.0168 25.6168C18.7835 25.8502 18.4668 25.9835 18.1335 25.9835C17.8002 25.9835 17.4835 25.8502 17.2502 25.6168L12.5335 20.9002C12.0502 20.4168 12.0502 19.6168 12.5335 19.1335C13.0168 18.6502 13.8168 18.6502 14.3002 19.1335L18.1335 22.9668L26.7002 14.4002C27.1835 13.9168 27.9835 13.9168 28.4668 14.4002C28.9502 14.8835 28.9502 15.6668 28.4668 16.1668Z"
+                                            fill="#23A26D"
+                                        />
+                                    </svg>
+                                </div>
+                                <h2 className="text-2xl font-semibold text-zinc-800 mb-2">
+                                    Payment Successful!
+                                </h2>
+                                <p className="text-zinc-500 mb-6">
+                                    {successModalType === 'subscription'
+                                        ? "Your subscription payment has been processed successfully"
+                                        : "Your wallet has been successfully funded"
+                                    }
+                                </p>
+                                <div className="w-full space-y-3 bg-[#F7F9FA] rounded-xl p-4 mb-8 text-left">
+                                    <div className="flex justify-between items-center py-2">
+                                        <span className="text-zinc-500">Amount</span>
+                                        <span className="font-medium text-zinc-800">
+                                            {successModalType === 'subscription'
+                                                ? subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.price || "₦0.00"
+                                                : `₦${topUpAmount}`
+                                            }
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2">
+                                        <span className="text-zinc-500">Payment Status</span>
+                                        <span className="bg-green-100 text-green-700 px-2 py-1.5 rounded-full text-xs font-medium">
+                                            Success
+                                        </span>
+                                    </div>
+                                    <div className="my-12">
+                                        <div className="my-6 w-full h-[1px] bg-zinc-300"></div>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2">
+                                        <span className="text-zinc-500">Ref Number</span>
+                                        <span className="font-medium text-zinc-800">
+                                            000085752257
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2">
+                                        <span className="text-zinc-500">Payment Method</span>
+                                        <span className="font-medium text-zinc-800 flex items-center gap-1">
+                                            {successModalType === 'subscription' ? (
+                                                <>
+                                                    <WalletIcon />
+                                                    Wallet Payment
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <img
+                                                        src="/images/alat-logo.png"
+                                                        alt="Alat Logo"
+                                                        className="w-10 h-10 mx-2 inline-block rounded-sm"
+                                                    />
+                                                    Alat By Wema
+                                                </>
+                                            )}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2">
+                                        <span className="text-zinc-500">Payment Time</span>
+                                        <span className="font-medium text-zinc-800">
+                                            {`${new Date().toLocaleDateString("en-US", {
+                                                month: "short",
+                                                day: "2-digit",
+                                                year: "numeric",
+                                            })}. ${new Date().toLocaleTimeString("en-US", {
+                                                hour12: false,
+                                            })}`}
+                                        </span>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={downloadReceipt}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 mb-8 border border-green-700 font-medium rounded-md text-green-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                >
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                        ></path>
+                                    </svg>
+                                    Download Receipt
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
 
             </div>

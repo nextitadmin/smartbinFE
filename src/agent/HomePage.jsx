@@ -171,23 +171,23 @@ const Dashboard = () => {
     ];
 
     const subscriptionPlans = [
-        { id: 1,  duration: '1 month',  price: '₦5,000',  pricePerMonth: '₦5,000 per month' },
-        { id: 3,  duration: '3 months', price: '₦12,000', pricePerMonth: '₦4,000 per month' },
-        { id: 6,  duration: '6 months', price: '₦20,000', pricePerMonth: '₦3,300 per month' },
-        { id: 12, duration: '1 year',   price: '₦35,000', pricePerMonth: '₦2,917 per month' },
+        { id: 1, duration: '1 month', price: '₦5,000', pricePerMonth: '₦5,000 per month', amountVal: 5000 },
+        { id: 3, duration: '3 months', price: '₦12,000', pricePerMonth: '₦4,000 per month', amountVal: 12000 },
+        { id: 6, duration: '6 months', price: '₦20,000', pricePerMonth: '₦3,300 per month', amountVal: 20000 },
+        { id: 12, duration: '1 year', price: '₦35,000', pricePerMonth: '₦2,917 per month', amountVal: 35000 },
     ];
 
     // ── Derived values from API ──
     const d = dashboardData ?? {};
 
-    const totalRegistered   = (d.totalResidentsRegistered ?? 0) + (d.totalCorporatesRegistered ?? 0);
-    const smartBinTotal     = (d.residentSmartBinApplicationCount ?? 0) + (d.corporateSmartBinApplicationCount ?? 0);
+    const totalRegistered = (d.totalResidentsRegistered ?? 0) + (d.totalCorporatesRegistered ?? 0);
+    const smartBinTotal = (d.residentSmartBinApplicationCount ?? 0) + (d.corporateSmartBinApplicationCount ?? 0);
 
     // Bills: sum residentBills and corporateBills arrays (each item may have an `amount` field)
     const sumBills = (arr) => (arr ?? []).reduce((acc, b) => acc + (b.amount ?? 0), 0);
-    const residentBillsTotal  = sumBills(d.residentBills);
+    const residentBillsTotal = sumBills(d.residentBills);
     const corporateBillsTotal = sumBills(d.corporateBills);
-    const totalBills          = residentBillsTotal + corporateBillsTotal;
+    const totalBills = residentBillsTotal + corporateBillsTotal;
 
     // ── Notification auto-dismiss ──
     useEffect(() => {
@@ -290,15 +290,15 @@ const Dashboard = () => {
     const openModal = (modalName) => {
         closeAllModals();
         if (modalName === 'success') setShowSuccessModal(true);
-        if (modalName === 'topup')   setShowTopUpModal(true);
-        if (modalName === 'error')   setShowErrorModal(true);
+        if (modalName === 'topup') setShowTopUpModal(true);
+        if (modalName === 'error') setShowErrorModal(true);
         document.body.style.overflow = 'hidden';
     };
 
     const closeModal = (modalName) => {
         if (modalName === 'success') { setShowSuccessModal(false); setTopUpAmount(''); fetchDashboard(); }
-        if (modalName === 'topup')   setShowTopUpModal(false);
-        if (modalName === 'error')   setShowErrorModal(false);
+        if (modalName === 'topup') setShowTopUpModal(false);
+        if (modalName === 'error') setShowErrorModal(false);
         if (modalName === 'payment') setIsPaymentModalOpen(false);
         if (modalName === 'subscription') setIsSubscriptionModalOpen(false);
         document.body.style.overflow = '';
@@ -513,7 +513,7 @@ const Dashboard = () => {
                         <div className="px-6 py-4 flex flex-col items-center gap-3">
                             {selectedPaymentMethod === 'card' ? (
                                 <Pay4ItButton
-                                    amount={parseInt(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.price.replace(/[^\d]/g, '') ?? 0) / 100}
+                                    amount={subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.amountVal ?? 0}
                                     email={useAgentStore.getState().agentInfo?.emailAddress || useAuthStore.getState().email || "agent@email.com"}
                                     customerName={`${useAgentStore.getState().agentInfo?.firstName || ''} ${useAgentStore.getState().agentInfo?.lastName || ''}`.trim() || "Agent User"}
                                     userType="agent"
@@ -525,7 +525,7 @@ const Dashboard = () => {
                                     onClose={() => {
                                         console.log("Pay4It window closed");
                                     }}
-                                    buttonText="Pay Now with Pay4It"
+                                    buttonText="Make Payment"
                                     buttonClassName="btn btn-primary w-full"
                                 />
                             ) : (

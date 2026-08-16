@@ -4,6 +4,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/CorporateTopBar";
 import api from "../api/axiosConfig.js"; // Ensure correct path
 import useAuthStore from "../store/authStore";
+import useCorporateStore from "../store/useCorporateStore";
 import { uploadFile } from "../utils/fileUpload.js";
 
 const KYCApplication = () => {
@@ -108,6 +109,8 @@ const KYCApplication = () => {
         }
     }, [notification]);
 
+    const { corporateInfo, fetchCorporateInfo } = useCorporateStore();
+
     // --- Initial Check (Placeholder Logic) ---
     const checkStatus = async () => {
         try {
@@ -127,7 +130,31 @@ const KYCApplication = () => {
 
     useEffect(() => {
         checkStatus();
+        fetchCorporateInfo();
     }, []);
+
+    useEffect(() => {
+        if (corporateInfo) {
+            setFormData(prev => ({
+                ...prev,
+                company: {
+                    ...prev.company,
+                    companyName: prev.company.companyName || corporateInfo.businessName || '',
+                    email: prev.company.email || corporateInfo.emailAddress || '',
+                    phone: prev.company.phone || corporateInfo.phoneNo || '',
+                    address: prev.company.address || corporateInfo.address || '',
+                },
+                personal: {
+                    ...prev.personal,
+                    firstName: prev.personal.firstName || corporateInfo.firstName || '',
+                    lastName: prev.personal.lastName || corporateInfo.lastName || '',
+                    email: prev.personal.email || corporateInfo.emailAddress || '',
+                    phone: prev.personal.phone || corporateInfo.phoneNo || '',
+                    address: prev.personal.address || corporateInfo.address || '',
+                }
+            }));
+        }
+    }, [corporateInfo]);
 
     // --- Modal Handlers ---
     const handleOpenModal = () => {

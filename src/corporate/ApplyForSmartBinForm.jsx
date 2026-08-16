@@ -192,7 +192,7 @@ const SmartBinApplication = () => {
                 );
 
                 setApplications(applicationsWithPaymentStatus);
-                
+
                 // Extract pagination data from meta.paging structure
                 const paginationData = data.meta?.paging;
                 if (paginationData) {
@@ -215,18 +215,18 @@ const SmartBinApplication = () => {
     const checkPaymentStatus = async (transactionReference) => {
         try {
             console.log('🔍 Checking payment status for:', transactionReference);
-            
+
             // First, check if we have any smart bin payments in the general payments list
             const { data } = await api.get(`/corporate/payments?AccountNo=${useCorporateStore.getState().corporateInfo.accountNo}&page=1&limit=100`);
-            
+
             if (data.succeeded || data.success) {
                 const transactions = data.data?.transactions || data.transactions || [];
-                
+
                 // First, check if there's a payment with matching transaction reference
-                const matchingPayment = transactions.find(transaction => 
+                const matchingPayment = transactions.find(transaction =>
                     transaction.transactionReference === transactionReference
                 );
-                
+
                 if (matchingPayment) {
                     console.log('Found matching payment for this application:', matchingPayment);
                     // Verify this specific payment was actually successful
@@ -236,7 +236,7 @@ const SmartBinApplication = () => {
                     }
                     return matchingPayment.status?.toLowerCase() || 'unpaid';
                 }
-                
+
                 // If no matching payment found, check for smart bin payments that might be related
                 // but only if we have a specific way to link them to this application
                 const smartBinPayments = transactions.filter(transaction => {
@@ -247,16 +247,16 @@ const SmartBinApplication = () => {
                         (transaction.meta?.description && transaction.meta.description.toLowerCase().includes('smart bin')) ||
                         (transaction.service && transaction.service.toLowerCase().includes('smart bin'))
                     );
-                    
+
                     return isSmartBinPayment;
                 });
-                
+
                 if (smartBinPayments.length > 0) {
                     // Only consider these payments if we can verify they're related to this specific application
                     // For now, we'll be conservative and not assume any smart bin payment is for this application
                     console.log('Found smart bin payments but cannot verify they are for this specific application');
                 }
-                
+
                 console.log('No payments found for this smart bin application');
                 return 'unpaid';
             } else {
@@ -273,29 +273,29 @@ const SmartBinApplication = () => {
     const verifyActualPayment = async (payment) => {
         try {
             console.log('🔍 Verifying actual payment success for:', payment.transactionReference);
-            
+
             // Check if it's a wallet payment
             if (payment.paymentMethod === 'wallet' || payment.service === 'Wallet Charge') {
                 // For wallet payments, check if the wallet/charge was successful
                 // We can verify this by checking if the transaction exists and is successful
-                if (payment.status?.toLowerCase() === 'successful' || 
-                    payment.status?.toLowerCase() === 'paid' || 
+                if (payment.status?.toLowerCase() === 'successful' ||
+                    payment.status?.toLowerCase() === 'paid' ||
                     payment.status?.toLowerCase() === 'completed') {
                     console.log('✅ Wallet payment verified as successful');
                     return true;
                 }
             }
-            
+
             // Check if it's an AlatPay payment
-            if (payment.paymentMethod === 'alatPay' || 
+            if (payment.paymentMethod === 'alatPay' ||
                 payment.transactionReference?.includes('ALAT') ||
                 payment.narration?.toLowerCase().includes('alat')) {
-                
+
                 // For AlatPay payments, verify using the mock-verify endpoint
                 try {
                     const verifyResponse = await api.get(`/api/v1/wallets/mock-verify?reference=${payment.transactionReference}`);
                     console.log('🔍 AlatPay verification response:', verifyResponse.data);
-                    
+
                     if (verifyResponse.data?.success || verifyResponse.data?.succeeded) {
                         console.log('✅ AlatPay payment verified as successful');
                         return true;
@@ -308,15 +308,15 @@ const SmartBinApplication = () => {
                     return false;
                 }
             }
-            
+
             // For other payment methods, check the status
-            if (payment.status?.toLowerCase() === 'successful' || 
-                payment.status?.toLowerCase() === 'paid' || 
+            if (payment.status?.toLowerCase() === 'successful' ||
+                payment.status?.toLowerCase() === 'paid' ||
                 payment.status?.toLowerCase() === 'completed') {
                 console.log('✅ Payment verified as successful based on status');
                 return true;
             }
-            
+
             console.log('❌ Payment not verified as successful');
             return false;
         } catch (error) {
@@ -329,12 +329,12 @@ const SmartBinApplication = () => {
     // const verifyPaymentWasMade = async (transactionReference) => {
     //     try {
     //         console.log('🔍 Verifying if payment was actually made for:', transactionReference);
-            
+
     //         const { data } = await api.get(`/corporate/payments?AccountNo=${useCorporateStore.getState().corporateInfo.accountNo}&page=1&limit=100`);
-            
+
     //         if (data.succeeded || data.success) {
     //             const transactions = data.data?.transactions || data.transactions || [];
-                
+
     //             // Look for any successful payment related to smart bin
     //             const smartBinPayments = transactions.filter(transaction => {
     //                 const isSmartBinRelated = (
@@ -343,10 +343,10 @@ const SmartBinApplication = () => {
     //                     (transaction.meta?.description && transaction.meta.description.toLowerCase().includes('smart bin')) ||
     //                     (transaction.service && transaction.service.toLowerCase().includes('smart bin'))
     //                 );
-                    
+
     //                 return isSmartBinRelated;
     //             });
-                
+
     //             // Verify each smart bin payment to see if any was actually successful
     //             for (const payment of smartBinPayments) {
     //                 const isActuallyPaid = await verifyActualPayment(payment);
@@ -355,12 +355,12 @@ const SmartBinApplication = () => {
     //                     return true;
     //                 }
     //             }
-                
+
     //             // If no smart bin payments found, check if there's a payment with matching transaction reference
     //             const matchingPayment = transactions.find(transaction => 
     //                 transaction.transactionReference === transactionReference
     //             );
-                
+
     //             if (matchingPayment) {
     //                 const isActuallyPaid = await verifyActualPayment(matchingPayment);
     //                 if (isActuallyPaid) {
@@ -368,11 +368,11 @@ const SmartBinApplication = () => {
     //                     return true;
     //                 }
     //             }
-                
+
     //             console.log('❌ No successful payment found for smart bin application');
     //             return false;
     //         }
-            
+
     //         return false;
     //     } catch (error) {
     //         console.error('Error verifying payment:', error);
@@ -592,7 +592,7 @@ const SmartBinApplication = () => {
         if (modalName === 'payment') {
             setIsPaymentModalOpen(false);
             setSelectedPaymentMethod(''); // Reset payment method when modal closes
-            
+
             // Only refresh data if there was a payment attempt that wasn't completed
             if (paymentAttemptInProgress) {
                 setPaymentAttemptInProgress(false);
@@ -812,25 +812,25 @@ const SmartBinApplication = () => {
         const isConfirmed = window.confirm(
             'Are you sure you want to cancel this Smart Bin application? This action cannot be undone.'
         );
-        
+
         if (!isConfirmed) {
             return;
         }
-        
+
         try {
             console.log('Cancelling smart bin application:', applicationId);
-            
+
             const { data } = await api.delete(`/corporates/smart-bin/applications/${applicationId}`);
-            
+
             if (data.success || data.succeeded) {
                 setNotification({
                     type: 'success',
                     message: 'Smart Bin application cancelled successfully!'
                 });
-                
+
                 // Refresh the applications list
                 await fetchData();
-                
+
                 // Close the action modal
                 setRowActionModal(false);
             } else {
@@ -852,16 +852,16 @@ const SmartBinApplication = () => {
     const handleRetryPayment = async (applicationId) => {
         try {
             console.log('Retrying payment for application:', applicationId);
-            
+
             // Close the action modal
             setRowActionModal(false);
-            
+
             // Set the current application for payment
             setCurrentDataId(applicationId);
-            
+
             // Open payment modal
             openModal('payment');
-            
+
         } catch (error) {
             console.error('Error retrying payment:', error);
             setNotification({
@@ -875,16 +875,16 @@ const SmartBinApplication = () => {
     const handlePayNow = async (applicationId) => {
         try {
             console.log('Initiating payment for application:', applicationId);
-            
+
             // Close the action modal
             setRowActionModal(false);
-            
+
             // Set the current application for payment
             setCurrentDataId(applicationId);
-            
+
             // Open payment modal
             openModal('payment');
-            
+
         } catch (error) {
             console.error('Error initiating payment:', error);
             setNotification({
@@ -1124,14 +1124,14 @@ const SmartBinApplication = () => {
                             {/* Show Cancel and Pay Now only for unpaid applications */}
                             {(appDetails?.paymentStatus === 'unpaid' || !appDetails?.paymentStatus) && (
                                 <>
-                                    <p 
-                                        className='text-red-600 p-2 cursor-pointer hover:bg-red-50 rounded' 
+                                    <p
+                                        className='text-red-600 p-2 cursor-pointer hover:bg-red-50 rounded'
                                         onClick={() => handleCancelApplication(currentDataId)}
                                     >
                                         Cancel Application
                                     </p>
-                                    <p 
-                                        className='text-green-700 p-2 cursor-pointer hover:bg-green-50 rounded' 
+                                    <p
+                                        className='text-green-700 p-2 cursor-pointer hover:bg-green-50 rounded'
                                         onClick={() => handlePayNow(currentDataId)}
                                     >
                                         Pay Now
@@ -1141,8 +1141,8 @@ const SmartBinApplication = () => {
 
                             {/* Show Retry Payment for failed payments */}
                             {appDetails?.paymentStatus === 'failed' && (
-                                <p 
-                                    className='text-blue-600 p-2 cursor-pointer hover:bg-blue-50 rounded' 
+                                <p
+                                    className='text-blue-600 p-2 cursor-pointer hover:bg-blue-50 rounded'
                                     onClick={() => handleRetryPayment(currentDataId)}
                                 >
                                     Retry Payment
@@ -1373,7 +1373,7 @@ const SmartBinApplication = () => {
                                         console.log(" AlatPay payment window opened");
                                         closeModal("payment"); // Close the modal once payment window opens
                                     }}
-                                    buttonText="Pay Now with ALATPay"
+                                    buttonText="Pay Now "
                                     buttonClassName="btn btn-primary w-full"
                                 />
                             ) : selectedPaymentMethod === 'wallet' ? (

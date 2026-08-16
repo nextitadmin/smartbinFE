@@ -325,6 +325,7 @@ const Dashboard = () => {
                         duration: `${item.month} months`,
                         price: `₦${item.amount}`,
                         pricePerMonth: `₦${item.amount} per month`,
+                        amountVal: item.amount // Store original Naira amount
                     }));
                     setSubscriptionPlans(newPlans);
                 }
@@ -779,10 +780,11 @@ const Dashboard = () => {
                                     selectedPaymentMethod === 'card' ?
                                         (
                                             <Pay4ItButton
-                                                amount={parseInt(subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan).price.replace(/[^\d]/g, '')) / 100}
+                                                amount={subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.amountVal ?? 0}
                                                 email={useFacilityMgrStore.getState().facilityMgrInfo?.emailAddress || useAuthStore.getState().email || "facility@email.com"}
                                                 customerName={`${useFacilityMgrStore.getState().facilityMgrInfo?.firstName || ''} ${useFacilityMgrStore.getState().facilityMgrInfo?.lastName || ''}`.trim() || "Facility Manager"}
                                                 userType="facilityManager"
+                                                customEndpoint="/wallets/charge"
                                                 onSuccess={(res) => {
                                                     console.log("Pay4It subscription success:", res);
                                                     const finalRef = res.reference || res.tranref;
@@ -791,7 +793,7 @@ const Dashboard = () => {
                                                 onClose={() => {
                                                     console.log("Pay4It window closed");
                                                 }}
-                                                buttonText="Pay Now with Pay4It"
+                                                buttonText="Make Payment"
                                                 buttonClassName="btn btn-primary w-full"
                                             />
                                         )

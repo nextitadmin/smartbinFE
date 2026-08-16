@@ -47,13 +47,13 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
     };
 
     useEffect(() => {
-         if (notification) {
-             const timer = setTimeout(() => {
-                 clearNotification();
-             }, 5000); // Hide after 5 seconds
-             return () => clearTimeout(timer); // Cleanup timer on component unmount or notification change
-         }
-     }, [notification]);
+        if (notification) {
+            const timer = setTimeout(() => {
+                clearNotification();
+            }, 5000); // Hide after 5 seconds
+            return () => clearTimeout(timer); // Cleanup timer on component unmount or notification change
+        }
+    }, [notification]);
 
     // --- Fetch Data ---
     const fetchLga = async () => {
@@ -389,7 +389,7 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
             </div>
 
             {/* Notification */}
-           {notification && (
+            {notification && (
                 <div
                     // Using fixed positioning to overlay on the page
                     className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 ${notification.type === 'success' ? 'bg-green-100 border border-green-400 text-green-800' : 'bg-red-100 border border-red-400 text-red-800'
@@ -584,20 +584,20 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
                             required
                             className="form-select w-full border border-zinc-300 p-4 rounded-xl"
                         >
-                             <option value="">Select Local Government</option>
-                             {options.lgas.map((item) => {
-                                 const value = typeof item === 'string'
-                                     ? item
-                                     : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
-                                 const label = typeof item === 'string'
-                                     ? item
-                                     : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
-                                 return (
-                                     <option key={value || label} value={value}>
-                                         {label}
-                                     </option>
-                                 );
-                             })}
+                            <option value="">Select Local Government</option>
+                            {options.lgas.map((item) => {
+                                const value = typeof item === 'string'
+                                    ? item
+                                    : item.id ?? item._id ?? item.value ?? item.name ?? item.label ?? '';
+                                const label = typeof item === 'string'
+                                    ? item
+                                    : item.name ?? item.lgaName ?? item.label ?? item.value ?? item;
+                                return (
+                                    <option key={value || label} value={value}>
+                                        {label}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
                     <div className="md:col-span-2">
@@ -719,7 +719,7 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
                                 <AlatPayButton
                                     amount={smartBinAmount}
                                     onTransaction={handlePaymentViaCard} // Pass the handler
-                                    buttonText={isSubmitting ? "Processing..." : "Pay Now with ALATPay"}
+                                    buttonText={isSubmitting ? "Processing..." : "Pay Now "}
                                     buttonClassName="btn btn-primary w-full py-3"
                                     disabled={isSubmitting} // Disable button while submitting
                                 />

@@ -607,7 +607,7 @@ const Wastes = () => {
                                                                 type="button"
                                                                 className="p-1 bg-green-100 border border-green-700 text-green-800 hover:text-zinc-900 rounded-2xl text-sm"
                                                             >
-                                                                Pay now
+                                                                Make Payment
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -737,7 +737,7 @@ const Wastes = () => {
                                                 console.log(" AlatPay payment window opened");
                                                 closeModal("payment"); // Close the modal once payment window opens
                                             }}
-                                            buttonText="Pay Now with ALATPay"
+                                            buttonText="Pay Now "
                                             buttonClassName="btn btn-primary w-full"
                                         />
                                     )
