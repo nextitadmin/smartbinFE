@@ -4,7 +4,7 @@ import Topbar from '../components/CorporateTopBar';
 import { NavLink, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import useCorporateStore from '../store/useCorporateStore';
-import AlatPayButton from '../components/AlatPayButton';
+import Pay4ItButton from '../components/Pay4ItButton';
 import useAuthStore from '../store/authStore';
 import SmartBinApplicationForm from '../components/CorporateSmartBinApplicationForm';
 
@@ -27,7 +27,7 @@ const SmartBinApplication = () => {
     const [isApplyFormModalOpen, setIsApplyFormModalOpen] = useState(false);
     const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: string } | null
     const Corporate = useCorporateStore.getState().corporateInfo;
-    const [pickUpAmount, setPickUpAmount] = useState(100);
+    const [pickUpAmount, setPickUpAmount] = useState(5000);
     const [debitType, setDebitType] = useState(''); // 'wallet' or 'smartbin'
     const [isLoading, setIsLoading] = useState(false); // Loading state for fetchData
 
@@ -40,7 +40,7 @@ const SmartBinApplication = () => {
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(''); // Initialize as empty
 
     const paymentOptions = [
-        { id: 'alatPay', text: 'Pay by card/bank/transfer', icon: AlatIcon }, // Ensure AlatIcon is available
+        { id: 'alatPay', text: 'Pay with Card/Bank/Transfer', icon: AlatIcon }, // Ensure AlatIcon is available
     ];
 
 
@@ -652,7 +652,7 @@ const SmartBinApplication = () => {
     const submitSmartBinAlatPay = async (amount) => {
         const userId = useAuthStore.getState().user?.id;
 
-        if (!amount || amount < 100) {
+        if (!amount || amount < 1) {
             setNotification({ type: "error", message: "Enter a valid amount" });
             return;
         }
@@ -661,7 +661,7 @@ const SmartBinApplication = () => {
             console.log("🔍 Submitting Smart Bin AlatPay payment with amount:", amount);
 
             // Call backend to initiate AlatPay payment (similar to topup endpoint)
-            const { data } = await api.post("/corporate/wallets/charge", {
+            const { data } = await api.post("/wallets/charge", {
                 userId,
                 amount: amount,
                 channel: "ALATPay",
@@ -755,12 +755,10 @@ const SmartBinApplication = () => {
 
     const handlePaymentWithWallet = async () => {
         try {
-            const response = await api.post("/corporate/wallets/charge", {
-                userId: useAuthStore.getState().token,
-                drAccountNo: Corporate.accountNo,
+            const response = await api.post("/wallets/charge", {
+
                 amount: pickUpAmount,
-                narration: "Smart Bin Application Payment",
-                paymentPurpose: "Smart Bin Application"
+
             });
             const data = response.data;
             console.log("Response from debit-wallet:", data);
@@ -1344,34 +1342,21 @@ const SmartBinApplication = () => {
                             {!selectedPaymentMethod ? (
                                 <p className="text-sm text-zinc-500">Please select a payment method</p>
                             ) : selectedPaymentMethod === 'alatPay' ? (
-                                <AlatPayButton
-                                    //all details provided by the api request in the component
-                                    metadata={{
-                                        accountNo:
-                                            useCorporateStore.getState().corporateInfo.accountNo,
-                                    }}
-                                    customerName={
-                                        useCorporateStore.getState().corporateInfo.companyName ||
-                                        "Corporate User"
-                                    }
-                                    email={
-                                        useAuthStore.getState().email || "manifestomixx@gmail.com"
-                                    }
-                                    redirectUrl="https://smartbin-frontend-staging.up.railway.app/payment-success"
+                                <Pay4ItButton
                                     amount={pickUpAmount}
-                                    onTransaction={(response) => {
-                                        console.log(" AlatPay onTransaction called with response:", response);
-                                        // console.log(" Full response structure:", JSON.stringify(response, null, 2));
-
-                                        // Call the new function that handles backend integration
-                                        submitSmartBinAlatPay(pickUpAmount);
+                                    email={useAuthStore.getState().email || "manifestomixx@gmail.com"}
+                                    customerName={useCorporateStore.getState().corporateInfo.companyName || "Corporate User"}
+                                    description="Smart Bin Application Payment"
+                                    userType="corporate"
+                                    customEndpoint="/wallets/charge"
+                                    customPayload={{ paymentPurpose: "Smart Bin Application" }}
+                                    onSuccess={async (res) => {
+                                        console.log("Pay4It smart bin success:", res);
+                                        const finalRef = res.reference || res.tranref;
+                                        await SubmitPickupRequest({ ref: finalRef, amount: pickUpAmount, channel: "wallet" });
                                     }}
                                     onClose={() => {
-                                        console.log(" AlatPay window closed");
-                                    }}
-                                    onPaymentWindowOpen={() => {
-                                        console.log(" AlatPay payment window opened");
-                                        closeModal("payment"); // Close the modal once payment window opens
+                                        console.log("Pay4It window closed");
                                     }}
                                     buttonText="Pay Now "
                                     buttonClassName="btn btn-primary w-full"

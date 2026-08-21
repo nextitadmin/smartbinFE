@@ -20,20 +20,21 @@ const PaymentReceipts = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get('/facility-manager/payment');
-            if (data.success && Array.isArray(data.data)) {
-                const newData = data.data.map((item) => ({
-                    id: item.id,
-                    transactionId: item.transactionReference,
-                    date: item.transactionDate?.slice(0, 10),
-                    service: item.description,
-                    status: item.transactionStatus,
-                    amount: item.amount,
-                    paymentMethod: item.paymentMethod,
+            const { data } = await api.get(`/facility-manager/payment?page=${currentPage}&limit=${itemsPerPage}`);
+            if (data.success && data.data) {
+                const transactions = data.data.transactions || (Array.isArray(data.data) ? data.data : []);
+                const newData = transactions.map((item) => ({
+                    id: item._id || item.id,
+                    transactionId: item.transactionId || item.transactionReference || 'N/A',
+                    date: (item.createdAt || item.completedAt || item.transactionDate)?.slice(0, 10) || '',
+                    service: item.service || item.description || 'N/A',
+                    status: item.status || item.transactionStatus || 'successful',
+                    amount: typeof item.amount === 'number' ? (item.amount) : (Number(item.amount || 0)),
+                    paymentMethod: item.paymentMethod || 'N/A',
                     customerName: ""
-                }));;
+                }));
                 setPayments(newData);
-                setTotalPages(data.data.totalPages);
+                setTotalPages(data.data.paging?.pages || data.data.totalPages || 1);
             }
         } catch (error) {
             console.log(error);

@@ -97,11 +97,43 @@ const CreatePayerID = () => {
 
     // Handle form submission
     const handleSubmit = async (e) => {
-        console.log("Form submitted with data:", formData);
         e.preventDefault();
+        console.log("Form submitted with data:", formData);
 
-        if (formData.nin.length !== 11) {
+        if (!formData.firstName || !formData.firstName.trim()) {
+            setNotification({ type: 'error', message: 'First name is required' });
+            return;
+        }
+
+        if (!formData.lastName || !formData.lastName.trim()) {
+            setNotification({ type: 'error', message: 'Last name is required' });
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!formData.email || !emailRegex.test(formData.email.trim())) {
+            setNotification({ type: 'error', message: 'Please enter a valid email address' });
+            return;
+        }
+
+        const phoneClean = (formData.phoneNumber || '').trim().replace(/[\s\-()]/g, '');
+        if (!phoneClean || phoneClean.length < 8 || phoneClean.length > 15) {
+            setNotification({ type: 'error', message: 'Please enter a valid phone number' });
+            return;
+        }
+
+        if (!formData.dateOfBirth) {
+            setNotification({ type: 'error', message: 'Date of birth is required' });
+            return;
+        }
+
+        if (!formData.nin || !/^\d{11}$/.test(formData.nin)) {
             setNotification({ type: 'error', message: 'NIN must be exactly 11 digits' });
+            return;
+        }
+
+        if (!formData.termsAccepted) {
+            setNotification({ type: 'error', message: 'You must accept the Terms and Conditions to proceed' });
             return;
         }
 

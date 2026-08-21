@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api/axiosConfig';
 import useAuthStore from '../store/authStore';
 import useCorporateStore from '../store/useCorporateStore';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/CorporateTopBar';
 import ServiceConfigNav from '../components/ServiceConfigNav';
-import AlatPayButton from '../components/AlatPayButton'; // make sure this exists
+import Pay4ItButton from '../components/Pay4ItButton'; // make sure this exists
 
 const InlineLoader = ({ className = "w-5 h-5" }) => (
     <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -76,8 +76,14 @@ function SubscriptionPage() {
     const [selectedSubscriptionPlan, setSelectedSubscriptionPlan] = useState("");
     const Corporate = useCorporateStore.getState().corporateInfo;
 
+    const activePlan = useMemo(() => {
+        if (!subscriptionStatus || !subscriptionStatus.plan || subscriptionPlans.length === 0) return null;
+        return subscriptionPlans.find(p => p.id === subscriptionStatus.plan);
+    }, [subscriptionStatus, subscriptionPlans]);
+
     const paymentOptions = [
-        { id: 'card', text: 'Pay by card/bank/transfer', icon: AlatIcon },
+
+        { id: 'card', text: 'Pay with Card/Bank/Transfer', icon: AlatIcon },
     ];
 
     const clearNotification = () => {
@@ -392,6 +398,26 @@ function SubscriptionPage() {
         setIsModalOpen(false);
     };
 
+    const checkSubscriptionBeforePayment = async () => {
+        try {
+            const statusRes = await api.get('/subscription/status');
+            if (statusRes.data?.success || statusRes.data?.succeeded) {
+                const subData = statusRes.data.data;
+                if (subData && subData.status === 'active') {
+                    setNotification({
+                        type: 'error',
+                        message: 'You already have an active subscription. Please wait for it to expire before subscribing again.'
+                    });
+                    setSubscriptionStatus(subData); // update local state
+                    return false;
+                }
+            }
+        } catch (e) {
+            console.error("Error checking subscription status:", e);
+        }
+        return true;
+    };
+
     const handlePaymentWithWallet = async () => {
         const selectedPlan = subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan);
 
@@ -400,14 +426,11 @@ function SubscriptionPage() {
             return;
         }
 
-        // Check if user already has an active subscription
-        if (checkActiveSubscription()) {
-            setNotification({
-                type: 'error',
-                message: 'You already have an active subscription. Please wait for it to expire before subscribing again.'
-            });
+        // Check if user already has an active subscription dynamically
+        if (!(await checkSubscriptionBeforePayment())) {
             return;
         }
+
 
         // Use original price in kobo for API call
         const amount = selectedPlan.originalPrice;
@@ -583,25 +606,24 @@ function SubscriptionPage() {
 
         //Show active subscription if exists
         if (subscriptionStatus && subscriptionStatus.status === 'active') {
+            const expiry = subscriptionStatus.expiryDate || subscriptionStatus.endDate;
             return (
                 <div className="py-6 px-4 lg:max-w-[500px] mx-auto">
                     <h3 className="text-sm font-medium text-zinc-600 mb-3">Current Subscription</h3>
                     <div className="p-4 border border-green-700 bg-[#f7f6ff] rounded-xl flex justify-between items-center">
                         <div>
                             <span className="text-sm font-medium text-zinc-800">
-                                {subscriptionStatus.planName || 'Active Subscription'}
+                                {activePlan?.duration || subscriptionStatus.planName || 'Active Subscription'}
                             </span>
                             <p className="text-xs text-zinc-500 mt-1">Status: Active</p>
                         </div>
                         <div className="text-right">
-                            {subscriptionStatus.amount && (
-                                <span className="text-sm font-semibold text-zinc-900">
-                                    ₦{subscriptionStatus.amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                            )}
-                            {subscriptionStatus.expiryDate && (
+                            <span className="text-sm font-semibold text-zinc-900">
+                                {activePlan?.price || (subscriptionStatus.amount ? `₦${subscriptionStatus.amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '')}
+                            </span>
+                            {expiry && (
                                 <p className="text-xs text-zinc-500 mt-1">
-                                    Expires: {new Date(subscriptionStatus.expiryDate).toLocaleDateString()}
+                                    Expires: {new Date(expiry).toLocaleDateString()}
                                 </p>
                             )}
                         </div>
@@ -617,6 +639,7 @@ function SubscriptionPage() {
                 </div>
             );
         }
+
 
         // Show available subscription plans if no active subscription
         if (subscriptionPlans.length === 0) {
@@ -888,11 +911,10 @@ function SubscriptionPage() {
                             </div>
                             <div className="px-8 py-4 flex flex-col items-center gap-3">
                                 {selectedPaymentMethod === "card" ? (
-                                    <AlatPayButton
-                                        metadata={{
-                                            accountNo:
-                                                useCorporateStore.getState().corporateInfo.accountNo,
-                                        }}
+                                    <Pay4ItButton
+                                        amount={
+                                            subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice ? (subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan).originalPrice / 100) : 0
+                                        }
                                         customerName={
                                             useCorporateStore.getState().corporateInfo.companyName ||
                                             "Corporate User"
@@ -900,25 +922,30 @@ function SubscriptionPage() {
                                         email={
                                             useAuthStore.getState().email || "manifestomixx@gmail.com"
                                         }
-                                        redirectUrl="https://smartbin-frontend-staging.up.railway.app/payment-success"
-                                        amount={
-                                            subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice || 0
-                                        }
-                                        onTransaction={(response) => {
-                                            console.log(" AlatPay onTransaction called with response:", response);
-                                            // Call the new function that handles backend integration
-                                            const amount = subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan)?.originalPrice || 0;
-                                            submitSubscriptionAlatPay(amount);
+                                        userType="corporate"
+                                        customEndpoint="/corporate/wallets/charge"
+                                        customPayload={{ paymentPurpose: "Subscription Application" }}
+                                        onBeforePayment={checkSubscriptionBeforePayment}
+                                        onSuccess={async (res) => {
+
+                                            console.log("Pay4It subscription success:", res);
+                                            const finalRef = res.reference || res.tranref;
+                                            await handlePayment({
+                                                reference: finalRef,
+                                                channel: "wallet",
+                                                data: { reference: finalRef }
+                                            });
+                                            fetchSubscriptionStatus();
+                                            setSuccessModalType('subscription');
+                                            setShowSuccessModal(true);
                                         }}
                                         onClose={() => {
-                                            console.log(" AlatPay window closed");
-                                        }}
-                                        onPaymentWindowOpen={() => {
-                                            console.log(" AlatPay payment window opened");
+                                            console.log("Pay4It window closed");
                                         }}
                                         buttonText="Pay Now "
                                         buttonClassName="btn btn-primary w-full"
                                     />
+
                                 ) : (
                                     <button
                                         onClick={handlePaymentWithWallet}

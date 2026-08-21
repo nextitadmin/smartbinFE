@@ -4,7 +4,6 @@ import Topbar from '../components/Topbar';
 import { NavLink, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import useResidentStore from '../store/useResidentStore';
-import AlatPayButton from '../components/AlatPayButton';
 import useAuthStore from '../store/authStore';
 import SmartBinApplicationForm from '../components/SmartBinApplicationForm';
 
@@ -61,10 +60,10 @@ const SmartBinApplication = () => {
                     deliveredBy: item?.deliveredBy,
                     approvedDate: item?.approvedDate,
 
-                }));;
+                }));
                 setApplications(newData);
-                setTotalPages(data.data.totalPages);
-                setTotalItems(data.data.totalCount);
+                setTotalPages(data.meta?.paging?.pages || data.data?.totalPages || 1);
+                setTotalItems(data.meta?.paging?.total || data.data?.totalCount || 0);
             }
         } catch (error) {
             console.log(error);

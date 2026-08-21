@@ -77,25 +77,32 @@ const SmartBinReport = () => {
         };
         
     useEffect(() => {
-            const binData = JSON.parse(localStorage.getItem('binreport'));
-            console.log(binData);
-            const reportsData = binData.data.map((item, index) => ({
-                sn : index + 1,
-                id : item.orderId,
-                orderId : item.orderId,
-                date : item.generatedDate,
-                address : item.address,
-                weightKgTon : item.weight,
-                status : item.status,
-            }));
-            setReportData({
-            reportTitle: binData.title,
-            reportPeriod: binData.period,
-            generatedDate: binData.generationDate,
-            totalBinsOrdered: reportsData.length,
+        const binData = JSON.parse(localStorage.getItem('binreport'));
+        if (!binData) return;
+        
+        const innerData = binData.data?.data || binData.data || {};
+
+        const rawList = Array.isArray(innerData) 
+            ? innerData 
+            : (innerData.records || []);
+
+        const reportsData = rawList.map((item, index) => ({
+            sn : index + 1,
+            id : item.orderId || item._id || `SB-${index + 1}`,
+            orderId : item.orderId || item._id || `SB-${index + 1}`,
+            date : item.generatedDate || item.dateRequested || item.date || new Date().toISOString(),
+            address : item.address || 'N/A',
+            weightKgTon : item.weight || 'N/A',
+            status : item.status || 'pending',
+        }));
+        setReportData({
+            reportTitle: binData.title || 'Untitled Report',
+            reportPeriod: binData.period || '',
+            generatedDate: binData.generationDate || '',
+            totalBinsOrdered: innerData.totalApplications ?? reportsData.length,
             items: reportsData
-    });
-    setIsLoading(false);
+        });
+        setIsLoading(false);
     }, []);
 
     useEffect(() => {

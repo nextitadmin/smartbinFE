@@ -65,7 +65,7 @@ const Dashboard = () => {
     // Payment modal data
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card');
     const paymentOptions = [
-        { id: 'card', text: 'Pay by card/bank/transfer', icon: AlatIcon },
+        { id: 'card', text: 'Pay with Card/Bank/Transfer', icon: AlatIcon },
     ];
     const [notification, setNotification] = useState(null);
     const clearNotification = () => {
@@ -153,14 +153,46 @@ const Dashboard = () => {
         }
     };
 
+    const checkSubscriptionBeforePayment = async () => {
+        try {
+            const response = await api.get('/subscription/status');
+            const { data } = response;
+            if ((data.success || data.succeeded) && data.data) {
+                const subscriptionData = data.data;
+                if (subscriptionData && subscriptionData.status === 'active') {
+                    setNotification({
+                        type: 'error',
+                        message: 'You already have an active subscription. Please wait for it to expire before subscribing again.'
+                    });
+                    return false;
+                }
+            }
+        } catch (e) {
+            console.error("Error checking subscription status:", e);
+        }
+        return true;
+    };
+
     const handlePaymentWithWallet = async () => {
         const selectedPlan = subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan);
+
+        if (!selectedPlan) {
+            setNotification({ type: 'error', message: 'Please select a valid subscription plan.' });
+            return;
+        }
+
+        // Check if user already has an active subscription dynamically
+        if (!(await checkSubscriptionBeforePayment())) {
+            return;
+        }
+
         try {
             const amount = selectedPlan.originalPrice ? (selectedPlan.originalPrice / 100) : parseInt(String(selectedPlan.price).replace(/[^\d]/g, ''));
 
+
             const response = await api.post("/wallets/charge", {
                 amount,
-                reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase()
+
             });
             const data = response.data;
             console.log("Response from wallets/charge:", data);
@@ -222,7 +254,6 @@ const Dashboard = () => {
                 const amount = selectedPlan.originalPrice ? (selectedPlan.originalPrice / 100) : parseInt(String(selectedPlan.price).replace(/[^\d]/g, ''));
                 const chargeResponse = await api.post("/wallets/charge", {
                     amount,
-                    reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase()
                 });
                 const chargeData = chargeResponse.data;
                 if (chargeData.succeeded || chargeData.success) {
@@ -674,7 +705,9 @@ const Dashboard = () => {
                                                 email={useResidentStore.getState().residentInfo?.emailAddress || useAuthStore.getState().email || "resident@email.com"}
                                                 customerName={`${useResidentStore.getState().residentInfo?.firstName || ''} ${useResidentStore.getState().residentInfo?.lastName || ''}`.trim() || "Resident User"}
                                                 userType="resident"
+                                                onBeforePayment={checkSubscriptionBeforePayment}
                                                 onSuccess={(res) => {
+
                                                     console.log("Pay4It subscription success:", res);
                                                     const finalRef = res.reference || res.tranref;
                                                     handlePayment({ data: { reference: finalRef } });
@@ -776,7 +809,7 @@ const Dashboard = () => {
                                     <div className="flex justify-between items-center py-2">
                                         <span className="text-zinc-500">Payment Method</span>
                                         <span className="font-medium text-zinc-800 flex items-center gap-1">
-                                            Pay by card/bank/transfer
+                                            Pay with Card/Bank/Transfer
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-center py-2">
@@ -881,7 +914,7 @@ const Dashboard = () => {
                                             </label>
                                             <div className="mt-1 mb-4 flex items-center gap-2 p-3 border border-zinc-300 rounded-xl bg-zinc-50">
                                                 <span className="font-medium text-zinc-800">
-                                                    Pay by card/bank/transfer
+                                                    Pay with Card/Bank/Transfer
                                                 </span>
                                             </div>
                                         </div>

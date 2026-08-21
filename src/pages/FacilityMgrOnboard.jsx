@@ -128,6 +128,48 @@ export default function FacilityMgrOnbordForm() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        if (!formData.payerId || !formData.payerId.trim()) {
+            setNotification({ type: 'error', message: 'Payer ID is required' });
+            return;
+        }
+
+        if (!formData.firstName || !formData.firstName.trim()) {
+            setNotification({ type: 'error', message: 'First name is required' });
+            return;
+        }
+
+        if (!formData.lastName || !formData.lastName.trim()) {
+            setNotification({ type: 'error', message: 'Last name is required' });
+            return;
+        }
+
+        if (!formData.organizationName || !formData.organizationName.trim()) {
+            setNotification({ type: 'error', message: 'Organization name is required' });
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!formData.email || !emailRegex.test(formData.email.trim())) {
+            setNotification({ type: 'error', message: 'Please enter a valid email address' });
+            return;
+        }
+
+        const phoneClean = (formData.phoneNo || '').trim().replace(/[\s\-()]/g, '');
+        if (!phoneClean || phoneClean.length < 8 || phoneClean.length > 15) {
+            setNotification({ type: 'error', message: 'Please enter a valid phone number' });
+            return;
+        }
+
+        if (!formData.lgaId || !formData.lgaId.trim()) {
+            setNotification({ type: 'error', message: 'Please select a Local Government Area (LGA)' });
+            return;
+        }
+
+        if (!formData.password || formData.password.length < 6) {
+            setNotification({ type: 'error', message: 'Password must be at least 6 characters' });
+            return;
+        }
+
         if (formData.password !== formData.cpassword) {
             setNotification({ type: 'error', message: 'Passwords do not match' });
             return;

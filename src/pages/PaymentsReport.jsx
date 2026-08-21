@@ -104,8 +104,48 @@ const PaymentReportPage = () => {
             setError(null);
             setSuccess(null);
             try {
-                const data = await fetchReportData();
-                setReportData(data);
+                const storedData = JSON.parse(localStorage.getItem('paymentreport'));
+                if (storedData) {
+                    const innerData = storedData.data?.data || storedData.data || {};
+                    const chartSummary = innerData.chartSummary || {};
+                    const breakdown = chartSummary.breakdown || {};
+                    
+                    const smartBinTotal = breakdown["Smart Bin Purchase"]?.totalAmount || 0;
+                    const smartBinPercent = breakdown["Smart Bin Purchase"]?.percentage || 0;
+                    
+                    const wasteTotal = breakdown["Waste Bin Disposal"]?.totalAmount || 0;
+                    const wastePercent = breakdown["Waste Bin Disposal"]?.percentage || 0;
+                    
+                    const walletFundingTotal = breakdown["Wallet Top-Up"]?.totalAmount || 0;
+                    const walletFundingPercent = breakdown["Wallet Top-Up"]?.percentage || 0;
+                    
+                    const transactionsList = innerData.records || innerData.transactions || [];
+                    const transactions = transactionsList.map((item, index) => ({
+                        id: item.transactionId || item.id || `TXN-${index + 1}`,
+                        receiptId: item.receiptId || `REC-${index + 1}`,
+                        service: item.service || 'N/A',
+                        amount: item.amount ?? 0,
+                        date: item.paidAt || item.date || new Date().toISOString(),
+                        paymentMethod: item.paymentMethod || 'N/A'
+                    }));
+
+                    setReportData({
+                        title: storedData.title || 'Untitled Report',
+                        generatedDate: storedData.generationDate || '',
+                        dateRange: storedData.period || '',
+                        totalPaymentMade: chartSummary.totalPayment ?? 0,
+                        smartBinPurchaseTotal: smartBinTotal,
+                        wasteDisposalTotal: wasteTotal,
+                        walletFundingTotal: walletFundingTotal,
+                        smartBinPurchaseProgress: smartBinPercent,
+                        wasteDisposalProgress: wastePercent,
+                        walletFundingProgress: walletFundingPercent,
+                        transactions
+                    });
+                } else {
+                    const data = await fetchReportData();
+                    setReportData(data);
+                }
                 setSuccess('Report data loaded successfully!');
                 setTimeout(() => setSuccess(null), 3000);
             } catch (err) {

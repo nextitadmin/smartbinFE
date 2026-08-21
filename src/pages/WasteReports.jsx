@@ -18,23 +18,42 @@ const WasteReports = () => {
     // --- Reports Data ---
     
     useEffect(() => {
-        // Simulate fetching data
         const wasteData = JSON.parse(localStorage.getItem('wastereport'));
+        if (!wasteData) return;
+
+        const periodVal = wasteData.period || "";
+        const genDate = wasteData.generationDate || "";
+        const titleVal = wasteData.title || "";
+
+        const innerData = wasteData.data?.data || wasteData.data || {};
+
+        const totalDisposed = innerData.wasteSummary?.totalDisposed 
+            ?? innerData.summary?.totalPickups 
+            ?? innerData.summary?.totalDisposed 
+            ?? 0;
+
+        const totalWeight = innerData.wasteSummary?.totalWeight 
+            ?? innerData.summary?.totalWeight 
+            ?? 0;
+
         setSummary({
-            period : wasteData.period,
-            generationDate : wasteData.generationDate,
-            title : wasteData.title,
-            totalDisposed : wasteData.data.wasteSummary.totalDisposed,
-            totalWeight : wasteData.data.wasteSummary.totalWeight
+            period: periodVal,
+            generationDate: genDate,
+            title: titleVal,
+            totalDisposed,
+            totalWeight
         });
-        setChartDetails(wasteData.data.wasteGraph);
-        const reportsData = wasteData.data.wasteData.map((item, index) => ({
-            sn : index + 1,
-            wasteId : item.wasteId,
-            date : item.generatedDate,
-            address : item.address,
-            weightKgTon : item.weight,
-            status : item.status,
+
+        setChartDetails(innerData.wasteGraph || []);
+
+        const rawList = innerData.wasteData || innerData.pickups || [];
+        const reportsData = rawList.map((item, index) => ({
+            sn: index + 1,
+            wasteId: item.wasteId || item._id || item.orderId || `WP-${index + 1}`,
+            date: item.generatedDate || item.pickupDate || item.date || new Date().toISOString(),
+            address: item.address || 'N/A',
+            weightKgTon: item.weight ?? 0,
+            status: item.status || 'pending',
         }));
         setReports(reportsData);
     }, []);

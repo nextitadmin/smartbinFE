@@ -30,20 +30,22 @@ const PaymentReceipts = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get('/facility-managers/wallets');
-            if (data.success && Array.isArray(data.data)) {
-                const newData = data.data.map((item, index) => ({
+            const { data } = await api.get(`/facility-manager/payment?page=${currentPage}&limit=${itemsPerPage}`);
+            if (data.success && data.data) {
+                const transactions = data.data.transactions || (Array.isArray(data.data) ? data.data : []);
+                const walletTransactions = transactions.filter(item => item.paymentMethod === 'wallet');
+                const newData = walletTransactions.map((item, index) => ({
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
-                    id: item.id,
-                    transactionRef: item.transactionReference,
-                    date: item.transactionDate?.slice(0, 10),
-                    service: item.description,
-                    status: item.transactionStatus,
-                    amount: item.amount,
-                    paymentMethod: item.paymentMethod
-                }));;
+                    id: item._id || item.id,
+                    transactionRef: item.transactionReference || item.transactionId || '',
+                    date: (item.createdAt || item.completedAt || item.transactionDate || '').slice(0, 10),
+                    service: item.service || item.description || '',
+                    status: item.status || item.transactionStatus || '',
+                    amount: typeof item.amount === 'number' ? item.amount : Number(item.amount || 0),
+                    paymentMethod: item.paymentMethod || ''
+                }));
                 setPayments(newData);
-                setTotalPages(data.data.totalPages);
+                setTotalPages(data.data.paging?.pages || data.data.totalPages || 1);
             }
         } catch (error) {
             console.log(error);
@@ -311,7 +313,9 @@ const PaymentReceipts = () => {
                                             <div className="w-full">
                                                 <p className="text-white text-xs font-light ">Available Balance</p>
                                                 <div className="flex items-center ">
-                                                    <h2 className="text-white text-3xl font-sans mt-1 mr-20">{`₦${walletBalance}`}</h2>
+                                                    <h2 className="text-white text-3xl font-sans mt-1 mr-20">
+                                                        {walletBalance !== '' ? `₦${Number(walletBalance).toLocaleString()}` : '₦0'}
+                                                    </h2>
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="text-white opacity-75" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                         <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
                                                         <circle cx="12" cy="12" r="3" />

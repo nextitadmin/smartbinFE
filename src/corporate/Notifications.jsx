@@ -77,19 +77,29 @@ function NotificationsPage() {
     const fetchSettings = async () => {
         try {
             const { data } = await api.get(`/notifications/settings`)
-            if (data.success) {
+            if (data.success || data.succeeded) {
+                const findSettingsObject = (obj) => {
+                    if (!obj || typeof obj !== 'object') return null;
+                    if ('sms' in obj || 'email' in obj) return obj;
+                    for (const key in obj) {
+                        const found = findSettingsObject(obj[key]);
+                        if (found) return found;
+                    }
+                    return null;
+                };
+                const d = findSettingsObject(data) || {};
                 setSettings({
                     receiveMethod: {
-                        sms: data.data.data.sms,
-                        email: data.data.data.email,
-                        inApp: data.data.data.inApp,
+                        sms: d.sms ?? false,
+                        email: d.email ?? false,
+                        inApp: d.inApp ?? d.inAppNotification ?? false,
                     },
-                    applicationUpdates: data.data.data.appUpdates,
-                    smartBinUpdates: data.data.data.smartBinUpdates,
-                    lowWalletBalance: data.data.data.lowWalletBalance,
+                    applicationUpdates: d.appUpdates ?? d.applicationUpdate ?? false,
+                    smartBinUpdates: d.smartBinUpdates ?? d.smartBinUpdate ?? false,
+                    lowWalletBalance: d.lowWalletBalance ?? false,
                 });
-               
             }
+
         } catch (error) {
             console.log("error", error);
         } finally {
@@ -134,10 +144,11 @@ function NotificationsPage() {
             sms: settings.receiveMethod.sms,
             email: settings.receiveMethod.email,
             inApp: settings.receiveMethod.inApp,
-            applicationUpdates: settings.applicationUpdates,
+            appUpdates: settings.applicationUpdates,
             smartBinUpdates: settings.smartBinUpdates,
             lowWalletBalance: settings.lowWalletBalance
         };
+
         console.log('Sending notification settings to API:', JSON.parse(JSON.stringify(dataToSend)));
 
         try {

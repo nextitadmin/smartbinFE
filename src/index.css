@@ -3,75 +3,77 @@
 
 
 body {
-  font-family: 'Inter', sans-serif;
-  font-optical-sizing: auto;
- 
+    font-family: 'Inter', sans-serif;
+    font-optical-sizing: auto;
+
 }
 
 
 .sans {
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-optical-sizing: auto;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-optical-sizing: auto;
 }
 
 /* Line connecting icons externally */
 .icon-line-column::before {
-  content: "";
-  position: absolute;
-  /* Center the 2px line within the column (assuming w-12 = 3rem) */
-  left: calc(50% - 1px);
-  /* 50% of parent width minus half the line width */
-  width: 1px;
-  /* Start below the icon (icon is h-10=2.5rem, parent has pt-5=1.25rem. Top of icon is 1.25rem, bottom is 3.75rem) */
-  top: 3.8rem;
-  /* Start just below the icon circle */
-  /* Extend downwards to connect. Adjust negative value based on spacing */
-  bottom: -1rem;
-  /* Extend below the item's padding bottom */
-  background-color: #d1d5db;
-  /* Default line color (Tailwind zinc-300) */
-  z-index: 0;
-  /* Behind icon */
+    content: "";
+    position: absolute;
+    /* Center the 2px line within the column (assuming w-12 = 3rem) */
+    left: calc(50% - 1px);
+    /* 50% of parent width minus half the line width */
+    width: 1px;
+    /* Start below the icon (icon is h-10=2.5rem, parent has pt-5=1.25rem. Top of icon is 1.25rem, bottom is 3.75rem) */
+    top: 3.8rem;
+    /* Start just below the icon circle */
+    /* Extend downwards to connect. Adjust negative value based on spacing */
+    bottom: -1rem;
+    /* Extend below the item's padding bottom */
+    background-color: #d1d5db;
+    /* Default line color (Tailwind zinc-300) */
+    z-index: 0;
+    /* Behind icon */
 }
 
 /* Hide line for the very last item's column */
 .timeline-item:last-child .icon-line-column::before {
-  display: none;
+    display: none;
 }
 
 /* Completed line color - applied if parent timeline-item has .completed */
 .timeline-item.completed .icon-line-column::before {
-  background-color: #c4c4c4;
-  /* Tailwind gray color */
+    background-color: #c4c4c4;
+    /* Tailwind gray color */
 }
 
 /* Ensure icon wrapper itself is above the line */
 .timeline-icon-wrapper {
-  position: relative;
-  z-index: 1;
+    position: relative;
+    z-index: 1;
 }
- /* Add a subtle transition for the custom radio button appearance */
- .custom-radio-inner {
-  transition: transform 0.2s ease-in-out;
-  transform: scale(0);
-  /* Start hidden */
+
+/* Add a subtle transition for the custom radio button appearance */
+.custom-radio-inner {
+    transition: transform 0.2s ease-in-out;
+    transform: scale(0);
+    /* Start hidden */
 }
 
 input[type="radio"]:checked+label .custom-radio-inner {
-  transform: scale(1);
-  /* Scale in when checked */
+    transform: scale(1);
+    /* Scale in when checked */
 }
 
 /* Improve focus visibility for accessibility on the labels */
 input[type="radio"]:focus-visible+label {
-  outline: 2px solid #2563eb;
-  /* Example focus ring, adjust color as needed */
-  outline-offset: 2px;
-  border-radius: 0.5rem;
-  /* Match label's rounded corners */
+    outline: 2px solid #2563eb;
+    /* Example focus ring, adjust color as needed */
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+    /* Match label's rounded corners */
 }
-button{
-  cursor: pointer;
+
+button {
+    cursor: pointer;
 }
 
 .stage-enter-active,
@@ -97,8 +99,9 @@ button{
     opacity: 0;
     cursor: pointer;
 }
-   /* Optional: Style for the table container for scrolling */
-   .table-container {
+
+/* Optional: Style for the table container for scrolling */
+.table-container {
     overflow-x: auto;
     /* Enable horizontal scrolling */
     -webkit-overflow-scrolling: touch;
@@ -277,7 +280,16 @@ th .sort-icon.active {
 .bg-card {
     background-image: url(/images/cardbg.png);
 }
-input,select,textarea {
+
+input,
+select,
+textarea {
     outline: none;
-   
+
+}
+
+/* Ensure notifications/toasts are always rendered above all other elements, including external overlays like Pay4It */
+.fixed.top-5.right-5,
+.fixed.top-4.right-4 {
+    z-index: 999999 !important;
 }

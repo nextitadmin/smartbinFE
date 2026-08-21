@@ -3,7 +3,7 @@ import Sidebar from '../components/AgentSidebar';
 import Topbar from '../components/AgentTopBar';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
-import AlatPayButton from '../components/AlatPayButton';
+import Pay4ItButton from '../components/Pay4ItButton';
 import useAuthStore from '../store/authStore';
 import useAgentStore from '../store/useAgentStore';
 
@@ -874,9 +874,13 @@ const SmartBinApplication = () => {
                         </div>
                         <div className="px-6 py-4 flex flex-col items-center gap-3">
                             {selectedPaymentMethod === 'card' ? (
-                                <AlatPayButton
+                                <Pay4ItButton
+                                    email={formData.email || "agent@email.com"}
+                                    name={formData.customerName?.text || "Agent"}
                                     amount={smartBinAmount}
-                                    onTransaction={handlePayment}
+                                    description="Smart Bin Application Payment"
+                                    userType="Agent"
+                                    onSuccess={(ref) => handlePayment({ reference: ref, channel: 'card' })}
                                     buttonText="Pay Now "
                                     buttonClassName="btn btn-primary w-full"
                                 />

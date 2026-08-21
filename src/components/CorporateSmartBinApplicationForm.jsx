@@ -119,7 +119,7 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
     const [formData, setFormData] = React.useState({
         branch: null,
         companyAddress: '',
-        localGovt: '',
+        lgaId: '',
         closestLandmark: '',
         surname: '',
         firstName: '',
@@ -129,12 +129,12 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
 
     // State for UI and API calls
     const [branchOptions, setBranchOptions] = React.useState([]);
+    const [lgasList, setLgasList] = React.useState([]);
     const [isFetchingBranches, setIsFetchingBranches] = React.useState(true);
     const [isFetchingDetails, setIsFetchingDetails] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const corporatePayerId = useCorporateStore((state) => state.corporateInfo).payerId
-
 
     const fetchBranchesAPI = async () => {
         try {
@@ -146,7 +146,7 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
                         id: branch._id,
                         name: branch.branchName,
                         address: branch.branchAddress,
-                        localGovt: branch.localGovernmentArea,
+                        lgaId: branch.lgaId,
                         landmark: branch.closestLandmark
                     }));
                 setBranchOptions(branches);
@@ -156,14 +156,34 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
             console.log("Failed to fetch branches:", error);
         }
     };
+
+    const fetchLgas = async () => {
+        try {
+            const { data } = await api.get('/utility/get-lgas');
+            if (data.success) {
+                setLgasList(data.data);
+            } else if (Array.isArray(data)) {
+                setLgasList(data);
+            }
+        } catch (error) {
+            console.log("Failed to fetch LGAs:", error);
+        }
+    };
+
     React.useEffect(() => {
         fetchBranchesAPI();
-
+        fetchLgas();
     }, []);
+
+    const getLgaName = (lgaId) => {
+        if (!lgaId) return '';
+        const found = lgasList.find(item => item._id === lgaId || item.id === lgaId);
+        return found ? found.name : lgaId;
+    };
 
 
     const handleBranchSelect = (branch) => {
-        setFormData(prev => ({ ...prev, branch, companyAddress: '', localGovt: '', closestLandmark: '' }));
+        setFormData(prev => ({ ...prev, branch, companyAddress: '', lgaId: '', closestLandmark: '' }));
         setIsFetchingDetails(true);
 
         const branchDetail = branchOptions.find(b => b.id === branch.id);
@@ -172,7 +192,7 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
             setFormData(prev => ({
                 ...prev,
                 companyAddress: branchDetail.address,
-                localGovt: branchDetail.localGovt,
+                lgaId: branchDetail.lgaId,
                 closestLandmark: branchDetail.landmark
             }));
         }
@@ -204,7 +224,7 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
             payerId: corporatePayerId || "N/A",                                  // NOT AVAILABLE IN FORM DATA
             address: formData.companyAddress || "",          // Map companyAddress to address
             closestLandmark: formData.closestLandmark || "Not specified",
-            localGovernmentArea: formData.localGovt || "",   // Map localGovt to localGovernmentArea
+            localGovernmentArea: formData.lgaId || "",   // Map localGovt to localGovernmentArea
             branch: formData.branch.name || "Main Branch",
             lawmaCustomerType: "Returning",                  // REQUIRED FIXED VALUE
             binType: "smart"                                 // REQUIRED FIXED VALUE
@@ -269,7 +289,7 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
                             <InputField
                                 id="localGovt"
                                 label="Local Government"
-                                value={formData.localGovt}
+                                value={getLgaName(formData.lgaId)}
                                 onChange={handleInputChange}
                                 placeholder="Auto-filled"
                                 disabled={true}

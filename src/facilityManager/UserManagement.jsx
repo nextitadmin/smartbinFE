@@ -214,8 +214,9 @@ const initialUsers = [
 const fetchUsers = async () => {
     try {
         let { data } = await api.get("/facility-managers/user/tenants");
-        if (data.success) {
-            return data.data.map((item, idx) => ({
+        if (data.success || data.succeeded) {
+            const list = Array.isArray(data.data) ? data.data : (data.data?.data || []);
+            return list.map((item, idx) => ({
                 ...item,
                 id: item._id || item.id || `user-${idx}`,
                 sn: idx + 1,
@@ -391,7 +392,9 @@ const UserManagement = () => {
     };
 
     function extractDate(timestamp) {
+        if (!timestamp) return '-';
         const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return '-';
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0'); // months are 0-indexed
         const day = String(date.getDate()).padStart(2, '0');
@@ -507,7 +510,7 @@ const UserManagement = () => {
                                         </div>
 
                                         {/* Table */}
-                                        <div className="overflow-x-auto bg-white rounded-2xl ">
+                                        <div className="overflow-x-auto bg-white rounded-2xl min-h-[280px]">
                                             <table className="min-w-full bg-white">
                                                 <thead className="bg-zinc-50">
                                                     <tr>

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/axiosConfig'; // Make sure the path is correct
 import useResidentStore from '../store/useResidentStore';
 import useAuthStore from '../store/authStore';
-import AlatPayButton from './AlatPayButton'; // Make sure the path is correct
+import Pay4ItButton from './Pay4ItButton'; // Make sure the path is correct
 
 const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
     const Resident = useResidentStore.getState().residentInfo;
@@ -255,27 +255,20 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
                 return;
             }
 
-            // Prepare payload for wallet payment, including metaData
+            // Prepare payload for wallet payment matching the Swagger schema
             const walletPayload = {
-                userId: useAuthStore.getState().token,
-                drAccountNo: Resident?.accountNo,
-                amount: smartBinAmount,
-                narration: "Smart Bin Application Payment",
-                paymentPurpose: "Smart Bin Application",
-                metaData: {
-                    transactionReference: transactionReference // Include the reference here
-                    // Add other relevant data if needed by the wallet API
-                }
+                amount: Number(smartBinAmount),
+                // reference: transactionReference
             };
 
             console.log("Initiating wallet payment with payload:", walletPayload); // Log request payload
 
-            const response = await api.post("/Wallet/debit-wallet", walletPayload);
+            const response = await api.post("/wallets/charge", walletPayload);
             const data = response.data;
 
             console.log("Wallet payment response:", data); // Log response
 
-            if (data.success) {
+            if (data.success || data.succeeded) {
                 // Success message already shown from application submission
                 // You might want to update the message or show another one if needed
                 // setNotification({ type: 'success', message: 'Wallet payment successful!' });
@@ -698,9 +691,9 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
                             </label>
                             {/* Card Option (AlatPay) */}
                             <label className="px-4 py-3 rounded-lg flex items-center gap-4 hover:bg-zinc-50 cursor-pointer">
-                                <AlatIcon />
+                                {/* <AlatIcon /> */}
                                 <span className="text-sm font-medium text-zinc-800 flex-grow">
-                                    Pay with Card (AlatPay)
+                                    Pay with Card/Bank/Transfer
                                 </span>
                                 <input
                                     type="radio"
@@ -716,9 +709,14 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
                         </div>
                         <div className="px-4 py-4 flex flex-col items-center gap-3 border-t border-zinc-200">
                             {selectedPaymentMethod === 'card' ? (
-                                <AlatPayButton
+                                <Pay4ItButton
                                     amount={smartBinAmount}
-                                    onTransaction={handlePaymentViaCard} // Pass the handler
+                                    email={formData.email || useResidentStore.getState().residentInfo?.emailAddress || useAuthStore.getState().email || "resident@email.com"}
+                                    customerName={`${formData.firstName} ${formData.lastName}`.trim() || "Resident User"}
+                                    description="Smart Bin Application"
+                                    userType="resident"
+                                    reference={formData.transactionReference}
+                                    onSuccess={handlePaymentViaCard} // Pass the handler
                                     buttonText={isSubmitting ? "Processing..." : "Pay Now "}
                                     buttonClassName="btn btn-primary w-full py-3"
                                     disabled={isSubmitting} // Disable button while submitting

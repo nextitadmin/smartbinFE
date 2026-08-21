@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Topbar from '../components/CorporateTopBar';
 import Sidebar from '../components/Sidebar';
 import api from '../api/axiosConfig';
-import AlatPayButton from '../components/AlatPayButton';
+import Pay4ItButton from '../components/Pay4ItButton';
 import useAuthStore from '../store/authStore';
 import useCorporateStore from '../store/useCorporateStore';
 import ScheduleWasteCollectionModal from '../components/CorporateSchedulePickupForm'; // Import the new component
@@ -19,7 +19,7 @@ const Wastes = () => {
     const [totalPages, setTotalPages] = useState(0);
     const itemsPerPage = 10;
     const [notification, setNotification] = useState(null);
-    const [pickUpAmount, setPickUpAmount] = useState(500);
+    const [pickUpAmount, setPickUpAmount] = useState(5000);
     const [debitType, setDebitType] = useState(''); // 'wallet' or 'smartbin'
     const Corporate = useCorporateStore((state) => state.corporateInfo);
 
@@ -42,6 +42,9 @@ const Wastes = () => {
         address: '',
     };
     const [pickupRequestData, setPickupRequestData] = useState(initialPickupData); // State to hold data passed back from modal
+    const [isPayingExisting, setIsPayingExisting] = useState(false);
+    const [selectedAppForPayment, setSelectedAppForPayment] = useState(null);
+
 
     // --- Helper Functions ---
     const clearNotification = () => {
@@ -185,13 +188,15 @@ const Wastes = () => {
             if (data.success) {
                 const newData = data.data.map((item, index) => ({
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
-                    wasteId: item.wasteId,
+                    wasteId: item.wasteId || item._id,
                     branch: item.branch,
                     date: item.createdAt?.slice(0, 10),
                     address: item.address,
                     status: item.status,
-                    representative: item.pickupBy
-                }));;
+                    representative: item.pickupBy || item.phoneNumber,
+                    paymentStatus: item.payment?.status || 'unpaid'
+                }));
+
                 setApplications(newData);
                 setTotalPages(data.meta.paging.pages);
                 setTotalItems(data.meta.paging.total);
@@ -230,9 +235,34 @@ const Wastes = () => {
     };
 
     const closeModal = (modalName) => {
-        if (modalName === 'payment') setIsPaymentModalOpen(false);
+        if (modalName === 'payment') {
+            setIsPaymentModalOpen(false);
+            setIsPayingExisting(false);
+            setSelectedAppForPayment(null);
+        }
         else if (modalName === 'pickup') setIsPickupModalOpen(false);
     };
+
+    const handleMakePayment = (app) => {
+        setIsPayingExisting(true);
+        setSelectedAppForPayment(app);
+        openModal('payment');
+    };
+
+    const handleScheduleSubmit = (formData) => {
+        setIsPayingExisting(false);
+        setSelectedAppForPayment(null);
+        setPickupRequestData({
+            date: formData.date || formData.pickupDate || '',
+            time: formData.time || formData.pickupTime || '',
+            phone: formData.phone || formData.phoneNumber || '',
+            address: formData.address || '',
+            branch: formData.branch || null,
+        });
+        closeModal('pickup');
+        openModal('payment');
+    };
+
 
     // --- Action Handlers ---
     const handlePayment = async (response) => {
@@ -245,30 +275,27 @@ const Wastes = () => {
             console.log(" Processing wallet payment with ref:", ref);
         }
         else if (selectedPaymentMethod === 'card') {
-            // AlatPay is now handled by submitWasteAlatPay function
-            console.log(" AlatPay payment handled by submitWasteAlatPay");
+            console.log(" AlatPay payment handled by Pay4ItButton");
             return;
         }
+
+        if (isPayingExisting) {
+            setNotification({ type: 'success', message: 'Payment successful!' });
+            fetchData();
+            closeModal('payment');
+            return;
+        }
+
         console.log(" Final reference and channel:", { ref, channel, amount });
 
         if (ref !== '' && amount !== '' && channel !== '') {
-            if (!selectedPaymentMethod) {
-                setNotification({ type: 'error', message: "Select a payment method" });
-                return;
-            }
-            console.log(" Processing Payment with:", selectedPaymentMethod);
-
-            console.log(" Calling SubmitPickupRequest with:", { ref, amount, channel });
-            await SubmitPickupRequest({ ref, amount, channel }).finally(() => {
-                console.log("submitting pickup request completed");
-            });
-            closeModal('payment');
+            await SubmitPickupRequest({ ref, amount, channel });
         } else {
             console.error(" Payment response missing required fields");
             setNotification({ type: 'error', message: "Error submitting" });
-            // handleBack(); // Removed handleBack call here, as it's tied to the button click
         }
     };
+
 
     // handleBack removed as it's now handled by the button directly
 
@@ -286,11 +313,8 @@ const Wastes = () => {
 
             // Call backend to initiate AlatPay payment for waste collection
             const { data } = await api.post("/corporate/wallets/charge", {
-                userId,
+
                 amount: amount,
-                channel: "ALATPay",
-                narration: "Waste Collection Payment",
-                paymentPurpose: "Waste Collection Application"
             });
 
             console.log(" Waste AlatPay Response:", data);
@@ -380,23 +404,23 @@ const Wastes = () => {
         }
     };
 
-    const SubmitPickupRequest = async (response) => {
-        // Use the data stored in the parent's state (passed back from the modal)
-        if (response.date && response.time && response.phoneNumber && response.address) {
+    const SubmitPickupRequest = async ({ ref, amount, channel }) => {
+        if (pickupRequestData.date && pickupRequestData.time && pickupRequestData.phone && pickupRequestData.address) {
             try {
                 const { data } = await api.post("/corporate/waste-management/pickups", {
-                    address: response.address,
-                    pickupDate: response.date,
-                    phoneNumber: response.phoneNumber,
-                    branch: response.branch.name,
-                    pickupTime: response.time
+                    address: pickupRequestData.address,
+                    pickupDate: pickupRequestData.date,
+                    phoneNumber: pickupRequestData.phone,
+                    branch: pickupRequestData.branch?.name || pickupRequestData.branch || "Main",
+                    pickupTime: pickupRequestData.time,
+                    transactionReference: ref,
+                    paymentChannel: channel,
+                    amountPaid: amount,
                 });
-                if (data.success) {
-                    setNotification({ type: 'success', message: data.message.toUpperCase() || 'Submitted successfully!' });
-                    console.log("Submitting Pickup Request:", pickupRequestData);
+                if (data.success || data.succeeded) {
+                    setNotification({ type: 'success', message: data.message?.toUpperCase() || 'Submitted successfully!' });
                     setPickupRequestData(initialPickupData);
-                    closeModal('pickup');
-                    openModal('payment');
+                    closeModal('payment');
                     fetchData(); // Refresh the list
                 }
                 else {
@@ -410,6 +434,7 @@ const Wastes = () => {
             setNotification({ type: 'error', message: "Fill all fields" });
         }
     };
+
 
 
 
@@ -553,13 +578,13 @@ const Wastes = () => {
                                                     </div>
                                                 </th>
 
-                                                <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('status')}>
+                                                {/* <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('status')}>
                                                     <div className="flex items-center justify-between">
                                                         Payment <span className={`sort-icon ${sortColumn === 'status' ? 'active' : ''}`}>
                                                             {sortIcon('status')}
                                                         </span>
                                                     </div>
-                                                </th>
+                                                </th> */}
                                                 <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('status')}>
                                                     <div className="flex items-center justify-between">
                                                         Status <span className={`sort-icon ${sortColumn === 'status' ? 'active' : ''}`}>
@@ -567,11 +592,11 @@ const Wastes = () => {
                                                         </span>
                                                     </div>
                                                 </th>
-                                                <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('status')}>
+                                                {/* <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('status')}>
                                                     <div className="flex items-center justify-between">
                                                         Action
                                                     </div>
-                                                </th>
+                                                </th> */}
 
                                                 {/* <th scope="col" className="px-4 py-3 text-center">Action</th> */}
                                             </tr>
@@ -590,26 +615,30 @@ const Wastes = () => {
                                                         <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.branch)}</td>
                                                         <td className="px-4 py-3">{app.address}</td>
                                                         <td className="px-4 py-3 whitespace-nowrap">{app.representative}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">
-                                                            <span className={`px-3 py-1 border !border-red-500 !bg-red-100 rounded-full text-xs font-medium inline-block ${getStatusClass(app.status)}`}>
-                                                                Unpaid
+                                                        {/* <td className="px-4 py-3 whitespace-nowrap">
+                                                            <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${app.paymentStatus?.toLowerCase() === 'successful' || app.paymentStatus?.toLowerCase() === 'paid'
+                                                                ? 'bg-green-100 text-green-800 border-green-300'
+                                                                : 'bg-red-100 text-red-800 border-red-500'
+                                                                }`}>
+                                                                {app.paymentStatus?.toLowerCase() === 'successful' || app.paymentStatus?.toLowerCase() === 'paid' ? 'Paid' : 'Unpaid'}
                                                             </span>
-                                                        </td>
+                                                        </td> */}
                                                         <td className="px-4 py-3 whitespace-nowrap">
                                                             <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(app.status)}`}>
                                                                 {app.status}
                                                             </span>
                                                         </td>
-                                                        <td className="px-4 py-3 text-center">
-                                                            <button
-
-
-                                                                type="button"
-                                                                className="p-1 bg-green-100 border border-green-700 text-green-800 hover:text-zinc-900 rounded-2xl text-sm"
-                                                            >
-                                                                Make Payment
-                                                            </button>
-                                                        </td>
+                                                        {/* <td className="px-4 py-3 text-center">
+                                                             {(app.paymentStatus?.toLowerCase() !== 'successful' && app.paymentStatus?.toLowerCase() !== 'paid') && (
+                                                                 <button
+                                                                     onClick={() => handleMakePayment(app)}
+                                                                     type="button"
+                                                                     className="p-1 bg-green-100 border border-green-700 text-green-800 hover:text-zinc-900 rounded-2xl text-sm"
+                                                                 >
+                                                                     Make Payment
+                                                                 </button>
+                                                             )}
+                                                         </td> */}
                                                     </tr>
                                                 ))
                                             )}
@@ -706,41 +735,38 @@ const Wastes = () => {
                                 );
                             })}
                         </div>
-                        <div className="px-6 py-4 flex flex-col items-center gap-3">
+                        {/* <div className="px-6 py-4 flex flex-col items-center gap-3">
                             {
                                 selectedPaymentMethod === 'card' ?
                                     (
-                                        <AlatPayButton
-                                            //all details provided by the api request in the component
-                                            metadata={{
-                                                accountNo:
-                                                    useCorporateStore.getState().corporateInfo.accountNo,
-                                            }}
-                                            customerName={
-                                                useCorporateStore.getState().corporateInfo.companyName ||
-                                                "Corporate User"
-                                            }
-                                            email={
-                                                useAuthStore.getState().email || "manifestomixx@gmail.com"
-                                            }
-                                            redirectUrl="https://smartbin-frontend-staging.up.railway.app/payment-success"
+                                        <Pay4ItButton
                                             amount={pickUpAmount}
-                                            onTransaction={(response) => {
-                                                console.log(" AlatPay onTransaction called with response:", response);
-                                                // Call the new function that handles backend integration
-                                                submitWasteAlatPay(pickUpAmount);
+                                            email={useAuthStore.getState().email || "manifestomixx@gmail.com"}
+                                            customerName={useCorporateStore.getState().corporateInfo.companyName || "Corporate User"}
+                                            description="Waste Collection Payment"
+                                            userType="corporate"
+                                            customEndpoint="/corporate/wallets/charge"
+                                            customPayload={{ paymentPurpose: "Waste Collection Application" }}
+                                            onSuccess={async (res) => {
+                                                console.log("Pay4It waste payment success:", res);
+                                                const finalRef = res.reference || res.tranref;
+
+                                                if (isPayingExisting) {
+                                                    setNotification({ type: 'success', message: 'Payment successful!' });
+                                                    fetchData();
+                                                    closeModal('payment');
+                                                } else {
+                                                    await SubmitPickupRequest({ ref: finalRef, amount: pickUpAmount, channel: "card" });
+                                                }
                                             }}
                                             onClose={() => {
-                                                console.log(" AlatPay window closed");
-                                            }}
-                                            onPaymentWindowOpen={() => {
-                                                console.log(" AlatPay payment window opened");
-                                                closeModal("payment"); // Close the modal once payment window opens
+                                                console.log("Pay4It window closed");
                                             }}
                                             buttonText="Pay Now "
                                             buttonClassName="btn btn-primary w-full"
                                         />
                                     )
+
                                     :
                                     (
                                         <button
@@ -757,7 +783,7 @@ const Wastes = () => {
                             >
                                 Go back
                             </button>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             )}
@@ -766,8 +792,7 @@ const Wastes = () => {
             <ScheduleWasteCollectionModal
                 isOpen={isPickupModalOpen}
                 onClose={() => closeModal('pickup')}
-                initialPickupData={initialPickupData}
-                onSubmit={SubmitPickupRequest} // Pass the handler
+                onSubmit={handleScheduleSubmit} // Pass the handler
                 pickUpAmount={pickUpAmount} // Pass amount if needed in modal
                 notification={notification} // Pass notification state
                 setNotification={setNotification} // Pass setNotification function

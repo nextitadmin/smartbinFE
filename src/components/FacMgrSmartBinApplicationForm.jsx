@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/axiosConfig';
 import useAuthStore from '../store/authStore';
-import AlatPayButton from '../components/AlatPayButton'; // Ensure this path is correct
+import Pay4ItButton from '../components/Pay4ItButton';
 
 // --- Icon Components (if not imported from elsewhere) ---
 const CloseIcon = ({ className = 'w-5 h-5' }) => (
@@ -636,9 +636,13 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
                         </div>
                         <div className="px-6 py-4 flex flex-col items-center gap-3">
                             {selectedPaymentMethod === 'card' ? (
-                                <AlatPayButton
+                                <Pay4ItButton
+                                    email={formData.email || "facility@email.com"}
+                                    name={`${formData.firstName || ''} ${formData.lastName || ''}`.trim() || "Facility Manager"}
                                     amount={smartBinAmount}
-                                    onTransaction={(response) => { handlePayment(response); }} // Pass response correctly
+                                    description="Smart Bin Application Payment"
+                                    userType="Facility"
+                                    onSuccess={(ref) => handlePayment({ reference: ref, channel: 'card' })}
                                     buttonText="Pay Now "
                                     buttonClassName="btn btn-primary w-full"
                                 />

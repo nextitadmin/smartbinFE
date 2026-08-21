@@ -82,18 +82,31 @@ const CheckIcon = ({ className = 'h-5 w-5' }) => (
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const REPORT_TYPES = [
-    { name: 'Payment History', value: 'payment' },
-    { name: 'Bin Request', value: 'bin' },
-    { name: 'Waste pickup', value: 'waste' },
+    { name: 'Payment History', value: 'payment-history' },
+    { name: 'Bin Request', value: 'smartbin-request' },
+    { name: 'Waste pickup', value: 'waste-pickup' },
 ];
 
 const selectedReportType = (report) => {
     switch (report) {
-        case 'Payment History': return 'payment';
-        case 'Bin Request': return 'bin';
-        case 'Waste pickup': return 'waste';
+        case 'Payment History': return 'payment-history';
+        case 'Bin Request': return 'smartbin-request';
+        case 'Waste pickup': return 'waste-pickup';
         default: return '';
     }
+};
+
+const getReportTypeName = (type) => {
+    const mapping = {
+        'payment-history': 'Payment History',
+        'smartbin-request': 'Bin Request',
+        'waste-pickup': 'Waste pickup',
+        'revenue': 'Revenue Report',
+        'payment': 'Payment History',
+        'bin': 'Bin Request',
+        'waste': 'Waste pickup'
+    };
+    return mapping[(type || '').toLowerCase()] || type;
 };
 
 const formatGenerationDate = (isoDateString) => {
@@ -157,7 +170,7 @@ const ReportsPage = () => {
             const { data } = await api.get('/resident/reports');
             const succeeded = data.succeeded || data.success;
             if (succeeded) {
-                const rawList = data.data?.data || data.data?.items || data.data || data.items || data;
+                const rawList = data.data?.reports || data.data?.data || data.data?.items || data.data || data.items || data;
                 const list = Array.isArray(rawList) ? rawList : [];
 
                 const reportList = list.map((item) => {
@@ -172,11 +185,23 @@ const ReportsPage = () => {
                         }
                     };
 
+                    const getPeriodValue = () => {
+                        if (item.period && typeof item.period === 'object') {
+                            if (item.period.from && item.period.to) {
+                                return `${item.period.from} - ${item.period.to}`;
+                            }
+                        }
+                        if (item.period && typeof item.period === 'string') {
+                            return item.period;
+                        }
+                        return formatPeriodStr(item.startDate, item.endDate);
+                    };
+
                     return {
-                        id: item.id,
+                        id: item._id || item.id,
                         reportType: item.type,
                         reportTitle: item.reportName || item.title || 'Untitled Report',
-                        period: item.period || formatPeriodStr(item.startDate, item.endDate),
+                        period: getPeriodValue(),
                         generationDate: item.requestDate || item.createdAt || item.date || new Date().toISOString(),
                     };
                 });
@@ -269,7 +294,7 @@ const ReportsPage = () => {
 
         setIsGeneratingReport(true);
         const selectedType = selectedReportType(newReportType);
-        const reportTypeParam = selectedType === 'payment' ? 'revenue' : selectedType;
+        const reportTypeParam = selectedType;
 
         const residentInfo = useResidentStore.getState().residentInfo;
         const customerName = `${residentInfo?.firstName || ""} ${residentInfo?.lastName || ""}`.trim() || "Resident Customer";
@@ -294,12 +319,15 @@ const ReportsPage = () => {
                     title: newReportName,
                     data: data.data,
                 };
-                if (selectedType === 'bin') {
+                if (selectedType === 'bin' || selectedType === 'smartbin-request') {
                     localStorage.setItem('binreport', JSON.stringify(reportObject));
                     navigate('/smartbinreport');
-                } else if (selectedType === 'waste') {
+                } else if (selectedType === 'waste' || selectedType === 'waste-pickup') {
                     localStorage.setItem('wastereport', JSON.stringify(reportObject));
                     navigate('/wastereport');
+                } else if (selectedType === 'payment' || selectedType === 'payment-history') {
+                    localStorage.setItem('paymentreport', JSON.stringify(reportObject));
+                    navigate('/payment-report');
                 }
                 fetchReportsAPI();
             } else {
@@ -457,9 +485,9 @@ const ReportsPage = () => {
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="bg-white rounded-2xl">
-                                            <table className="w-full min-w-[700px] m-4 bg-white">
-                                                <thead className="border-b border-zinc-200">
+                                        <div className="table-container border border-zinc-200 rounded-2xl">
+                                            <table className="w-full min-w-[768px] text-sm text-left text-zinc-600">
+                                                <thead className="font-light text-zinc-700 uppercase bg-white">
                                                     <tr>
                                                         <th className="lg:p-6 p-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider w-12">S/N</th>
                                                         {tableHeaders.map((header) => (
@@ -479,13 +507,13 @@ const ReportsPage = () => {
                                                 </thead>
                                                 <tbody className="bg-white divide-y divide-zinc-200">
                                                     {processedReports.map((report, index) => (
-                                                        <tr key={report.id} className="hover:bg-zinc-50 transition-colors duration-150">
-                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500">{index + 1}.</td>
-                                                            <td className="lg:p-6 p-3 text-sm text-zinc-900 whitespace-nowrap">{report.reportTitle}</td>
-                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{formatGenerationDate(report.generationDate)}</td>
-                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{report.period}</td>
-                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{report.reportType}</td>
-                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500">
+                                                        <tr key={report.id} className="hover:bg-zinc-50 transition-colors duration-150 lg:h-20">
+                                                            <td className="px-4 py-3 text-sm text-zinc-500">{index + 1}.</td>
+                                                            <td className="px-4 py-3  text-sm text-zinc-900 whitespace-nowrap">{report.reportTitle}</td>
+                                                            <td className="px-4 py-3  text-sm text-zinc-500 whitespace-nowrap">{formatGenerationDate(report.generationDate)}</td>
+                                                            <td className="px-4 py-3  text-sm text-zinc-500 whitespace-nowrap">{report.period}</td>
+                                                            <td className="px-4 py-3  text-sm text-zinc-500 whitespace-nowrap">{getReportTypeName(report.reportType)}</td>
+                                                            <td className="px-4 py-3  text-sm text-zinc-500">
                                                                 <button
                                                                     onClick={() => handleViewReport(report)}
                                                                     className="text-green-700 hover:text-green-800 font-medium underline focus:outline-none"

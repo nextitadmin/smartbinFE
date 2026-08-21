@@ -3,7 +3,7 @@ import Sidebar from '../components/FacilityMgrSideBar';
 import Topbar from '../components/FacilityMgrTopBar';
 import { NavLink, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
-import AlatPayButton from '../components/AlatPayButton';
+import Pay4ItButton from '../components/Pay4ItButton';
 import useAuthStore from '../store/authStore';
 import useFacilityMgrStore from '../store/useFacilityMgrStore';
 
@@ -1309,10 +1309,13 @@ const SmartBinTableCard = () => {
                             {
                                 selectedPaymentMethod === 'card' ?
                                     (
-                                        <AlatPayButton
-                                            //all details provided by the api request in the component
+                                        <Pay4ItButton
+                                            email={FacilityMgr?.emailAddress || "facility@email.com"}
+                                            name={`${FacilityMgr?.firstName || ''} ${FacilityMgr?.lastName || ''}`.trim() || "Facility Manager"}
                                             amount={smartBinAmount}
-                                            onTransaction={() => { handlePayment }}
+                                            description="Smart Bin Application Payment"
+                                            userType="Facility"
+                                            onSuccess={(ref) => handlePayment({ reference: ref, channel: 'card' })}
                                             buttonText="Pay Now "
                                             buttonClassName="btn btn-primary w-full"
                                         />

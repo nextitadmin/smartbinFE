@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Sidebar from '../components/AgentSidebar';
 import Topbar from '../components/AgentTopBar';
 import api from '../api/axiosConfig';
-import AlatPayButton from '../components/AlatPayButton';
+import Pay4ItButton from '../components/Pay4ItButton';
 import useAuthStore from '../store/authStore';
 import useAgentStore from '../store/useAgentStore';
 
@@ -704,12 +704,30 @@ const SmartBinApplication = () => {
     };
 
     const handlePickupRequest = async () => {
-        if (pickupRequestData.date && pickupRequestData.time && pickupRequestData.phone && pickupRequestData.address && pickupRequestData.customerName) {
-            closeModal('pickup');
-            openModal('payment');
-        } else {
-            setNotification({ type: 'error', message: "Fill all fields" });
+        if (!pickupRequestData.customerName || !pickupRequestData.customerName.trim()) {
+            setNotification({ type: 'error', message: 'Customer name is required' });
+            return;
         }
+        if (!pickupRequestData.date) {
+            setNotification({ type: 'error', message: 'Pickup date is required' });
+            return;
+        }
+        if (!pickupRequestData.time) {
+            setNotification({ type: 'error', message: 'Pickup time is required' });
+            return;
+        }
+        const phoneClean = (pickupRequestData.phone || '').trim().replace(/[\s\-()]/g, '');
+        if (!phoneClean || phoneClean.length < 8 || phoneClean.length > 15) {
+            setNotification({ type: 'error', message: 'Please enter a valid phone number' });
+            return;
+        }
+        if (!pickupRequestData.address || !pickupRequestData.address.trim()) {
+            setNotification({ type: 'error', message: 'Address is required' });
+            return;
+        }
+
+        closeModal('pickup');
+        openModal('payment');
     };
 
     const setNewCustomerType = (type) => {
@@ -928,7 +946,7 @@ const SmartBinApplication = () => {
                                         key={option.id}
                                         className="px-6 py-4 rounded-lg flex items-center gap-4"
                                     >
-                                        <Icon />
+                                        {Icon && <Icon />}
                                         <span className="text-sm font-medium text-zinc-800 flex-grow">
                                             {option.text}
                                         </span>
@@ -950,10 +968,13 @@ const SmartBinApplication = () => {
                             {
                                 selectedPaymentMethod === 'card' ?
                                     (
-                                        <AlatPayButton
-                                            //all details provided by the api request in the component
-                                            amount={100}
-                                            onTransaction={() => { handlePayment }}
+                                        <Pay4ItButton
+                                            email={Agent?.emailAddress || "agent@email.com"}
+                                            name={`${Agent?.firstName || ''} ${Agent?.lastName || ''}`.trim() || "Agent Manager"}
+                                            amount={pickUpAmount || 1000}
+                                            description="Waste Pickup Payment"
+                                            userType="Agent"
+                                            onSuccess={(ref) => handlePayment({ reference: ref, channel: 'card' })}
                                             buttonText="Pay Now "
                                             buttonClassName="btn btn-primary w-full"
                                         />

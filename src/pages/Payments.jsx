@@ -51,21 +51,21 @@ const PaymentReceipts = () => {
             const { data } = await api.get(`/residents/payment?page=${currentPage}&limit=${itemsPerPage}`);
             const succeeded = data.succeeded || data.success;
             if (succeeded) {
-                const rawData = data.data?.data || data.data?.items || data.data || data.items || data;
+                const rawData = data.data?.transactions || data.data?.data || data.data?.items || data.data || data.items || data;
                 const list = Array.isArray(rawData) ? rawData : [];
 
                 const newData = list.map((item) => ({
-                    id: item.id,
+                    id: item._id || item.id,
                     transactionId: item.transactionReference || item.reference || item.transactionId || item.id,
                     date: (item.transactionDate || item.date || item.createdAt)?.slice(0, 10),
-                    service: item.description || item.service || item.type || "Payment",
+                    service: item.service || item.description || item.type || "Payment",
                     status: item.transactionStatus || item.status || "Successful",
                     amount: item.amount,
                     paymentMethod: item.paymentMethod || "N/A"
                 }));
                 setPayments(newData);
 
-                const totalPagesVal = data.data?.totalPages || data.totalPages || 1;
+                const totalPagesVal = data.data?.paging?.pages || data.data?.totalPages || data.totalPages || 1;
                 setTotalPages(totalPagesVal);
             }
         } catch (error) {

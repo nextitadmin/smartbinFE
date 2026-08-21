@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Sidebar from '../components/FacilityMgrSideBar';
 import Topbar from '../components/FacilityMgrTopBar';
 import api from '../api/axiosConfig';
-import AlatPayButton from '../components/AlatPayButton';
+import Pay4ItButton from '../components/Pay4ItButton';
 import useAuthStore from '../store/authStore';
 import useFacilityMgrStore from '../store/useFacilityMgrStore';
 
@@ -183,7 +183,7 @@ const SmartBinApplication = () => {
     const [isCustomerListOpen, setIsCustomerListOpen] = useState(false);
     const [customerNameList, setCustomerNameList] = useState([]);
     const FacilityMgr = useFacilityMgrStore.getState().facilityMgrInfo;
-    const [pickUpAmount, setPickUpAmount] = useState(0);
+    const [pickUpAmount, setPickUpAmount] = useState(5000);
     const [debitType, setDebitType] = useState('');
 
 
@@ -232,10 +232,10 @@ const SmartBinApplication = () => {
             console.log("Response from fetch-amount:", response);
             const data = response.data?.data;
             if ((response.data?.success || response.data?.succeeded) && data) {
-                setPickUpAmount(data.balance ?? data.amountToDebit);
+                setPickUpAmount(5000);
                 setDebitType(data.debitType || data.status || 'standard');
                 console.log(data.status || data.debitType, " debit type");
-                console.log("Smart bin amount fetched:", data.balance ?? data.amountToDebit);
+                console.log("Smart bin amount fetched:", 5000);
             } else {
                 console.error("Failed to fetch smart bin amount:", response.data?.message || 'Unknown error');
             }
@@ -256,11 +256,11 @@ const SmartBinApplication = () => {
                 const rawList = Array.isArray(data.data) ? data.data : (data.data?.data || []);
                 const newData = rawList.map((item, index) => ({
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
-                    wasteId: item.wasteId || item.wasteID || '',
+                    wasteId: item.accountId || item.wasteId || item.wasteID || '',
                     date: (item.createdAt || item.requestDate || item.date || '').slice(0, 10),
                     address: item.address || '',
                     status: item.statusName || item.status || '',
-                    representative: item.pickupBy || '',
+                    representative: item.representative || item.pickupBy || item.phoneNumber || '',
                     customerName: item.customerName || ''
                 }));
                 setApplications(newData);
@@ -394,7 +394,7 @@ const SmartBinApplication = () => {
     // Payment modal data
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card');
     const paymentOptions = [
-        { id: 'card', text: 'Pay with Alat By Wema', icon: AlatIcon },
+        { id: 'card', text: 'Pay with Card/Bank/Transfer' },
     ];
 
     // Pickup modal data
@@ -604,12 +604,30 @@ const SmartBinApplication = () => {
     };
 
     const handlePickupRequest = async () => {
-        if (pickupRequestData.date && pickupRequestData.time && pickupRequestData.phone && pickupRequestData.address && pickupRequestData.customerName) {
-            closeModal('pickup');
-            openModal('payment');
-        } else {
-            setNotification({ type: 'error', message: "Fill all fields" });
+        if (!pickupRequestData.customerName || !pickupRequestData.customerName.trim()) {
+            setNotification({ type: 'error', message: 'Customer name is required' });
+            return;
         }
+        if (!pickupRequestData.date) {
+            setNotification({ type: 'error', message: 'Pickup date is required' });
+            return;
+        }
+        if (!pickupRequestData.time) {
+            setNotification({ type: 'error', message: 'Pickup time is required' });
+            return;
+        }
+        const phoneClean = (pickupRequestData.phone || '').trim().replace(/[\s\-()]/g, '');
+        if (!phoneClean || phoneClean.length < 8 || phoneClean.length > 15) {
+            setNotification({ type: 'error', message: 'Please enter a valid phone number' });
+            return;
+        }
+        if (!pickupRequestData.address || !pickupRequestData.address.trim()) {
+            setNotification({ type: 'error', message: 'Address is required' });
+            return;
+        }
+
+        closeModal('pickup');
+        openModal('payment');
     };
 
     const setNewCustomerType = (type) => {
@@ -868,7 +886,7 @@ const SmartBinApplication = () => {
                                         key={option.id}
                                         className="px-6 py-4 rounded-lg flex items-center gap-4"
                                     >
-                                        <Icon />
+                                        {Icon && <Icon />}
                                         <span className="text-sm font-medium text-zinc-800 flex-grow">
                                             {option.text}
                                         </span>
@@ -890,10 +908,13 @@ const SmartBinApplication = () => {
                             {
                                 selectedPaymentMethod === 'card' ?
                                     (
-                                        <AlatPayButton
-                                            //all details provided by the api request in the component
-                                            amount={100}
-                                            onTransaction={() => { handlePayment }}
+                                        <Pay4ItButton
+                                            email={FacilityMgr?.emailAddress || "facility@email.com"}
+                                            name={`${FacilityMgr?.firstName || ''} ${FacilityMgr?.lastName || ''}`.trim() || "Facility Manager"}
+                                            amount={pickUpAmount || 1000}
+                                            description="Waste Pickup Payment"
+                                            userType="Facility"
+                                            onSuccess={(ref) => handlePayment({ reference: ref, channel: 'card' })}
                                             buttonText="Pay Now "
                                             buttonClassName="btn btn-primary w-full"
                                         />

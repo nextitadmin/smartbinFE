@@ -33,7 +33,7 @@ const PaymentReceipts = () => {
     try {
       const endpoint = `/corporate/payments?AccountNo=${useCorporateStore.getState().corporateInfo.accountNo}&page=${currentPage}&limit=${itemsPerPage}`;
       // console.log("Calling API endpoint:", endpoint);
-      
+
       const { data } = await api.get(endpoint);
       if (data.succeeded || data.success) {
         // Use the correct array and filter for wallet and alatPay
@@ -46,7 +46,7 @@ const PaymentReceipts = () => {
               item.paymentMethod.toLowerCase() === "alat pay" ||
               item.paymentMethod.toLowerCase() === "alat by wema")
         );
-        
+
         const newData = filtered.map((item, index) => {
           // Try to infer AlatPay if possible
           let paymentMethod = item.paymentMethod;
@@ -97,7 +97,7 @@ const PaymentReceipts = () => {
 
       const balance = data?.data?.balance ?? 0;
       setWalletBalance(formatCurrency(balance));
-      
+
     } catch (error) {
       console.log(error);
     }
@@ -137,7 +137,7 @@ const PaymentReceipts = () => {
       return null; //  indicate failure
     }
   };
-  
+
 
   const clearNotification = () => {
     setNotification(null);
@@ -375,19 +375,19 @@ const PaymentReceipts = () => {
           data?.reference ||
           data?.data?.transactionReference ||
           data?.data?.reference;
-  
+
         if (reference) {
           console.log("Calling verifyAlatPayTransaction with:", reference);
           await verifyAlatPayTransaction(reference);
         } else {
           console.warn("No reference returned from top-up response");
         }
-  
+
         setNotification({
           type: "success",
           message: data.message || "Top-up successful!",
         });
-  
+
         fetchBalance(); // Refresh balance
         closeModal("topup"); // Close top-up modal
         openModal("success"); // Show success modal
@@ -595,9 +595,8 @@ const PaymentReceipts = () => {
                           <div className="flex items-center justify-between">
                             Transaction Ref{" "}
                             <span
-                              className={`sort-icon ${
-                                sortColumn === "transactionRef" ? "active" : ""
-                              }`}
+                              className={`sort-icon ${sortColumn === "transactionRef" ? "active" : ""
+                                }`}
                             >
                               {sortIcon("transactionRef")}
                             </span>
@@ -612,9 +611,8 @@ const PaymentReceipts = () => {
                           <div className="flex items-center justify-between">
                             Service{" "}
                             <span
-                              className={`sort-icon ${
-                                sortColumn === "service" ? "active" : ""
-                              }`}
+                              className={`sort-icon ${sortColumn === "service" ? "active" : ""
+                                }`}
                             >
                               {sortIcon("service")}
                             </span>
@@ -629,9 +627,8 @@ const PaymentReceipts = () => {
                           <div className="flex items-center justify-between">
                             Amount{" "}
                             <span
-                              className={`sort-icon ${
-                                sortColumn === "amount" ? "active" : ""
-                              }`}
+                              className={`sort-icon ${sortColumn === "amount" ? "active" : ""
+                                }`}
                             >
                               {sortIcon("amount")}
                             </span>
@@ -646,9 +643,8 @@ const PaymentReceipts = () => {
                           <div className="flex items-center justify-between">
                             Date{" "}
                             <span
-                              className={`sort-icon ${
-                                sortColumn === "date" ? "active" : ""
-                              }`}
+                              className={`sort-icon ${sortColumn === "date" ? "active" : ""
+                                }`}
                             >
                               {sortIcon("date")}
                             </span>
@@ -663,9 +659,8 @@ const PaymentReceipts = () => {
                           <div className="flex items-center justify-between">
                             Payment Method{" "}
                             <span
-                              className={`sort-icon ${
-                                sortColumn === "paymentMethod" ? "active" : ""
-                              }`}
+                              className={`sort-icon ${sortColumn === "paymentMethod" ? "active" : ""
+                                }`}
                             >
                               {sortIcon("paymentMethod")}
                             </span>
@@ -680,9 +675,8 @@ const PaymentReceipts = () => {
                           <div className="flex items-center justify-between">
                             Status{" "}
                             <span
-                              className={`sort-icon ${
-                                sortColumn === "status" ? "active" : ""
-                              }`}
+                              className={`sort-icon ${sortColumn === "status" ? "active" : ""
+                                }`}
                             >
                               {sortIcon("status")}
                             </span>
@@ -999,7 +993,7 @@ const PaymentReceipts = () => {
                                             buttonClassName="w-full inline-flex justify-center items-center px-4 py-4 border border-transparent font-medium rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                         /> */}
 
-                   <Pay4ItButton
+                  <Pay4ItButton
                     amount={Number(topUpAmount)}
                     customerName={corporateInfo?.businessName || corporateInfo?.companyName || `${corporateInfo?.firstName || ''} ${corporateInfo?.lastName || ''}`.trim() || "Corporate User"}
                     email={useAuthStore.getState().email || corporateInfo?.emailAddress || "corporate@email.com"}
@@ -1024,11 +1018,10 @@ const PaymentReceipts = () => {
       {notification && (
         <div
           // Using fixed positioning to overlay on the page
-          className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 ${
-            notification.type === "success"
+          className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 ${notification.type === "success"
               ? "bg-green-100 border border-green-400 text-green-800"
               : "bg-red-100 border border-red-400 text-red-800"
-          }`}
+            }`}
           // ARIA roles for accessibility
           role={notification.type === "error" ? "alert" : "status"}
         >
@@ -1037,11 +1030,10 @@ const PaymentReceipts = () => {
             {/* Close button for the notification */}
             <button
               onClick={clearNotification}
-              className={`ml-4 text-xl font-semibold leading-none ${
-                notification.type === "success"
+              className={`ml-4 text-xl font-semibold leading-none ${notification.type === "success"
                   ? "text-green-800 hover:text-green-900"
                   : "text-red-800 hover:text-red-900"
-              } focus:outline-none`}
+                } focus:outline-none`}
               aria-label="Close notification"
             >
               &times; {/* Unicode multiplication sign for 'x' */}

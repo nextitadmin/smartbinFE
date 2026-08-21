@@ -325,7 +325,9 @@ const PaymentReceipts = () => {
                                             <div className="w-full">
                                                 <p className="text-white text-xs font-light ">Available Balance</p>
                                                 <div className="flex items-center ">
-                                                    <h2 className="text-white text-3xl font-sans mt-1 mr-20">{`₦${walletBalance}`}</h2>
+                                                    <h2 className="text-white text-3xl font-sans mt-1 mr-20">
+                                                        {walletBalance !== '' ? `₦${Number(walletBalance).toLocaleString()}` : '₦0'}
+                                                    </h2>
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="text-white opacity-75" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                         <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
                                                         <circle cx="12" cy="12" r="3" />

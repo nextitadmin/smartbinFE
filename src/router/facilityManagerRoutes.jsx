@@ -20,7 +20,7 @@ const Reports = lazy(() => import("../facilityManager/Reports"));
 const ServiceConfiguration = lazy(() => import('../facilityManager/ServiceConfiguration'))
 const NotificationsPage = lazy(() => import('../facilityManager/Notifications'))
 const HelpAndSupportPage = lazy(() => import('../facilityManager/HelpAndSupport'))
-const CLientPreferences = lazy(() => import('../facilityManager/ClientPreferences'))
+const SubscriptionPage = lazy(() => import('../facilityManager/SubscriptionPage'))
 const PaymentsReport = lazy(() => import('../facilityManager/PaymentsReport'))
 const SmartBinReport = lazy(() => import('../facilityManager/SmartBinReport'))
 const Receipt = lazy(() => import('../facilityManager/Receipt'))
@@ -192,11 +192,11 @@ const agentRoutes = [
         ),
     },
     {
-        path: "/client-preferences",
+        path: "/subscription",
         element: (
             <Suspense fallback={<LoadingComponent />}>
                 <ProtectedRoute>
-                    <CLientPreferences />
+                    <SubscriptionPage />
                 </ProtectedRoute>
             </Suspense>
         ),
