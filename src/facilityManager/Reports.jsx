@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Sidebar from '../components/FacilityMgrSideBar';
 import Topbar from '../components/FacilityMgrTopBar';
 import api from '../api/axiosConfig';
@@ -93,18 +93,39 @@ const CheckIcon = ({ className = "h-5 w-5" }) => (
 
 
 
-const REPORT_TYPES = [{ name: 'Payment History', value: 'payment' }, { name: 'Bin Request', value: 'bin' }, { name: 'Waste pickup', value: 'waste' }];
+const REPORT_TYPES = [
+    { name: 'Revenue', value: 'revenue' },
+    { name: 'Payment History', value: 'payment-history' },
+    { name: 'Waste Pickup', value: 'waste-pickup' },
+    { name: 'Waste Disposed', value: 'waste-disposed' },
+    { name: 'Smartbin Request', value: 'smartbin-request' },
+    { name: 'Smartbin Delivered', value: 'smartbin-delivered' },
+    { name: 'User Registration', value: 'user-registration' },
+    { name: 'Unpaid Bills', value: 'unpaid-bills' }
+];
 const CUSTOMER_TYPES = ['Resident', 'Corporate'];
 
 const selectedReportType = (report) => {
     switch (report) {
+        case 'Revenue':
+            return 'revenue';
         case 'Payment History':
-            return 'payment';
-        case 'Bin Request':
-            return 'bin';
-        case 'Waste pickup':
-            return 'waste';
-    };
+            return 'payment-history';
+        case 'Waste Pickup':
+            return 'waste-pickup';
+        case 'Waste Disposed':
+            return 'waste-disposed';
+        case 'Smartbin Request':
+            return 'smartbin-request';
+        case 'Smartbin Delivered':
+            return 'smartbin-delivered';
+        case 'User Registration':
+            return 'user-registration';
+        case 'Unpaid Bills':
+            return 'unpaid-bills';
+        default:
+            return '';
+    }
 };
 
 
@@ -174,12 +195,11 @@ const ReportsPage = () => {
             const queryString = params.toString();
             const url = `/facility-manager/reports${queryString ? `?${queryString}` : ''}`;
             const { data } = await api.get(url);
-            if(data.success){
-                setReports(data.data.reports || []);
-                // Optionally set paging info if needed
-                // setPaging(data.data.paging);
+            if(data.success && data.data){
+                const reportsArray = data.data.reports || data.data.data || data.data || [];
+                setReports(reportsArray);
             } else {
-                console.error("Failed to fetch reports:", data.message);
+                console.error("Failed to fetch reports:", data?.message);
                 setReports([]);
             }
         } catch (error) {
@@ -275,49 +295,102 @@ const ReportsPage = () => {
 
     const handleGenerateReportSubmit = async (e) => {
         e.preventDefault();
-        handleCloseModal();
-        // if (!newReportName || !newReportType || !newReportStartDate || !newReportEndDate || !newCustomerType || !newCustomerName) {
-        //     showNotification('Please fill all fields in the report form.', 'error');
-        //     return;
-        // }
-        // if (new Date(newReportStartDate) > new Date(newReportEndDate)) {
-        //     showNotification('Start date cannot be after end date.', 'error');
-        //     return;
-        // }
+        
+        if (!newReportName || !newReportType || !newReportStartDate || !newReportEndDate || !newCustomerType || !newCustomerName) {
+            showNotification('Please fill all fields in the report form.', 'error');
+            return;
+        }
+        if (new Date(newReportStartDate) > new Date(newReportEndDate)) {
+            showNotification('Start date cannot be after end date.', 'error');
+            return;
+        }
 
-        // setIsGeneratingReport(true);
-        // const selectedType = selectedReportType(newReportType);
-        // const url = (selectedType == 'bin') ? '/AuditReport/bin-report-request': (selectedType == 'waste') ? '/AuditReport/waste-report-request' : '/AuditReport/payment-report-request';
-        // try {
-        //     const { data } = await api.get(`${url}?ReportName=${newReportName}&CustomerName=${newCustomerName}&ReportType=${selectedType}&CustomerType=${newCustomerType}&StartDate=${newReportStartDate}&EndDate=${newReportEndDate}`)
-        //     if (data.succeeded) {
+        setIsGeneratingReport(true);
+        const selectedType = selectedReportType(newReportType);
 
-        //         showNotification(data.message || 'Report generated successfully!', 'success');
-        //         handleCloseModal();
-        //         const reportObject = {
-        //             period : formatPeriod(newReportStartDate, newReportEndDate),
-        //             generationDate : formatGenerationDate(new Date()),
-        //             title : newReportName,
-        //             data : data.data
-        //         };
-        //        if(selectedType == 'bin'){
-        //             localStorage.setItem('binreport', JSON.stringify(reportObject));
-        //             navigate('/smartbinreport');                    
-        //        }
-        //        else if(selectedType == 'waste'){
-        //             localStorage.setItem('wastereport', JSON.stringify(reportObject));
-        //             navigate('/wastereport');                    
-        //        }
+        try {
+            const payload = {
+                reportName: newReportName,
+                customerType: newCustomerType,
+                customerName: newCustomerName,
+                type: selectedType,
+                startDate: new Date(newReportStartDate).toISOString(),
+                endDate: new Date(newReportEndDate).toISOString()
+            };
 
-        //     } else {
-        //         showNotification(data.message || 'Failed to generate report.', 'error');
-        //     }
-        // } catch (error) {
-        //     showNotification(error.message || 'An error occurred while generating the report.', 'error');
-        // } finally {
-        //     setIsGeneratingReport(false);
-        //     fetchReportsAPI();
-        // }
+            const { data } = await api.post('/facility-manager/reports', payload);
+            if (data.success || data.succeeded) {
+                showNotification(data.message || 'Report generated successfully!', 'success');
+                handleCloseModal();
+                fetchReportsAPI();
+            } else {
+                showNotification(data.message || 'Failed to generate report.', 'error');
+            }
+        } catch (error) {
+            const errMsg = error.response?.data?.message || error.message || 'An error occurred while generating the report.';
+            showNotification(Array.isArray(errMsg) ? errMsg.join(', ') : errMsg, 'error');
+        } finally {
+            setIsGeneratingReport(false);
+        }
+    };
+    const [rowActionModal, setRowActionModal] = useState(false);
+    const [currentDataId, setCurrentDataId] = useState({});
+    const modalRef = useRef();
+
+    const handleRowAction = (appId, reportType) => {
+        setCurrentDataId({id : appId, type : reportType});
+        setRowActionModal(true);
+    };
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (rowActionModal && modalRef.current && !modalRef.current.contains(event.target)) {
+                setRowActionModal(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [rowActionModal]);
+
+    const handleReportView = async () => {
+        const reportId = currentDataId.id;
+        const reportType = currentDataId.type;
+        
+        try {
+            setIsLoading(true);
+            const { data } = await api.get(`/facility-manager/reports/${reportId}`);
+            
+            if (data.success && data.data) {
+                const reportDetail = data.data;
+                const reportObject = {
+                    title: reportDetail.reportName || reportDetail.title || 'Report',
+                    period: formatPeriod(reportDetail.startDate, reportDetail.endDate),
+                    generationDate: formatGenerationDate(reportDetail.createdAt || new Date()),
+                    data: reportDetail.data || reportDetail.records || []
+                };
+
+                if (reportType === 'smartbin-request') {
+                    localStorage.setItem('binreport', JSON.stringify(reportObject));
+                    navigate('/smartbinreport');
+                } else if (reportType === 'waste-pickup') {
+                    localStorage.setItem('wastereport', JSON.stringify(reportObject));
+                    navigate('/wastereport');
+                } else if (reportType === 'payment-history') {
+                    localStorage.setItem('paymentHistory', JSON.stringify(reportObject));
+                    navigate('/payment-report');
+                }
+            } else {
+                showNotification('Failed to retrieve report details.', 'error');
+            }
+        } catch (error) {
+            showNotification(error.response?.data?.message || error.message || 'Error loading report details.', 'error');
+        } finally {
+            setIsLoading(false);
+            setCurrentDataId({});
+            setRowActionModal(false);
+        }
     };
 
     const SortIcon = ({ columnKey }) => {
@@ -481,10 +554,23 @@ const ReportsPage = () => {
                                                                     {report.reportType}
                                                                 </span>
                                                             </td>
-                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500">
-                                                                <button className="text-zinc-400 hover:text-zinc-600">
+                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap relative">
+                                                                <button 
+                                                                    onClick={() => handleRowAction(report.id, report.reportType)}
+                                                                    type="button"
+                                                                    className="p-1 text-zinc-400 hover:text-zinc-600"
+                                                                >
                                                                     <EllipsisVerticalIcon className="h-5 w-5" />
                                                                 </button>
+                                                                {rowActionModal && currentDataId.id === report.id && (
+                                                                    <div
+                                                                        ref={modalRef}
+                                                                        className="absolute z-50 bg-white rounded-xl shadow-xl p-4 right-0 mt-2"
+                                                                        style={{ minWidth: 120 }}
+                                                                    >
+                                                                        <p onClick={handleReportView} className="p-2 hover:bg-zinc-50 cursor-pointer text-zinc-700 font-medium text-left">View</p>
+                                                                    </div>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     ))}

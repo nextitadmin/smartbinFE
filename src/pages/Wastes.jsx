@@ -68,7 +68,7 @@ const Wastes = () => {
 
                 const newData = list.map((item, index) => ({
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
-                    wasteId: item.wasteID || item.wasteId || item.id,
+                    wasteId: item.wasteID || item.wasteId || item._id,
                     date: (item.requestDate || item.date || item.createdAt || item.generatedDate)?.slice(0, 10),
                     address: item.address || "N/A",
                     status: item.statusName || item.status || "Pending",
@@ -350,7 +350,7 @@ const Wastes = () => {
 
             const response = await api.post("/wallets/charge", {
                 amount,
-                reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase()
+
             });
             const data = response.data;
 
@@ -358,13 +358,13 @@ const Wastes = () => {
 
             if (data.succeeded || data.success) {
                 console.log("Wallet payment successful:", data);
-                 let successRef;
-                 if (data.message && data.message.includes('|')) {
-                     successRef = data.message.split('|')[1]?.trim();
-                 }
-                 if (!successRef) {
-                     successRef = data.data?.transactionReference || data.data?.reference || data.data?.transRef || data.reference;
-                 }
+                let successRef;
+                if (data.message && data.message.includes('|')) {
+                    successRef = data.message.split('|')[1]?.trim();
+                }
+                if (!successRef) {
+                    successRef = data.data?.transactionReference || data.data?.reference || data.data?.transRef || data.reference;
+                }
                 if (!successRef) {
                     successRef = 'N/A';
                 }
@@ -427,13 +427,31 @@ const Wastes = () => {
     };
 
     const handlePickupRequest = async () => {
-        if (pickupRequestData.date && pickupRequestData.time && pickupRequestData.phone && pickupRequestData.address && pickupRequestData.note) {
-            closeModal('pickup');
-            setNotification({ type: 'success', message: 'Saved successfully, complete payment!' });
-            openModal('payment');
-        } else {
-            setNotification({ type: 'error', message: "Fill all fields" });
+        if (!pickupRequestData.date) {
+            setNotification({ type: 'error', message: 'Pickup date is required' });
+            return;
         }
+        if (!pickupRequestData.time) {
+            setNotification({ type: 'error', message: 'Pickup time is required' });
+            return;
+        }
+        const phoneClean = (pickupRequestData.phone || '').trim().replace(/[\s\-()]/g, '');
+        if (!phoneClean || phoneClean.length < 8 || phoneClean.length > 15) {
+            setNotification({ type: 'error', message: 'Please enter a valid phone number' });
+            return;
+        }
+        if (!pickupRequestData.address || !pickupRequestData.address.trim()) {
+            setNotification({ type: 'error', message: 'Address is required' });
+            return;
+        }
+        if (!pickupRequestData.note || !pickupRequestData.note.trim()) {
+            setNotification({ type: 'error', message: 'Note is required' });
+            return;
+        }
+
+        closeModal('pickup');
+        setNotification({ type: 'success', message: 'Saved successfully, complete payment!' });
+        openModal('payment');
     };
 
 
@@ -675,7 +693,7 @@ const Wastes = () => {
                                         key={option.id}
                                         className="px-6 py-4 rounded-lg flex items-center gap-4"
                                     >
-                                        <Icon />
+                                        {Icon && <Icon />}
                                         <span className="text-sm font-medium text-zinc-800 flex-grow">
                                             {option.text}
                                         </span>

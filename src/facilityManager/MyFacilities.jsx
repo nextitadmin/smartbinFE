@@ -107,7 +107,7 @@ const MyFacilities = () => {
         buildingName: item.buildingName,
         buildingType: item.buildingType || '',
         address: item.address,
-        lga: getLgaId(item.localGovernment || item.lga),
+        lga: getLgaId(item.localGovernmentArea || item.localGovernment || item.lga),
         closestLandmark: item.closestLandmark || '',
       }));
       setFacilities(mapped);
@@ -149,7 +149,10 @@ const MyFacilities = () => {
 
   const getLgaName = (lgaIdOrName) => {
     if (!lgaIdOrName) return '';
-    const found = lgasList.find(item => item._id === lgaIdOrName || item.id === lgaIdOrName || item.name === lgaIdOrName);
+    if (typeof lgaIdOrName === 'object') {
+      return lgaIdOrName.name || lgaIdOrName._id || lgaIdOrName.id || '';
+    }
+    const found = lgasList.find(item => item._id === lgaIdOrName || item.id === lgaIdOrName || (item.name && item.name.toLowerCase() === String(lgaIdOrName).toLowerCase()));
     return found ? found.name : lgaIdOrName;
   };
 
@@ -185,7 +188,7 @@ const MyFacilities = () => {
           buildingName: detail.buildingName || '',
           buildingType: detail.buildingType || '',
           address: detail.address || '',
-          lga: getLgaId(detail.localGovernment || detail.lga),
+          lga: getLgaId(detail.localGovernmentArea || detail.localGovernment || detail.lga),
           closestLandmark: detail.closestLandmark || '',
         });
       } else if (resData) {
@@ -194,7 +197,7 @@ const MyFacilities = () => {
           buildingName: detail.buildingName || '',
           buildingType: detail.buildingType || '',
           address: detail.address || '',
-          lga: getLgaId(detail.localGovernment || detail.lga),
+          lga: getLgaId(detail.localGovernmentArea || detail.localGovernment || detail.lga),
           closestLandmark: detail.closestLandmark || '',
         });
       }
@@ -315,7 +318,7 @@ const MyFacilities = () => {
                 </div>
               </div>
 
-              <div className="overflow-x-auto rounded-3xl border border-zinc-200 bg-white shadow-sm">
+              <div className="overflow-x-auto rounded-3xl border border-zinc-200 bg-white shadow-sm min-h-[280px]">
                 <table className="min-w-full text-left text-sm text-zinc-700">
                   <thead className="bg-zinc-50 text-xs uppercase tracking-wider text-zinc-500">
                     <tr>

@@ -208,10 +208,12 @@ const ReportsPage = () => {
         );
     };
     const fetchReportsAPI = async() =>{
+        setIsLoading(true);
         try {
             const { data } = await api.get(`/corporate/reports`);
             if(data.success){
-                const reportList = data.data.map((item) => ({                    
+                const reportsArray = data.data?.reports || data.data || [];
+                const reportList = reportsArray.map((item) => ({                    
                     id : item._id,
                     reportType : item.type,
                     reportTitle : item.reportName,
@@ -221,12 +223,13 @@ const ReportsPage = () => {
                 setReports(reportList);
             }
         } catch (error) {
-            
+            console.error("Error fetching reports:", error);
+        } finally {
+            setIsLoading(false);
         }
     }
     useEffect(() => {
         fetchReportsAPI();
-        setIsLoading(false);
     }, []);
 
     const showNotification = (message, type) => {

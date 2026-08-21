@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../api/axiosConfig';
 import useAuthStore from '../store/authStore';
 
@@ -11,10 +12,13 @@ const Pay4ItButton = ({
   userType = 'resident', // 'resident', 'corporate', 'facilityManager', or 'agent'
   customEndpoint = '',
   customPayload = {},
+  reference = '', // Optional pre-existing reference
   onSuccess,
   onClose,
   onPaymentWindowOpen,
+  onBeforePayment,
   buttonText = 'Confirm Top Up',
+
   buttonClassName = 'w-full inline-flex justify-center items-center px-4 py-4 border border-transparent font-medium rounded-xl shadow-sm text-white bg-green-700 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-200',
 }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -71,10 +75,9 @@ const Pay4ItButton = ({
           amount: Number(amount),
           reference: clientRef,
         };
-      } else if (endpoint.endsWith('/wallets/charge')) {
+      } else if (endpoint.endsWith('/wallets/charge') || endpoint.includes('/charge')) {
         payload = {
           amount: Number(amount),
-          reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase(),
         };
       }
 
@@ -119,7 +122,24 @@ const Pay4ItButton = ({
       return;
     }
 
+    if (typeof onBeforePayment === 'function') {
+      setIsLoading(true);
+      try {
+        const canProceed = await onBeforePayment();
+        if (!canProceed) {
+          setIsLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Validation before payment failed:', err);
+        showNotification(err.message || 'Validation failed. Please try again.', 'error');
+        setIsLoading(false);
+        return;
+      }
+    }
+
     setIsLoading(true);
+
 
     try {
       if (!window.Pay4it) {
@@ -128,8 +148,15 @@ const Pay4ItButton = ({
         return;
       }
 
-      // Step A: Fetch transaction reference from BE based on user type
-      const { reference: transactionRef, callbackUrl } = await fetchTransactionReference();
+      // Step A: Fetch transaction reference from BE based on user type (or use pre-existing reference)
+      let transactionRef = reference;
+      let callbackUrl = null;
+
+      if (!transactionRef) {
+        const fetched = await fetchTransactionReference();
+        transactionRef = fetched.reference;
+        callbackUrl = fetched.callbackUrl;
+      }
 
       if (typeof onPaymentWindowOpen === 'function') {
         onPaymentWindowOpen(); // Close top-up modal or prepare UI if needed
@@ -182,16 +209,21 @@ const Pay4ItButton = ({
 
   return (
     <div className="relative w-full">
-      {notification.show && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${notification.type === 'error'
-          ? 'bg-red-100 border-l-4 border-red-500 text-red-700'
-          : notification.type === 'success'
-            ? 'bg-green-100 border-l-4 border-green-500 text-green-700'
-            : 'bg-blue-100 border-l-4 border-blue-500 text-blue-700'
-          }`}>
+      {notification.show && createPortal(
+        <div 
+          className={`fixed top-4 right-4 p-4 rounded-md shadow-lg ${notification.type === 'error'
+            ? 'bg-red-100 border-l-4 border-red-500 text-red-700'
+            : notification.type === 'success'
+              ? 'bg-green-100 border-l-4 border-green-500 text-green-700'
+              : 'bg-blue-100 border-l-4 border-blue-500 text-blue-700'
+            }`}
+          style={{ zIndex: 999999 }}
+        >
           <p>{notification.message}</p>
-        </div>
+        </div>,
+        document.body
       )}
+
 
       <button
         onClick={handlePaymentClick}

@@ -82,7 +82,7 @@ const Dashboard = () => {
   // Payment modal data
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("card");
   const paymentOptions = [
-    { id: "card", text: "Pay by card/bank/transfer", icon: AlatIcon },
+    { id: "card", text: "Pay with Card/Bank/Transfer", icon: AlatIcon },
   ];
   const [notification, setNotification] = useState(null);
   const [walletBalance, setWalletBalance] = useState("");
@@ -272,10 +272,10 @@ const Dashboard = () => {
 
       if (data.succeeded || data.success) {
         // Get reference from backend response
-        const reference =
-          data?.reference ||
-          data?.data?.transactionReference ||
-          data?.data?.reference;
+        // const reference =
+        //   data?.reference ||
+        //   data?.data?.transactionReference ||
+        //   data?.data?.reference;
 
         if (reference) {
           console.log(" Backend provided reference:", reference);
@@ -307,10 +307,41 @@ const Dashboard = () => {
     }
   };
 
+  const checkSubscriptionBeforePayment = async () => {
+    try {
+      const response = await api.get('/subscription/status');
+      const { data } = response;
+      if ((data.success || data.succeeded) && data.data) {
+        const subscriptionData = data.data;
+        if (subscriptionData && subscriptionData.status === 'active') {
+          setNotification({
+            type: "error",
+            message: "You already have an active subscription. Please wait for it to expire before subscribing again.",
+          });
+          return false;
+        }
+      }
+    } catch (e) {
+      console.error("Error checking subscription status:", e);
+    }
+    return true;
+  };
+
   const handlePaymentWithWallet = async () => {
     const selectedPlan = subscriptionPlans.find(
       (item) => item.id === selectedSubscriptionPlan
     );
+
+    if (!selectedPlan) {
+      setNotification({ type: 'error', message: 'Please select a valid subscription plan.' });
+      return;
+    }
+
+    // Check if user already has an active subscription dynamically
+    if (!(await checkSubscriptionBeforePayment())) {
+      return;
+    }
+
 
     // Debug logging
     console.log("=== WALLET PAYMENT DEBUG ===");
@@ -1229,11 +1260,13 @@ const Dashboard = () => {
                 <Pay4ItButton
                   amount={subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan) ? (subscriptionPlans.find((item) => item.id === selectedSubscriptionPlan).originalPrice / 100) : 0}
                   customerName={useCorporateStore.getState().corporateInfo.companyName || "Corporate User"}
-                  email={corporateInfo.email || ""}
+                  email={useCorporateStore.getState().corporateInfo?.emailAddress || useCorporateStore.getState().corporateInfo?.email || ""}
                   userType="corporate"
                   customEndpoint="/wallets/charge"
                   customPayload={{ paymentPurpose: "Subscription Application" }}
+                  onBeforePayment={checkSubscriptionBeforePayment}
                   onSuccess={(res) => {
+
                     console.log("Pay4It subscription success:", res);
                     const finalRef = res.reference || res.tranref;
                     handlePayment({ data: { reference: finalRef } });
@@ -1456,7 +1489,7 @@ const Dashboard = () => {
                     </label>
                     <div className="mt-1 mb-4 flex items-center gap-2 p-3 border border-zinc-300 rounded-xl bg-zinc-50">
                       <span className="font-medium text-zinc-800">
-                        Pay by card/bank/transfer
+                        Pay with Card/Bank/Transfer
                       </span>
                     </div>
                   </div>

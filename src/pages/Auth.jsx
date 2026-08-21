@@ -60,6 +60,33 @@ export default function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setNotification(null);
+
+        // Validate Email Presence
+        if (!form.email.trim()) {
+            setNotification({ type: "error", message: "Email address is required." });
+            return;
+        }
+
+        // Validate Email Format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(form.email)) {
+            setNotification({ type: "error", message: "Please enter a valid email address." });
+            return;
+        }
+
+        // Validate Password Presence
+        if (!form.password) {
+            setNotification({ type: "error", message: "Password is required." });
+            return;
+        }
+
+        // Validate Password Length (minimum 6 characters)
+        if (form.password.length < 6) {
+            setNotification({ type: "error", message: "Password must be at least 6 characters long." });
+            return;
+        }
+
         setStartLogin(true);
 
         const loginEndpoints = {
@@ -68,11 +95,11 @@ export default function Login() {
             corporate: "/corporate/login",
             facilitymgr: "/facility-managers/login",
         };
-        // const url = form.userType === 'agent' ? '/agents/login' : 'resident' ? '/residents/login' : 'facilitymgr'? '/facility-managers/login' : '';
         const url = loginEndpoints[form.userType];
 
         if (!url) {
             setNotification({ type: "error", message: "Invalid user type" });
+            setStartLogin(false);
             return;
         }
         try {
@@ -93,7 +120,7 @@ export default function Login() {
             setStartLogin(false);
              setNotification({
                     type: "error",
-                    message: error.response.data.message || "Wrong email or password",
+                    message: error.response?.data?.message || "Wrong email or password",
                 });
             console.error("Error during login", error);
         }

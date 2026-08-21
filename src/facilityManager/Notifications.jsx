@@ -76,19 +76,30 @@ function NotificationsPage() {
 
     const fetchSettings = async () => {
         try {
-            const { data } = await api.get(`/Notification/my-service-config?residentId=${useAuthStore.getState().token}`)
-            if (data.succeeded) {
+            const { data } = await api.get('/notifications/settings')
+            if (data.succeeded || data.success) {
+                const findSettingsObject = (obj) => {
+                    if (!obj || typeof obj !== 'object') return null;
+                    if ('sms' in obj || 'email' in obj) return obj;
+                    for (const key in obj) {
+                        const found = findSettingsObject(obj[key]);
+                        if (found) return found;
+                    }
+                    return null;
+                };
+                const d = findSettingsObject(data) || {};
                 setSettings({
                     receiveMethod: {
-                        sms: data.data.sms,
-                        email: data.data.email,
-                        inApp: data.data.inAppNotification,
+                        sms: d.sms ?? false,
+                        email: d.email ?? false,
+                        inApp: d.inApp ?? d.inAppNotification ?? false,
                     },
-                    applicationUpdates: data.data.applicationUpdate,
-                    smartBinUpdates: data.data.smartBinUpdate,
-                    lowWalletBalance: data.data.lowWalletBalance,
+                    applicationUpdates: d.appUpdates ?? d.applicationUpdate ?? false,
+                    smartBinUpdates: d.smartBinUpdates ?? d.smartBinUpdate ?? false,
+                    lowWalletBalance: d.lowWalletBalance ?? false,
                 });
             }
+
         } catch (error) {
             console.log("error", error);
         } finally {
@@ -130,12 +141,11 @@ function NotificationsPage() {
         clearNotification();
         // Prepare data to send to the API
         const dataToSend = {
-            residentId: useAuthStore.getState().token,
             sms: settings.receiveMethod.sms,
             email: settings.receiveMethod.email,
-            inAppNotification: settings.receiveMethod.inApp,
-            applicationUpdate: settings.applicationUpdates,
-            smartBinUpdate: settings.smartBinUpdates,
+            inApp: settings.receiveMethod.inApp,
+            appUpdates: settings.applicationUpdates,
+            smartBinUpdates: settings.smartBinUpdates,
             lowWalletBalance: settings.lowWalletBalance
         };
         console.log('Sending notification settings to API:', JSON.parse(JSON.stringify(dataToSend)));
@@ -143,13 +153,14 @@ function NotificationsPage() {
         try {
             // --- Replace with actual API call using axios ---
             // Use PUT or POST depending on your API design for updates
-            const { data } = await api.post("/Notification/new-service-config", dataToSend); // Or axios.post
+            const { data } = await api.put("/notifications/settings", dataToSend); // Or axios.post
             console.log('API Response:', data);
 
             // Assuming API returns { success: true, message: '...' } on success
-            if (data.succeeded) {
+            if (data.succeeded || data.success) {
                 setNotification({ type: 'success', message: data.message || 'Notification settings updated successfully!' });
             }
+
 
             // Optionally update default settings state if needed after successful save
             // defaultNotificationSettings = { ...settings }; // Be careful with mutating defaults directly

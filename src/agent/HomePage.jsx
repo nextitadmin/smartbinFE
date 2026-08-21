@@ -167,15 +167,11 @@ const Dashboard = () => {
     const [notification, setNotification] = useState(null);
 
     const paymentOptions = [
-        { id: 'card', text: 'Pay by card/bank/transfer', icon: AlatIcon },
+        { id: 'card', text: 'Pay with Card/Bank/Transfer', icon: AlatIcon },
     ];
 
-    const subscriptionPlans = [
-        { id: 1, duration: '1 month', price: '₦5,000', pricePerMonth: '₦5,000 per month', amountVal: 5000 },
-        { id: 3, duration: '3 months', price: '₦12,000', pricePerMonth: '₦4,000 per month', amountVal: 12000 },
-        { id: 6, duration: '6 months', price: '₦20,000', pricePerMonth: '₦3,300 per month', amountVal: 20000 },
-        { id: 12, duration: '1 year', price: '₦35,000', pricePerMonth: '₦2,917 per month', amountVal: 35000 },
-    ];
+    const [subscriptionPlans, setSubscriptionPlans] = useState([]);
+
 
     // ── Derived values from API ──
     const d = dashboardData ?? {};
@@ -237,9 +233,33 @@ const Dashboard = () => {
         }
     };
 
+    const fetchSubscriptionPlans = async () => {
+        try {
+            const { data } = await api.get('/subscription/plans');
+            if (data.success && Array.isArray(data.data)) {
+                const plans = data.data.map((item) => {
+                    const priceInNaira = item.price / 100;
+                    const pricePerMonthVal = Math.round(priceInNaira / (item.interval === "year" ? 12 : item.duration));
+                    return {
+                        id: item._id,
+                        duration: `${item.name}`,
+                        price: `₦${priceInNaira.toLocaleString()}`,
+                        pricePerMonth: `₦${pricePerMonthVal.toLocaleString()} per month`,
+                        amountVal: priceInNaira,
+                        originalPrice: item.price
+                    };
+                });
+                setSubscriptionPlans(plans);
+            }
+        } catch (error) {
+            console.error("Error fetching subscription plans:", error);
+        }
+    };
+
     useEffect(() => {
         fetchDashboard();
         fetchBalance();
+        fetchSubscriptionPlans();
     }, []);
 
     // ── Payment handlers ──

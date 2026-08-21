@@ -44,9 +44,9 @@ const ServiceConfigNav = () => {
                 </NavLink>
 
                 <NavLink
-                    to="/client-preferences">
+                    to="/subscription">
                     <p className={`items-left text-sm lg:text-md  justify-start p-2  ${location.pathname === '/client-preferences' ? 'text-green-700 border-b-2  border-green-700' : 'text-zinc-700'}`}>
-                        Client Preferences
+                        Subscription
                     </p>
                 </NavLink>
             </div>

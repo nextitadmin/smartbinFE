@@ -120,12 +120,14 @@ function SubscriptionPage() {
                 const subscriptionData = data.data;
                 if (subscriptionData && subscriptionData.status === 'active') {
                     const sub = {
-                        id: subscriptionData.planId || 'active',
+                        id: subscriptionData.plan || subscriptionData.planId || 'active',
                         duration: subscriptionData.planName || 'Active Subscription',
                         price: `₦${subscriptionData.amount || 0}`,
                         pricePerMonth: `₦${subscriptionData.amount || 0} per month`,
+                        endDate: subscriptionData.endDate || subscriptionData.expiryDate || null
                     };
                     setSubscription(sub);
+
                     setStatus('active');
                 } else {
                     setStatus('inactive');
@@ -157,15 +159,55 @@ function SubscriptionPage() {
         setIsModalOpen(false);
     };
 
+    const checkSubscriptionBeforePayment = async () => {
+        try {
+            const response = await api.get('/subscription/status');
+            const { data } = response;
+            if ((data.success || data.succeeded) && data.data) {
+                const subscriptionData = data.data;
+                if (subscriptionData && subscriptionData.status === 'active') {
+                    setNotification({
+                        type: 'error',
+                        message: 'You already have an active subscription. Please wait for it to expire before subscribing again.'
+                    });
+                    const sub = {
+                        id: subscriptionData.plan || subscriptionData.planId || 'active',
+                        duration: subscriptionData.planName || 'Active Subscription',
+                        price: `₦${subscriptionData.amount || 0}`,
+                        pricePerMonth: `₦${subscriptionData.amount || 0} per month`,
+                        endDate: subscriptionData.endDate || subscriptionData.expiryDate || null
+                    };
+                    setSubscription(sub); // update local state
+                    setStatus('active');
+                    return false;
+                }
+            }
+        } catch (e) {
+            console.error("Error checking subscription status:", e);
+        }
+        return true;
+    };
+
     const handlePaymentWithWallet = async () => {
         const selectedPlan = subscriptionPlans.find((item) => item.id === selectedPlanId);
+
+        if (!selectedPlan) {
+            setNotification({ type: 'error', message: 'Please select a valid subscription plan.' });
+            return;
+        }
+
+        // Check if user already has an active subscription dynamically
+        if (!(await checkSubscriptionBeforePayment())) {
+            return;
+        }
 
         try {
             const amount = selectedPlan.originalPrice ? (selectedPlan.originalPrice / 100) : parseInt(String(selectedPlan.price).replace(/[^\d]/g, ''));
 
+
             const response = await api.post("/wallets/charge", {
                 amount,
-                reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase()
+                // reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase()
             });
             const data = response.data;
 
@@ -236,7 +278,6 @@ function SubscriptionPage() {
                 const amount = selectedPlan.originalPrice ? (selectedPlan.originalPrice / 100) : parseInt(String(selectedPlan.price).replace(/[^\d]/g, ''));
                 const chargeResponse = await api.post("/wallets/charge", {
                     amount,
-                    reference: 'SB-CHARG-' + Date.now() + Math.random().toString(36).substring(2, 10).toUpperCase()
                 });
                 const chargeData = chargeResponse.data;
                 if (chargeData.succeeded || chargeData.success) {
@@ -292,12 +333,21 @@ function SubscriptionPage() {
             <div className="py-6 px-4 lg:max-w-[500px] mx-auto">
                 <h3 className="text-sm font-medium text-zinc-600 mb-3">Current subscription</h3>
                 <div className="p-4 border border-green-700 bg-[#f7f6ff] rounded-xl flex justify-between items-center">
-                    <span className="text-sm font-medium text-zinc-800">{currentPlan.duration}</span>
+                    <div>
+                        <span className="text-sm font-medium text-zinc-800">{currentPlan.duration}</span>
+                        <p className="text-xs text-zinc-500 mt-1">Status: Active</p>
+                    </div>
                     <div className="text-right">
                         <span className="text-sm font-semibold">{currentPlan.price}</span>
                         <span className="text-xs text-zinc-500 block">{currentPlan.pricePerMonth}</span>
+                        {subscription.endDate && (
+                            <span className="text-xs text-zinc-500 block mt-1">
+                                Expires: {new Date(subscription.endDate).toLocaleDateString()}
+                            </span>
+                        )}
                     </div>
                 </div>
+
                 <div className="flex justify-center mt-4">
                     <button
                         onClick={() => {
@@ -466,7 +516,9 @@ function SubscriptionPage() {
                                         customerName={`${useResidentStore.getState().residentInfo?.firstName || ''} ${useResidentStore.getState().residentInfo?.lastName || ''}`.trim() || "Resident User"}
                                         userType="resident"
                                         customEndpoint="/wallets/charge"
+                                        onBeforePayment={checkSubscriptionBeforePayment}
                                         onSuccess={(res) => {
+
                                             console.log("Pay4It subscription success:", res);
                                             const finalRef = res.reference || res.tranref;
                                             handlePayment({ data: { reference: finalRef } });

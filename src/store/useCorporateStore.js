@@ -20,6 +20,7 @@ const useCorporateStore = create(
         buildingType: "",
         landMark: "",
         lga: "",
+        lgaId: "",
         nextPickupDate: "",
       },
 
@@ -50,6 +51,7 @@ const useCorporateStore = create(
             buildingType: "",
             landMark: "",
             lga: "",
+            lgaId: "",
             nextPickupDate: "",
           },
         }),
@@ -61,6 +63,18 @@ const useCorporateStore = create(
 
           if (response.data.success) {
             const data = response.data.data;
+
+            let lgaName = data.localGovermentArea || "";
+            try {
+              const lgaRes = await api.get("/utility/get-lgas");
+              const lgas = lgaRes.data?.data || lgaRes.data || [];
+              const foundLga = lgas.find(item => item._id === lgaName || item.id === lgaName);
+              if (foundLga) {
+                lgaName = foundLga.name;
+              }
+            } catch (err) {
+              console.error("Error matching LGA name:", err);
+            }
 
             // Map ALL API response fields to match corporateInfo structure
             const mappedInfo = {
@@ -77,7 +91,8 @@ const useCorporateStore = create(
               lawmaCustomerType: data.lawmaCustomerType || "",
               buildingType: data.buildingType || "",
               landMark: data.landmark || "",
-              lga: data.localGovermentArea || "", // Note: API has typo "localGovermentArea"
+              lga: lgaName,
+              lgaId: data.localGovermentArea || "",
               nextPickupDate: data.nextPickupDate || "",
             };
 

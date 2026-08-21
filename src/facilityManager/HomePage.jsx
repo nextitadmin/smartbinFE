@@ -88,7 +88,7 @@ const Dashboard = () => {
     // Payment modal data
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card');
     const paymentOptions = [
-        { id: 'card', text: 'Pay by card/bank/transfer', icon: AlatIcon },
+        { id: 'card', text: 'Pay with Card/Bank/Transfer', icon: AlatIcon },
     ];
 
     const [notification, setNotification] = useState(null);
@@ -894,7 +894,7 @@ const Dashboard = () => {
                                     <div className="flex justify-between items-center py-2">
                                         <span className="text-zinc-500">Payment Method</span>
                                         <span className="font-medium text-zinc-800 flex items-center gap-1">
-                                            Pay by card/bank/transfer
+                                            Pay with Card/Bank/Transfer
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-center py-2">
@@ -1007,7 +1007,7 @@ const Dashboard = () => {
                                             </label>
                                             <div className="mt-1 mb-4 flex items-center gap-2 p-3 border border-zinc-300 rounded-xl bg-zinc-50">
                                                 <span className="font-medium text-zinc-800">
-                                                    Pay by card/bank/transfer
+                                                    Pay with Card/Bank/Transfer
                                                 </span>
                                             </div>
                                         </div>

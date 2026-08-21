@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../api/axiosConfig';
 import useAuthStore from '../store/authStore';
 
@@ -220,14 +221,19 @@ const AlatPayButton = ({
 
   return (
     <div className="relative w-full">
-      {notification.show && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${notification.type === 'error'
-          ? 'bg-red-100 border-l-4 border-red-500 text-red-700'
-          : 'bg-green-100 border-l-4 border-green-500 text-green-700'
-          }`}>
+      {notification.show && createPortal(
+        <div 
+          className={`fixed top-4 right-4 p-4 rounded-md shadow-lg ${notification.type === 'error'
+            ? 'bg-red-100 border-l-4 border-red-500 text-red-700'
+            : 'bg-green-100 border-l-4 border-green-500 text-green-700'
+            }`}
+          style={{ zIndex: 999999 }}
+        >
           <p>{notification.message}</p>
-        </div>
+        </div>,
+        document.body
       )}
+
 
       <button
         onClick={handlePaymentClick}
