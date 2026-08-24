@@ -62,7 +62,8 @@ const SmartBinTableCard = () => {
     const [customerNameList, setCustomerNameList] = useState([]);
 
     const [smartBinAmount, setSmartbinAmount] = useState(0);// Amount for the smart bin application
-    const [debitType, setDebitType] = useState(""); // Default debit type
+    const [facilityId, setFacilityId] = useState('');
+    const [debitType, setDebitType] = useState("");
     const [currentDataId, setCurrentDataId] = useState("");
 
     const clearNotification = () => {
@@ -84,24 +85,26 @@ const SmartBinTableCard = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/Facility-managers/smart-bin/applications?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
-            if (data.succeeded) {
-                const newData = data.data.data.map((item, index) => ({
-                    id: item.id,
+            const { data } = await api.get(`/facility-managers/smart-bin/applications?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
+            const succeeded = data.success || data.succeeded;
+            if (succeeded && data.data) {
+                const list = Array.isArray(data.data.data) ? data.data.data : (Array.isArray(data.data) ? data.data : []);
+                const newData = list.map((item, index) => ({
+                    id: item.id || item._id,
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
-                    orderId: item.orderID,
-                    date: item.requestDate?.slice(0, 10),
-                    address: item.residentDetails,
-                    status: item.statusName,
+                    orderId: item.orderID || item.orderId || '',
+                    date: (item.requestDate || item.createdAt || '').slice(0, 10),
+                    address: item.residentDetails || item.address || '-',
+                    status: item.statusName || item.status || 'Pending',
                     deliveredDate: item.deliveredDate,
                     deliveredBy: item.deliveredBy,
                     approvedDate: item.approvedDate,
-                    customerName: item.residentFullName,
-                    customerType: item.customerType,
-                }));;
+                    customerName: item.residentFullName || item.customerName || '',
+                    customerType: item.customerType || 'Resident',
+                }));
                 setApplications(newData);
-                setTotalPages(data.data.totalPages);
-                setTotalItems(data.data.totalCount);
+                setTotalPages(data.data.totalPages || data.meta?.paging?.pages || 0);
+                setTotalItems(data.data.totalCount || data.meta?.paging?.total || 0);
             }
         } catch (error) {
             console.log(error);
@@ -331,10 +334,22 @@ const SmartBinTableCard = () => {
             console.log("Error fetching lga", error);
         }
     }
+    const fetchFacilities = async () => {
+        try {
+            const { data } = await api.get('/facilities');
+            const list = data.data?.facilities || data.facilities || [];
+            if (list.length > 0) {
+                setFacilityId(list[0]._id || list[0].id || '');
+            }
+        } catch (error) {
+            console.error("Error fetching facilities:", error);
+        }
+    };
 
 
     useEffect(() => {
         fetchLga();
+        fetchFacilities();
         setFormData({
             customerName: {
                 text: '',
@@ -499,9 +514,34 @@ const SmartBinTableCard = () => {
 
     const submitApplication = (e) => {
         e.preventDefault();
+        
+        if (!selfRequest && !formData.customerName?.value) {
+            setNotification({ type: 'error', message: 'Please select a tenant.' });
+            return;
+        }
+        if (!formData.email) {
+            setNotification({ type: 'error', message: 'Email address is required.' });
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            setNotification({ type: 'error', message: 'Please enter a valid email address.' });
+            return;
+        }
+        if (!formData.phoneNo) {
+            setNotification({ type: 'error', message: 'Phone number is required.' });
+            return;
+        }
+        if (!/^\+?[0-9]{8,15}$/.test(formData.phoneNo.replace(/\s+/g, ''))) {
+            setNotification({ type: 'error', message: 'Please enter a valid phone number.' });
+            return;
+        }
+        if (!formData.buildingType || !formData.streetName || !formData.lga) {
+            setNotification({ type: 'error', message: 'Please fill in all address details (Building Type, Address/Street, LGA).' });
+            return;
+        }
+
         console.log("Form Submitted:", formData);
         setModal(false);
-        // setNotification({ type: 'success', message:'Submitted successfully!' });
         openModal('payment');
     };
 
@@ -565,25 +605,26 @@ const SmartBinTableCard = () => {
         console.log("Payment response:", response);
         if (ref !== '' && amount !== '' && channel !== '') {
             try {
-                const { data } = await api.post("/FacilityMgr/agent-new-bin-application", {
-                    customerName: formData.customerName.value,
-                    customerType: formData.customerType,
-                    phoneNo: formData.phoneNo,
-                    emailAddress: formData.email,
-                    payerID: formData.payerId,
-                    useYourAddress: selfRequest,
+                const payload = {
+                    tenantName: formData.customerName?.text || formData.customerName?.value || 'Self',
+                    binType: formData.binType?.toLowerCase() || 'smart',
+                    email: formData.email,
+                    phone: formData.phoneNo,
+                    payerId: formData.payerId,
+                    lawmaCustomerType: formData.lawmaCustomerType || 'Existing',
+                    closestLandmark: formData.closestLandmark,
+                    buildingName: formData.houseNo || formData.streetName || '',
                     buildingType: formData.buildingType,
-                    houseNo: formData.houseNo,
-                    flatNo: formData.flatNo,
+                    flatNumber: formData.flatNo || '',
+                    localGovernmentArea: formData.lga,
                     address: formData.streetName,
-                    lga: formData.lga,
-                    landmark: formData.closestLandmark,
-                    lawmaCustomerType: formData.lawmaCustomerType,
-                    paymentType: channel,
-                    paidAmount: amount,
-                    transRef: ref,
-                });
-                if (data.succeeded) {
+                    receiptId: ref,
+                    facilityId: facilityId || '64f8b6d82f2e4c4b1c7e92a1',
+                    transactionReference: ref
+                };
+                console.log("Submitting FM application with payload:", payload);
+                const { data } = await api.post("/facility-managers/smart-bin/applications", payload);
+                if (data.success || data.succeeded) {
                     setNotification({ type: 'success', message: 'Submitted successfully!' });
                     closeModal('payment');
                 }

@@ -12,7 +12,7 @@ const ApplyForSmartBinForm = lazy(() => import("../agent/ApplyForSmartBinForm"))
 const KYCApplication = lazy(() => import("../agent/AgentKYCApplicationForm"));
 const Headless = lazy(() => import("../agent/ApplyForSmartBinFormHeadless"));
 const Bills = lazy(() => import("../agent/Bills"));
-const Wastes = lazy(() => import("../agent/Wastes"));
+// const Wastes = lazy(() => import("../agent/Wastes"));
 const Wallet = lazy(() => import("../agent/Wallet"));
 const PaymentReceipts = lazy(() => import("../agent/PaymentsReceipts"));
 const PaymentHistory = lazy(() => import("../agent/Payments"));
@@ -202,16 +202,16 @@ const agentRoutes = [
             </Suspense>
         ),
     },
-    {
-        path: "/wastes",
-        element: (
-            <Suspense fallback={<LoadingComponent />}>
-                <ProtectedRoute>
-                    <Wastes />
-                </ProtectedRoute>
-            </Suspense>
-        ),
-    },
+    // {
+    //     path: "/wastes",
+    //     element: (
+    //         <Suspense fallback={<LoadingComponent />}>
+    //             <ProtectedRoute>
+    //                 <Wastes />
+    //             </ProtectedRoute>
+    //         </Suspense>
+    //     ),
+    // },
     {
         path: "/team-members",
         element: (

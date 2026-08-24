@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api from '../api/axiosConfig';
 
 // Raw SVG Icons from Heroicons (adjusted for direct use)
 const EyeIcon = ({ className = 'w-5 h-5' }) => (
@@ -307,26 +308,63 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
         });
     };
 
-    // Simulate fetching user data
+    // Fetch user data from backend API
     const getUser = async (userType, userId) => {
         try {
-            const response = await mockApiCall({ id: userId, type: userType }, devMode);
-            if (response.success && response.data) {
-                const fetchedData = response.data;
-                setUserData(prev => ({
-                    ...prev,
-                    customerType: userType,
-                    ...fetchedData
-                }));
-                if (userType === 'corporate' && fetchedData.branches?.length > 0) {
-                    setBranches(fetchedData.branches.map(branch => ({
-                        ...branch,
-                        isCollapsed: false
-                    })));
+            let fetchedData = {};
+            if (userType === 'corporate') {
+                const response = await api.get(`/corporates-management/${userId}`);
+                if (response.data?.success || response.data?.succeeded) {
+                    const data = response.data.data;
+                    fetchedData = {
+                        payerId: data.payerId || '',
+                        businessName: data.businessName || '',
+                        corporateFirstName: data.firstName || '',
+                        corporateLastName: data.lastName || '',
+                        corporateEmailAddress: data.email || '',
+                        corporatePhoneNumber: data.phoneNumber || '',
+                        branches: (data.branches || []).map(b => ({
+                            branchName: b.branchName || '',
+                            address: b.branchAddress || '',
+                            localGovernment: b.localGovernmentArea || '',
+                            closestLandmark: b.closestLandmark || '',
+                            lawmaCustomerType: b.lawmaCustomerType === 'Returning' ? 'existing' : (b.lawmaCustomerType === 'New' ? 'new' : ''),
+                            isCollapsed: true
+                        }))
+                    };
+                }
+            } else {
+                const response = await api.get(`/residents-management/${userId}`);
+                if (response.data?.success || response.data?.succeeded) {
+                    const data = response.data.data;
+                    fetchedData = {
+                        payerId: data.payerId || '',
+                        firstName: data.firstName || '',
+                        lastName: data.lastName || '',
+                        emailAddress: data.email || '',
+                        phoneNumber: data.phoneNumber || '',
+                        lawmaCustomerType: data.lawmaCustomerType === 'Returning' ? 'existing' : (data.lawmaCustomerType === 'New' ? 'new' : ''),
+                        buildingType: data.buildingType || '',
+                        houseNumber: data.houseNumber || '',
+                        flatNumber: data.flatNumber || '',
+                        fullAddress: data.address || '',
+                        localGovernment: data.localGovernmentArea || '',
+                        closestLandmark: data.closestLandmark || ''
+                    };
                 }
             }
+
+            setUserData(prev => ({
+                ...prev,
+                customerType: userType,
+                ...fetchedData
+            }));
+
+            if (userType === 'corporate' && fetchedData.branches?.length > 0) {
+                setBranches(fetchedData.branches);
+            }
         } catch (error) {
-            console.error("Failed to fetch user:", error);
+            console.error("Failed to fetch user details:", error);
         }
     };
 
@@ -397,21 +435,65 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId }) => 
         setIsSubmitting(true);
         try {
             const dataToSend = { ...userData };
-            if (userData.customerType === 'corporate') {
-                dataToSend.branches = branches;
+            let response;
+
+            if (userType === 'corporate') {
+                const payload = {
+                    payerId: dataToSend.payerId,
+                    businessName: dataToSend.businessName,
+                    firstName: dataToSend.corporateFirstName,
+                    lastName: dataToSend.corporateLastName,
+                    email: dataToSend.corporateEmailAddress,
+                    phoneNumber: dataToSend.corporatePhoneNumber,
+                    branches: branches.map(b => ({
+                        branchName: b.branchName,
+                        branchAddress: b.address,
+                        localGovernmentArea: String(b.localGovernment || b.localGovernmentArea || ''),
+                        closestLandmark: b.closestLandmark,
+                        state: b.state || "Lagos",
+                        lawmaCustomerType: b.lawmaCustomerType === 'existing' ? 'Returning' : (b.lawmaCustomerType === 'new' ? 'New' : 'Returning')
+                    })),
+                };
+                if (dataToSend.password) {
+                    payload.password = dataToSend.password;
+                    payload.confirmPassword = dataToSend.confirmPassword;
+                }
+                response = await api.patch(`/corporates-management/${userId}`, payload);
+            } else {
+                const payload = {
+                    firstName: dataToSend.firstName,
+                    lastName: dataToSend.lastName,
+                    email: dataToSend.emailAddress,
+                    phoneNumber: dataToSend.phoneNumber,
+                    customerType: "Resident",
+                    payerId: dataToSend.payerId,
+                    buildingType: dataToSend.buildingType,
+                    streetName: dataToSend.fullAddress,
+                    houseNumber: dataToSend.houseNumber,
+                    flatNumber: dataToSend.flatNumber,
+                    address: dataToSend.fullAddress,
+                    closestLandmark: dataToSend.closestLandmark,
+                    localGovernmentArea: String(dataToSend.localGovernment || ''),
+                    lawmaCustomerType: dataToSend.lawmaCustomerType === 'existing' ? 'Returning' : (dataToSend.lawmaCustomerType === 'new' ? 'New' : 'Returning')
+                };
+                if (dataToSend.password) {
+                    payload.password = dataToSend.password;
+                    payload.confirmPassword = dataToSend.confirmPassword;
+                }
+                response = await api.patch(`/residents-management/${userId}`, payload);
             }
 
-            const response = await editUserMockApiCall(dataToSend, devMode);
-            if (response.success) {
-                setSuccessMessage(response.message);
+            const isSuccess = response.data?.success || response.data?.succeeded || false;
+            if (isSuccess) {
+                setSuccessMessage(response.data?.message || 'User updated successfully!');
                 setShowSuccessModal(true);
             } else {
-                console.error("API Error:", response.message);
-                alert("Failed to update user: " + response.message);
+                console.error("API Error:", response.data?.message);
+                alert("Failed to update user: " + (response.data?.message || 'Unknown error'));
             }
         } catch (error) {
             console.error("Submission error:", error);
-            alert("An error occurred during submission.");
+            alert("An error occurred during submission: " + (error.response?.data?.message || error.message));
         } finally {
             setIsSubmitting(false);
         }

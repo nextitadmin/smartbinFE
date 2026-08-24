@@ -24,9 +24,14 @@ function NewKycApplication() {
 
     const checkStatus = async () => {
         try {
-            const { data } = await api.get('/agent/kyc/status')
-            if ((data.succeeded || data.success) && data.data && data.data.hasSubmittedIdentity) {
-                setKycStatus(true);
+            const { data } = await api.get('/agent/kyc/status');
+            const succeeded = data.succeeded || data.success;
+            if (succeeded && data.data) {
+                const hasSubmitted = 
+                    data.data.hasSubmittedIdentity || 
+                    data.data.hasSubmittedPersonalInformation || 
+                    data.data.hasSubmittedAddress;
+                setKycStatus(!!hasSubmitted);
             } else {
                 setKycStatus(false);
             }

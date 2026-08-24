@@ -4,50 +4,58 @@ import Topbar from '../components/AgentTopBar';
 import SignUpModal from '../components/AgentSignUpModal';
 import EditUserModal from '../components/AgentEditUser';
 import CsvUploader from '../components/CsvUploader';
+import api from '../api/axiosConfig';
 
-// --- DUMMY DATA ---
-const initialUsers = [
-    { id: 1, name: 'Adébímpé Sóríyán', email: 'adebimpesoriyan@gmail.com', customerType: 'Resident', phoneNumber: '08025389102', dateAdded: '21-01-25' },
-    { id: 2, name: 'Blue Way Limited', email: 'bluewaylimited@business.co', customerType: 'Corporate', phoneNumber: '08025784726', dateAdded: '22-01-25' },
-    { id: 3, name: 'Soya Limited Enterprises', email: 'soyalimitedenter@soya.co', customerType: 'Corporate', phoneNumber: '08162904836', dateAdded: '24-01-25' },
-    { id: 4, name: 'Martins Madueke', email: 'martinsmadueke@hotmail.com', customerType: 'Resident', phoneNumber: '07025780192', dateAdded: '28-01-25' },
-    { id: 5, name: 'Fisayo Mabel', email: 'fisayomabel@yahoo.com', customerType: 'Resident', phoneNumber: '09011892739', dateAdded: '28-01-25' },
-    { id: 6, name: 'Chicken & Co. Restaurant', email: 'chickenandcofood@toc.com', customerType: 'Corporate', phoneNumber: '07038902948', dateAdded: '28-01-25' },
-    { id: 7, name: 'Jane Doe', email: 'janedoe@example.com', customerType: 'Resident', phoneNumber: '08012345678', dateAdded: '29-01-25' },
-    { id: 8, name: 'Tech Solutions Inc.', email: 'contact@techsolutions.com', customerType: 'Corporate', phoneNumber: '09087654321', dateAdded: '30-01-25' },
-    { id: 9, name: 'John Smith', email: 'johnsmith@personal.net', customerType: 'Resident', phoneNumber: '08123456789', dateAdded: '01-02-25' },
-    { id: 10, name: 'Global Exports', email: 'info@globalexports.biz', customerType: 'Corporate', phoneNumber: '07098765432', dateAdded: '02-02-25' },
-    { id: 11, name: 'Emily White', email: 'emily.white@email.com', customerType: 'Resident', phoneNumber: '08055555555', dateAdded: '03-02-25' },
-    { id: 12, name: 'Innovate LLC', email: 'support@innovatellc.com', customerType: 'Corporate', phoneNumber: '08144444444', dateAdded: '04-02-25' },
-    { id: 13, name: 'Peter Jones', email: 'peter.jones@inbox.com', customerType: 'Resident', phoneNumber: '09033333333', dateAdded: '05-02-25' },
-    { id: 14, name: 'Mega Corp', email: 'hr@megacorp.com', customerType: 'Corporate', phoneNumber: '07022222222', dateAdded: '06-02-25' },
-    { id: 15, name: 'Sarah Brown', email: 'sarah.b@mail.com', customerType: 'Resident', phoneNumber: '08111111111', dateAdded: '07-02-25' },
-    { id: 16, name: 'Alpha Traders', email: 'sales@alphatraders.com', customerType: 'Corporate', phoneNumber: '09099999999', dateAdded: '08-02-25' },
-    { id: 17, name: 'David Green', email: 'david.green@web.com', customerType: 'Resident', phoneNumber: '08088888888', dateAdded: '09-02-25' },
-    { id: 18, name: 'Pinnacle Group', email: 'info@pinnaclegroup.net', customerType: 'Corporate', phoneNumber: '07077777777', dateAdded: '10-02-25' },
-    { id: 19, name: 'Laura Black', email: 'laura.black@fastmail.com', customerType: 'Resident', phoneNumber: '08166666666', dateAdded: '11-02-25' },
-    { id: 20, name: 'Quantum Industries', email: 'contact@quantum.io', customerType: 'Corporate', phoneNumber: '09055555555', dateAdded: '12-02-25' },
-];
-
-// --- MOCK API ---
-const devMode = true; // Toggle this to switch between local and simulated API
+const devMode = false;
 
 const fetchUsers = async () => {
-    if (devMode) {
-        return new Promise(resolve => {
-            setTimeout(() => {
-                resolve(initialUsers);
-            }, 500); // Simulate network delay
-        });
-    } else {
-        // In a real scenario, you would fetch from an API endpoint
-        // For now, we'll just simulate it with the same local data
-        console.log("Simulating API call...");
-        return new Promise(resolve => {
-            setTimeout(() => {
-                resolve(initialUsers);
-            }, 1000); // Longer delay for simulated API call
-        });
+    const getList = (res) => {
+        if (!res || !res.data) return [];
+        const payload = res.data;
+        if (payload.success || payload.succeeded) {
+            const inner = payload.data;
+            if (Array.isArray(inner)) return inner;
+            if (inner && Array.isArray(inner.data)) return inner.data;
+            if (inner && Array.isArray(inner.corporates)) return inner.corporates;
+            if (inner && Array.isArray(inner.residents)) return inner.residents;
+        }
+        if (Array.isArray(payload)) return payload;
+        return [];
+    };
+
+    const mapUser = (item, type) => {
+        const name = item.fullName || item.name || item.businessName || item.companyName || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'No Name';
+        const email = item.email || item.emailAddress || '-';
+        const phoneNumber = item.phoneNumber || item.phoneNo || item.phone || '-';
+        const dateAddedRaw = item.createdAt || item.dateAdded || new Date();
+        const date = new Date(dateAddedRaw);
+        const dateAdded = isNaN(date.getTime()) 
+            ? 'N/A' 
+            : `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getFullYear()).slice(-2)}`;
+
+        return {
+            id: item._id || item.id,
+            name,
+            email,
+            customerType: type,
+            phoneNumber,
+            dateAdded
+        };
+    };
+
+    try {
+        const [corpRes, resRes] = await Promise.all([
+            api.get("/corporates-management"),
+            api.get("/residents-management")
+        ]);
+
+        const corporates = getList(corpRes).map(item => mapUser(item, 'Corporate'));
+        const residents = getList(resRes).map(item => mapUser(item, 'Resident'));
+
+        return [...corporates, ...residents];
+    } catch (error) {
+        console.error("Error fetching corporate and resident users:", error);
+        return [];
     }
 };
 
@@ -115,6 +123,8 @@ const UserManagement = () => {
     const [notification, setNotification] = useState(null);
     const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
     const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+    const [selectedUserId, setSelectedUserId] = useState('');
+    const [selectedUserType, setSelectedUserType] = useState('');
     const usersPerPage = 6;
 
 
@@ -182,11 +192,31 @@ const UserManagement = () => {
         setActiveActionMenu(null);
     };
 
-    const confirmDelete = () => {
-        setUsers(users.filter(u => u.id !== userToDelete.id));
-        setIsDeleteModalOpen(false);
-        setUserToDelete(null);
-        setIsSuccessModalOpen(true);
+    const confirmDelete = async () => {
+        try {
+            if (!userToDelete) return;
+            let response;
+            const userId = userToDelete.id;
+
+            if (userToDelete.customerType.toLowerCase() === 'corporate') {
+                response = await api.delete(`/corporates-management/${userId}`);
+            } else {
+                response = await api.delete(`/residents-management/${userId}`);
+            }
+
+            const isSuccess = response.data?.success || response.data?.succeeded || false;
+            if (isSuccess) {
+                setUsers(users.filter(u => u.id !== userId));
+                setIsDeleteModalOpen(false);
+                setUserToDelete(null);
+                setIsSuccessModalOpen(true);
+            } else {
+                alert("Failed to delete user: " + (response.data?.message || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error("Deletion error:", error);
+            alert("An error occurred while deleting the user: " + (error.response?.data?.message || error.message));
+        }
     };
 
     const handleComingSoon = (feature) => {
@@ -353,7 +383,13 @@ const UserManagement = () => {
                                                             <DotsVerticalIcon onClick={() => handleActionMenuToggle(user.id)} />
                                                             {activeActionMenu === user.id && (
                                                                 <div className="absolute right-8 top-0 z-10 w-48 bg-white rounded-xl shadow-lg border border-zinc-200">
-                                                                    <a href="#" onClick={(e) => { e.preventDefault(); setActiveActionMenu(null); setIsEditUserModalOpen(true); }} className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Edit user details</a>
+                                                                    <a href="#" onClick={(e) => { 
+                                                                        e.preventDefault(); 
+                                                                        setActiveActionMenu(null); 
+                                                                        setSelectedUserId(user.id);
+                                                                        setSelectedUserType(user.customerType.toLowerCase());
+                                                                        setIsEditUserModalOpen(true); 
+                                                                    }} className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Edit user details</a>
                                                                     <a href="#" onClick={(e) => { e.preventDefault(); handleDeleteClick(user); }} className="block px-4 py-2 text-sm text-red-600 hover:bg-zinc-100">Delete</a>
                                                                 </div>
                                                             )}
@@ -445,9 +481,9 @@ const UserManagement = () => {
             <EditUserModal
                 show={isEditUserModalOpen}
                 onClose={() => setIsEditUserModalOpen(false)}
-                devMode={true}
-                userType="corporate"
-                userId="user-123"
+                devMode={false}
+                userType={selectedUserType}
+                userId={selectedUserId}
             />
         </div>
 

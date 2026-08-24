@@ -162,28 +162,70 @@ const SmartBinApplication = () => {
     // ─── Sync appDetails when currentDataId changes ────────────────────────────
 
     useEffect(() => {
-        const details = applications.find((item) => item.id === currentDataId);
-        setAppDetails(details ?? {});
-    }, [currentDataId, applications]);
+        if (!currentDataId) return;
+        const fetchDetails = async () => {
+            try {
+                const { data } = await api.get(`/smartbin-applications/${currentDataId}`);
+                if (data.success || data.succeeded) {
+                    const item = data.data;
+                    setAppDetails({
+                        id: item.id || item._id,
+                        orderId: item.orderID ?? item.orderId ?? '',
+                        date: item.requestDate ?? item.date ?? '',
+                        address: item.residentDetails ?? item.address ?? '',
+                        status: item.statusName ?? item.status ?? '',
+                        deliveredDate: item.deliveredDate ?? '',
+                        deliveredBy: item.deliveredBy ?? '',
+                        approvedDate: item.approvedDate ?? '',
+                        customerName: item.residentFullName ?? item.customerName ?? '',
+                        customerType: item.customerType ?? '',
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching application details:', error);
+                const details = applications.find((item) => item.id === currentDataId);
+                setAppDetails(details ?? {});
+            }
+        };
+        fetchDetails();
+    }, [currentDataId]);
 
     // ─── Fetch customer name list ──────────────────────────────────────────────
-    // NOTE: Endpoint `/Agent/fetch-customer-name` does not exist on backend
-    // Commenting out to prevent 404 errors. Form works without pre-populated customer names.
+    const fetchCustomerNameList = async () => {
+        if (!formData.customerType) return;
+        try {
+            const isResident = formData.customerType === 'Resident';
+            const endpoint = isResident ? '/residents-management' : '/corporates-management';
+            const { data } = await api.get(endpoint);
+            
+            let list = [];
+            if (data.success || data.succeeded) {
+                const inner = data.data;
+                if (Array.isArray(inner)) list = inner;
+                else if (inner && Array.isArray(inner.data)) list = inner.data;
+                else if (inner && Array.isArray(inner.corporates)) list = inner.corporates;
+                else if (inner && Array.isArray(inner.residents)) list = inner.residents;
+            } else if (Array.isArray(data)) {
+                list = data;
+            }
 
-    // const fetchCustomerNameList = async () => {
-    //     const isResident = formData.customerType === 'Resident';
-    //     const isCorporate = formData.customerType === 'Corporate';
-    //     try {
-    //         const { data } = await api.get(`/Agent/fetch-customer-name?resident=${isResident}&corporate=${isCorporate}`);
-    //         if (data.succeded) setCustomerNameList(data.data);
-    //     } catch (error) {
-    //         console.error('Error fetching customer name list:', error);
-    //     }
-    // };
+            const formatted = list.map(item => {
+                const text = item.fullName || item.name || item.businessName || item.companyName || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'No Name';
+                return {
+                    text,
+                    value: item._id || item.id,
+                    ...item
+                };
+            });
+            setCustomerNameList(formatted);
+        } catch (error) {
+            console.error('Error fetching customer name list:', error);
+        }
+    };
 
-    // useEffect(() => {
-    //     fetchCustomerNameList();
-    // }, [formData.customerType]);
+    useEffect(() => {
+        fetchCustomerNameList();
+    }, [formData.customerType]);
 
     // ─── Fetch customer address when name selected ─────────────────────────────
     // NOTE: Endpoint `/Agent/fetch-customer-address` does not exist on backend
@@ -334,6 +376,24 @@ const SmartBinApplication = () => {
         navigate('/appmanager');
     };
 
+    const handleDeleteApplication = async () => {
+        if (!currentDataId) return;
+        if (!window.confirm("Are you sure you want to delete this smart bin application?")) return;
+        try {
+            const { data } = await api.delete(`/smartbin-applications/${currentDataId}`);
+            if (data.success || data.succeeded) {
+                setNotification({ type: 'success', message: 'Application deleted successfully!' });
+                setRowActionModal(false);
+                fetchData(); // refresh the table
+            } else {
+                setNotification({ type: 'error', message: data.message || 'Failed to delete application' });
+            }
+        } catch (error) {
+            console.error('Error deleting application:', error);
+            setNotification({ type: 'error', message: error.response?.data?.message || 'Error deleting application' });
+        }
+    };
+
     const handleBackgroundClick = (e) => {
         if (modalRef.current && !modalRef.current.contains(e.target)) {
             setRowActionModal(false);
@@ -348,7 +408,23 @@ const SmartBinApplication = () => {
     };
 
     const setNewCustomerType = (type) => setFormData((prev) => ({ ...prev, customerType: type }));
-    const setNewCustomerName = (type) => setFormData((prev) => ({ ...prev, customerName: type }));
+    const setNewCustomerName = (cust) => {
+        setFormData((prev) => ({
+            ...prev,
+            customerName: cust,
+            email: cust.email || cust.emailAddress || '',
+            phoneNo: cust.phoneNumber || cust.phoneNo || '',
+            payerId: cust.payerId || cust.payerID || '',
+            buildingType: cust.buildingType || '',
+            houseNo: cust.houseNumber || cust.houseNo || '',
+            flatNo: cust.flatNumber || cust.flatNo || '',
+            lga: cust.localGovernmentArea || cust.lga || '',
+            streetName: cust.address || cust.streetName || '',
+            closestLandmark: cust.closestLandmark || '',
+            lawmaCustomerType: cust.lawmaCustomerType === 'Returning' ? 'Existing' : (cust.lawmaCustomerType === 'New' ? 'New' : 'Existing')
+        }));
+        setIsDisabled(false);
+    };
 
     const cancelForm = () => {
         setFormData(emptyForm);
@@ -371,6 +447,51 @@ const SmartBinApplication = () => {
 
     const submitApplication = (e) => {
         e.preventDefault();
+
+        // Form fields validation checks
+        if (!formData.customerType) {
+            setNotification({ type: 'error', message: 'Please select a Customer Type.' });
+            return;
+        }
+        if (!formData.customerName?.value || !formData.customerName?.text) {
+            setNotification({ type: 'error', message: 'Please select a Customer Name.' });
+            return;
+        }
+        if (!formData.email || !formData.email.trim()) {
+            setNotification({ type: 'error', message: 'Email address is required.' });
+            return;
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email.trim())) {
+            setNotification({ type: 'error', message: 'Please enter a valid email address.' });
+            return;
+        }
+        if (!formData.phoneNo || !formData.phoneNo.trim()) {
+            setNotification({ type: 'error', message: 'Phone number is required.' });
+            return;
+        }
+        const sanitizedPhone = formData.phoneNo.replace(/[\s-]/g, '');
+        if (!/^\+?[0-9]{7,15}$/.test(sanitizedPhone)) {
+            setNotification({ type: 'error', message: 'Please enter a valid phone number (7 to 15 digits).' });
+            return;
+        }
+        if (!formData.payerId || !formData.payerId.trim()) {
+            setNotification({ type: 'error', message: 'Payer ID is required.' });
+            return;
+        }
+        if (!formData.buildingType) {
+            setNotification({ type: 'error', message: 'Please select a building type.' });
+            return;
+        }
+        if (!formData.streetName || !formData.streetName.trim()) {
+            setNotification({ type: 'error', message: 'Street Address is required.' });
+            return;
+        }
+        if (!formData.lga) {
+            setNotification({ type: 'error', message: 'Please select a Local Government Area (LGA).' });
+            return;
+        }
+
         setModal(false);
         setIsPaymentModalOpen(true);
     };
@@ -408,26 +529,76 @@ const SmartBinApplication = () => {
         }
 
         try {
-            const { data } = await api.post('/Agent/agent-new-bin-application', {
-                customerName: formData.customerName.value,
-                customerType: formData.customerType,
-                phoneNo: formData.phoneNo,
-                emailAddress: formData.email,
-                payerID: formData.payerId,
-                useYourAddress: selfRequest,
-                buildingType: formData.buildingType,
-                houseNo: formData.houseNo,
-                flatNo: formData.flatNo,
-                address: formData.streetName,
-                lga: formData.lga,
-                landmark: formData.closestLandmark,
-                lawmaCustomerType: formData.lawmaCustomerType,
-                paymentType: channel,
-                paidAmount: amount,
-                transRef: ref,
-            });
+            let response;
+            const isResident = formData.customerType === 'Resident';
+            const nameParts = (formData.customerName.text || '').trim().split(/\s+/);
 
-            if (data.succeeded) {
+            if (isResident) {
+                const firstName = formData.customerName.firstName || nameParts[0] || '';
+                const surname = formData.customerName.lastName || nameParts.slice(1).join(' ') || '';
+
+                const payload = {
+                    firstName,
+                    surname,
+                    email: formData.email,
+                    phoneNumber: formData.phoneNo,
+                    payerId: formData.payerId,
+                    buildingType: formData.buildingType,
+                    useYourAddress: selfRequest,
+                    streetName: formData.streetName,
+                    houseName: formData.houseNo || "",
+                    houseNumber: formData.houseNo || "",
+                    flatNumber: formData.flatNo || "",
+                    address: formData.streetName,
+                    closestLandmark: formData.closestLandmark,
+                    localGovernmentArea: String(formData.lga || ""),
+                    lawmaCustomerType: formData.lawmaCustomerType === 'Existing' ? 'Returning' : (formData.lawmaCustomerType === 'New' ? 'New' : 'Returning'),
+                    binType: "smart",
+                    buildingName: "",
+                    corporateId: "",
+                    residentId: formData.customerName.value,
+                    agentId: localStorage.getItem('agentId') || "",
+                    transactionReference: ref,
+                    paymentType: channel,
+                    amount: amount
+                };
+                response = await api.post('/smartbin-applications/resident', payload);
+            } else {
+                const firstName = formData.customerName.corporateFirstName || nameParts[0] || '';
+                const surname = formData.customerName.corporateLastName || nameParts.slice(1).join(' ') || '';
+
+                const payload = {
+                    firstName,
+                    surname,
+                    email: formData.email,
+                    phoneNumber: formData.phoneNo,
+                    payerId: formData.payerId,
+                    buildingType: formData.buildingType,
+                    useYourAddress: selfRequest,
+                    streetName: formData.streetName,
+                    houseName: formData.houseNo || "",
+                    houseNumber: formData.houseNo || "",
+                    flatNumber: formData.flatNo || "",
+                    address: formData.streetName,
+                    closestLandmark: formData.closestLandmark,
+                    localGovernmentArea: String(formData.lga || ""),
+                    lawmaCustomerType: formData.lawmaCustomerType === 'Existing' ? 'Returning' : (formData.lawmaCustomerType === 'New' ? 'New' : 'Returning'),
+                    binType: "smart",
+                    buildingName: formData.customerName.businessName || formData.customerName.text || "",
+                    corporateId: formData.customerName.value,
+                    residentId: "",
+                    agentId: localStorage.getItem('agentId') || "",
+                    transactionReference: ref,
+                    paymentType: channel,
+                    amount: amount
+                };
+                response = await api.post('/smartbin-applications/corporate', payload);
+            }
+
+            const data = response.data;
+            const isSuccess = data?.success || data?.succeeded || false;
+
+            if (isSuccess) {
                 setNotification({ type: 'success', message: 'Submitted successfully!' });
                 fetchData(); // refresh the table
             } else {
@@ -443,18 +614,14 @@ const SmartBinApplication = () => {
 
     const handlePaymentWithWallet = async () => {
         try {
-            const response = await api.post('/Wallet/debit-wallet', {
-                userId: useAuthStore.getState().token,
-                drAccountNo: Agent.accountNo,
+            const response = await api.post('/wallets/charge', {
                 amount: smartBinAmount,
-                narration: 'Smart Bin Application Payment',
-                paymentPurpose: 'Smart Bin Application',
             });
             const data = response.data;
 
-            if (data.succeeded) {
-                const parts = data.message.split('|');
-                const successRef = parts.length > 1 ? parts[1] : parts[0];
+            if (data.success || data.succeeded) {
+                const parts = (data.message || '').split('|');
+                const successRef = parts.length > 1 ? parts[1] : (data.data?.transactionReference || parts[0] || String(Date.now()));
                 await handlePayment({ reference: successRef, channel: 'wallet' });
                 setNotification({ type: 'success', message: 'Payment successful!' });
             } else {
@@ -617,6 +784,7 @@ const SmartBinApplication = () => {
                         <div ref={modalRef} onClick={(e) => e.stopPropagation()} className="max-w-4xl p-4 lg:mr-14 bg-white flex rounded-xl shadow-xl flex-col">
                             <p onClick={() => setViewApplicationModal(true)} className="p-2 cursor-pointer">View</p>
                             <p className="p-2 cursor-pointer" onClick={handleTrack}>Track application</p>
+                            <p className="p-2 cursor-pointer text-red-600 font-semibold" onClick={handleDeleteApplication}>Delete</p>
                         </div>
                     </div>
                 )}

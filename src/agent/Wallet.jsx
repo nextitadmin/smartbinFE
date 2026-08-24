@@ -44,20 +44,29 @@ const PaymentReceipts = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get('/agents/wallets');
-            if (data.success) {
-                const newData = data.data.data.map((item, index) => ({
+            const { data } = await api.get(`/agents/payment?page=${currentPage}&limit=${itemsPerPage}`);
+            const succeeded = data.succeeded || data.success;
+            if (succeeded) {
+                const rawData = data.data?.transactions || data.data?.data || data.data?.items || data.data || data.items || data;
+                const list = Array.isArray(rawData) ? rawData : [];
+
+                // Filter only payments whose paymentMethod is 'wallet'
+                const walletPayments = list.filter(item => item.paymentMethod?.toLowerCase() === 'wallet');
+
+                const newData = walletPayments.map((item, index) => ({
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
-                    id: item.id,
-                    transactionRef: item.transactionReference,
-                    date: item.transactionDate?.slice(0, 10),
-                    service: item.description,
-                    status: item.transactionStatus,
+                    id: item.id || item._id,
+                    transactionRef: item.transactionReference || item.reference || item.transactionId || item.id || item._id,
+                    date: (item.transactionDate || item.date || item.createdAt)?.slice(0, 10),
+                    service: item.service || item.description || item.type || "Payment",
+                    status: item.transactionStatus || item.status || "Successful",
                     amount: item.amount,
-                    paymentMethod: item.paymentMethod
-                }));;
+                    paymentMethod: item.paymentMethod || "N/A"
+                }));
                 setPayments(newData);
-                setTotalPages(data.data.totalPages);
+
+                const totalPagesVal = data.data?.paging?.pages || data.data?.totalPages || data.totalPages || 1;
+                setTotalPages(totalPagesVal);
             }
         } catch (error) {
             console.log(error);

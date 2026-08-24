@@ -50,27 +50,31 @@ const ReceiptPage = () => {
     const fetchData = async () => {
         const currentId = localStorage.getItem('receiptId');
         try {
-            const { data } = await api.get(`/Wallet/transaction-receipt?transacitonId=${currentId}`);
-            if (data.succeeded) {
-                const date = new Date(data.data.transDate);
+            const { data } = await api.get(`/agents/payment/receipt/${currentId}`);
+            if (data.success || data.succeeded) {
+                const item = data.data || {};
+                const date = new Date(item.transDate || item.transactionDate || item.createdAt || Date.now());
                 const newData = {
-                    recipientName: data.data.payerName,
+                    recipientName: item.payerName || item.recipientName || item.customerName || 'Agent customer',
                     transactionId: currentId,
-                    paymentId: useAgentStore.getState().agentInfo.payerID,
-                    transactionRef: data.data.transRef,
-                    phoneNumber: data.data.phoneNo,
+                    paymentId: item.payerId || item.payerID || useAgentStore.getState().agentInfo?.payerID || '',
+                    transactionRef: item.transRef || item.transactionRef || item.reference || '',
+                    phoneNumber: item.phoneNo || item.phoneNumber || '',
                     transactionDate: `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`,
                     paymentItems: [
-                        { description: data.data.description, amount: data.data.amount },
+                        { 
+                          description: item.description || item.service || 'Smart Bin Fee Payment', 
+                          amount: item.amount || item.amountPaid || 0 
+                        },
                     ],
                     currencySymbol: "₦",
-                }
+                };
                 setReceiptData(newData);
             }
         } catch (error) {
             console.log(error);
         }
-    }
+    };
 
     useEffect(() => {
         fetchData();

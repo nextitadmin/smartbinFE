@@ -285,6 +285,7 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuc
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     const fetchLga = async () => {
         try {
@@ -426,10 +427,51 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuc
     // Handle form submission
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (userData.password !== userData.confirmPassword) {
-            alert("Passwords do not match!");
-            return;
+        setErrorMessage('');
+
+        if (userData.customerType === 'resident' || userData.customerType === 'tenant') {
+            if (!userData.firstName || !userData.lastName || !userData.emailAddress || !userData.phoneNumber) {
+                setErrorMessage('Please fill in all personal details (First Name, Last Name, Email, Phone Number).');
+                return;
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.emailAddress)) {
+                setErrorMessage('Please enter a valid email address.');
+                return;
+            }
+            if (!/^\+?[0-9]{8,15}$/.test(userData.phoneNumber.replace(/\s+/g, ''))) {
+                setErrorMessage('Please enter a valid phone number.');
+                return;
+            }
+            if (!userData.address || !userData.localGovernment) {
+                setErrorMessage('Please fill in all address settings.');
+                return;
+            }
+        } else if (userData.customerType === 'corporate') {
+            if (!userData.businessName || !userData.companyEmailAddress || !userData.companyTelephone) {
+                setErrorMessage('Please fill in all company details (Business Name, Company Email, Company Telephone).');
+                return;
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.companyEmailAddress)) {
+                setErrorMessage('Please enter a valid company email address.');
+                return;
+            }
+            if (!/^\+?[0-9]{8,15}$/.test(userData.companyTelephone.replace(/\s+/g, ''))) {
+                setErrorMessage('Please enter a valid company telephone.');
+                return;
+            }
         }
+
+        if (userData.password || userData.confirmPassword) {
+            if (userData.password !== userData.confirmPassword) {
+                setErrorMessage('Passwords do not match.');
+                return;
+            }
+            if (userData.password.length < 6) {
+                setErrorMessage('Password must be at least 6 characters long.');
+                return;
+            }
+        }
+
         setShowConfirmationModal(true);
     };
 
@@ -437,6 +479,7 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuc
     const handleConfirmAddUser = async () => {
         setShowConfirmationModal(false);
         setIsSubmitting(true);
+        setErrorMessage('');
         try {
             const dataToSend = { ...userData };
             if (userData.customerType === 'corporate') {
@@ -472,12 +515,12 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuc
                 if (onSuccess) onSuccess();
             } else {
                 console.error("API Error:", responseData.message);
-                alert("Failed to update user: " + responseData.message);
+                setErrorMessage(responseData.message || "Failed to update user. Please try again.");
             }
         } catch (error) {
             console.error("Submission error:", error);
             const errMsg = error.response?.data?.message || "An error occurred during submission.";
-            alert("Failed to update user: " + errMsg);
+            setErrorMessage(errMsg);
         } finally {
             setIsSubmitting(false);
         }
@@ -547,6 +590,12 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuc
                         <XMarkIcon className="w-7 h-7" />
                     </button>
                 </div>
+                {/* Error Banner */}
+                {errorMessage && (
+                    <div className="mx-6 mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                        {errorMessage}
+                    </div>
+                )}
                 {/* Scrollable Form Container */}
                 <div className="flex-1 overflow-y-auto px-6 py-4">
                     <form onSubmit={handleSubmit} className="p-6 space-y-6">

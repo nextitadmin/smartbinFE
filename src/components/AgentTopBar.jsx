@@ -16,18 +16,38 @@ const AgentTopBar = () => {
     const logout = useAuthStore((state) => state.logout);
     const clearToken = useTokenStore((state) => state.clearBearerToken);
     const clearAgent = useAgentStore((state) => state.clearAgentInfo);
-    const Agent = useAgentStore.getState().agentInfo;
+    const Agent = useAgentStore((state) => state.agentInfo);
     const navigate = useNavigate();
 
     const setDashboard = useAgentStore((state) => state.setAgentInfo);
+    const [fullName, setFullName] = useState('');
 
     const fetchResident = async () => {
         try {
-            const { data } = await api.get("/agents/dashboard");
-            if (data.succeeded) {
-                setDashboard(data.data.agentInfo);
+            const { data } = await api.get("/agents/profile");
+            if (data.success || data.succeeded) {
+                if (data.data) {
+                    setFullName(`${data.data.firstName || ''} ${data.data.lastName || ''}`.trim());
+                    const mappedInfo = {
+                        payerID: data.data.payerId || "",
+                        firstName: data.data.firstName || "",
+                        lastName: data.data.lastName || "",
+                        emailAddress: data.data.email || "",
+                        phoneNo: data.data.phoneNumber || "",
+                        address: data.data.address || null,
+                        passport: data.data.profilePicture?.trim() || "",
+                        accountNo: data.data.accountNumber || "",
+                        userType: "agent",
+                        businessName: data.data.businessName || "", 
+                        lawmaCustomerType: data.data.lawmaCustomerType || "",
+                        buildingType: data.data.buildingType || "",
+                        landMark: data.data.landmark || "",
+                        lga: data.data.localGovermentArea || "",
+                        nextPickupDate: data.data.nextPickupDate || "",
+                    };
+                    setDashboard(mappedInfo);
+                }
             }
-
         } catch (error) {
             console.log(error);
         }
@@ -180,10 +200,10 @@ const AgentTopBar = () => {
 
                     onClick={() => setViewProfileModal(true)}
                 >
-                    <img src={Agent.passport ? Agent.passport : "/images/emptyimage.png"} className="size-8 rounded-full" />
+                    <img src={Agent.passport || Agent.profilePicture || "/images/emptyimage.png"} className="size-8 rounded-full" />
                     <div className="text-sm flex flex-col items-end">
                         <p className="font-semibold">
-                            {`${Agent.firstName} ${Agent.lastName} `}
+                            {fullName || `${Agent.firstName || ''} ${Agent.lastName || ''}`.trim() || "Agent"}
                         </p>
                         <p className="text-xs text-zinc-900 flex items-center gap-1">
                             <span className="w-3 h-3 bg-green-600 border border-white rounded-full"></span>

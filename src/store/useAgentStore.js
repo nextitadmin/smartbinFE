@@ -13,7 +13,7 @@ const useAgentStore = create(
         emailAddress: '',
         phoneNo: '',
         address: null,
-        passport: '',
+        profilePicture: '',
         accountNo: '',
         userType: '',
         buildingType: '',
@@ -50,7 +50,7 @@ const useAgentStore = create(
             nextPickupDate: ''
           },
         }),
-        fetchAgentInfo: async () => {
+      fetchAgentInfo: async () => {
         try {
           const response = await api.get("/agents/profile");
 
@@ -68,7 +68,7 @@ const useAgentStore = create(
               passport: data.profilePicture?.trim() || "", // trim whitespace
               accountNo: data.accountNumber || "",
               userType: "agent",
-              businessName : data.businessName || "", 
+              businessName: data.businessName || "",
               lawmaCustomerType: data.lawmaCustomerType || "",
               buildingType: data.buildingType || "",
               landMark: data.landmark || "",
