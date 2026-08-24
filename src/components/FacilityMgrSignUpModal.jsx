@@ -149,7 +149,25 @@ const SignUpModal = ({ show, onClose }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        handleConfirmAddUser();
+        
+        if (!userData.userId || !userData.firstName || !userData.lastName || !userData.email || !userData.phoneNumber) {
+            setErrorMessage('Please fill in all personal details (User ID, First Name, Last Name, Email, Phone Number).');
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.email)) {
+            setErrorMessage('Please enter a valid email address.');
+            return;
+        }
+        if (!/^\+?[0-9]{8,15}$/.test(userData.phoneNumber.replace(/\s+/g, ''))) {
+            setErrorMessage('Please enter a valid phone number.');
+            return;
+        }
+        if (!userData.binType || !userData.lawmaCustomerType || !userData.buildingType || !userData.address || !userData.localGovernment) {
+            setErrorMessage('Please fill in all required address and customer settings.');
+            return;
+        }
+        
+        setShowConfirmationModal(true);
     };
 
     // ─── API call ─────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import ServiceConfigNav from '../components/AgentServiceConfigNav';
 import useAgentStore from '../store/useAgentStore';
 import useAuthStore from '../store/authStore'; // eslint-disable-line no-unused-vars
 import { useNavigate } from 'react-router-dom';
+import { uploadFile } from '../utils/fileUpload';
 // --- Default Data Layer ---
 const defaultProfileData = {
     payerId: '',
@@ -52,17 +53,15 @@ function ProfilePage() {
 
     useEffect(() => {
         setProfileData({
-            payerId: Agent.payerId,
-            agencyName: Agent.agencyName || '',
-            firstName: Agent.firstName,
-            lastName: Agent.lastName,
-            email: Agent.email,
+            payerId: Agent.payerID || Agent.payerId || '',
+            agencyName: Agent.agencyName || Agent.businessName || '',
+            firstName: Agent.firstName || '',
+            lastName: Agent.lastName || '',
+            email: Agent.emailAddress || Agent.email || '',
             phone: Agent.phoneNo || '',
-            profileImageUrl: Agent.profilePicture
-                ? Agent.profilePicture
-                : "/images/emptyimage.png",
+            profileImageUrl: Agent.passport || Agent.profilePicture || "/images/emptyimage.png",
         });
-    }, [Agent.firstName, Agent.lastName, Agent.email, Agent.phoneNo, Agent.profilePicture, Agent.payerId, Agent.agencyName]);
+    }, [Agent.firstName, Agent.lastName, Agent.email, Agent.emailAddress, Agent.phoneNo, Agent.profilePicture, Agent.passport, Agent.payerId, Agent.payerID, Agent.agencyName, Agent.businessName]);
 
     const handleProfileChange = (e) => {
         const { name, value } = e.target;
@@ -83,7 +82,7 @@ function ProfilePage() {
         clearNotification();
     };
 
-    const handleImageChange = (e) => {
+    const handleImageChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
@@ -94,19 +93,47 @@ function ProfilePage() {
                 }));
             };
             reader.readAsDataURL(file);
-            console.log('Selected image:', file.name);
-            // TODO: Add actual image upload logic here (e.g., prepare FormData for API)
+
+            try {
+                const uploadResult = await uploadFile(file);
+                if (uploadResult && uploadResult.success && uploadResult.url) {
+                    const uploadedUrl = uploadResult.url;
+                    const { data } = await api.patch('/agents/profile-picture', {
+                        imageUrl: uploadedUrl
+                    });
+                    if (data.success || data.succeeded) {
+                        setNotification({ type: 'success', message: 'Profile picture updated successfully!' });
+                        useAgentStore.getState().fetchAgentInfo?.();
+                    } else {
+                        setNotification({ type: 'error', message: data.message || 'Failed to update profile picture' });
+                    }
+                } else {
+                    setNotification({ type: 'error', message: 'Failed to upload image' });
+                }
+            } catch (err) {
+                console.error('Error uploading profile picture:', err);
+                setNotification({ type: 'error', message: err.message || 'Error uploading profile picture' });
+            }
             clearNotification();
         }
     };
 
-    const handleDeleteImage = () => {
+    const handleDeleteImage = async () => {
         setProfileData(prevData => ({
             ...prevData,
             profileImageUrl: '/images/emptyimage.png',
         }));
-        // TODO: Add API call to delete image on the server if needed
-        console.log('Image deleted (client-side)');
+        try {
+            const { data } = await api.patch('/agents/profile-picture', {
+                imageUrl: ''
+            });
+            if (data.success || data.succeeded) {
+                setNotification({ type: 'success', message: 'Profile picture removed successfully!' });
+                useAgentStore.getState().fetchAgentInfo?.();
+            }
+        } catch (err) {
+            console.error('Error clearing profile picture:', err);
+        }
         clearNotification();
     };
 

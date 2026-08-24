@@ -81,19 +81,30 @@ const CheckIcon = ({ className = 'h-5 w-5' }) => (
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const REPORT_TYPES = [
-    { name: 'Payment History', value: 'payment' },
-    { name: 'Bin Request',     value: 'bin' },
-    { name: 'Waste pickup',    value: 'waste' },
+    { name: 'Revenue',          value: 'revenue' },
+    { name: 'Payment History',  value: 'payment-history' },
+    { name: 'Waste pickup',     value: 'waste-pickup' },
+    { name: 'Waste disposed',   value: 'waste-disposed' },
+    { name: 'Smartbin request', value: 'smartbin-request' },
+    { name: 'Smartbin delivered', value: 'smartbin-delivered' },
+    { name: 'User registration', value: 'user-registration' },
+    { name: 'Unpaid bills',     value: 'unpaid-bills' },
 ];
 
 const CUSTOMER_TYPES = ['Resident', 'Corporate'];
 
 const selectedReportType = (report) => {
     switch (report) {
-        case 'Payment History': return 'payment';
-        case 'Bin Request':     return 'bin';
-        case 'Waste pickup':    return 'waste';
-        default:                return '';
+        case 'Revenue':           return 'revenue';
+        case 'Payment History':   return 'payment-history';
+        case 'Waste pickup':      return 'waste-pickup';
+        case 'Waste disposed':    return 'waste-disposed';
+        case 'Smartbin request':  
+        case 'Bin Request':       return 'smartbin-request';
+        case 'Smartbin delivered': return 'smartbin-delivered';
+        case 'User registration': return 'user-registration';
+        case 'Unpaid bills':      return 'unpaid-bills';
+        default:                  return '';
     }
 };
 
@@ -114,18 +125,7 @@ const formatGenerationDate = (isoDateString) => {
 const ReportsPage = () => {
     const navigate = useNavigate();
 
-    const [reports, setReports] = useState([
-        { residentID: null, customerName: 'Boyega John', reportTitle: 'second bin report5',  reportType: 'bin',   period: 'Apr 25 - Jun 25', requestBy: 'Emmanuel Akanji', generationDate: '2025-06-30T09:29:54.718499', id: '08ddb7b0-4a6c-45f5-865b-bf14a4e331ff', isDeleted: false },
-        { residentID: null, customerName: 'Boyega John', reportTitle: 'second bin report5',  reportType: 'bin',   period: 'Apr 25 - Jun 25', requestBy: 'Emmanuel Akanji', generationDate: '2025-06-30T09:28:14.366719', id: '08ddb7b0-0e9d-4462-8625-a87b3433b480', isDeleted: false },
-        { residentID: null, customerName: 'Boyega John', reportTitle: 'second bin report4',  reportType: 'bin',   period: 'Apr 25 - Jun 25', requestBy: 'Emmanuel Akanji', generationDate: '2025-06-30T09:27:14.578433', id: '08ddb7af-eb09-41f0-8afd-b9228df93505', isDeleted: false },
-        { residentID: null, customerName: 'Boyega John', reportTitle: 'Second waste report', reportType: 'waste', period: 'Apr 25 - Jun 25', requestBy: 'Emmanuel Akanji', generationDate: '2025-06-30T09:25:40.457887', id: '08ddb7af-b2e1-441c-8bc2-92323caa48d0', isDeleted: false },
-        { residentID: null, customerName: 'Boyega John', reportTitle: 'Firast waste report', reportType: 'waste', period: 'Apr 25 - May 25', requestBy: 'Emmanuel Akanji', generationDate: '2025-06-30T08:59:32.905317', id: '08ddb7ac-0c8b-4770-819e-3aef5766f80a', isDeleted: false },
-        { residentID: null, customerName: 'Boyega John', reportTitle: 'Smart bin report',    reportType: 'bin',   period: 'Apr 25 - Jun 25', requestBy: 'Emmanuel Akanji', generationDate: '2025-06-30T00:52:57.319515', id: '08ddb768-129e-488d-813f-f07f654bfbff', isDeleted: false },
-        { residentID: null, customerName: 'Boyega John', reportTitle: 'second bin report3',  reportType: 'bin',   period: 'Apr 25 - Jun 25', requestBy: 'Emmanuel Akanji', generationDate: '2025-06-30T00:51:09.109415', id: '08ddb767-d21e-47ba-8db3-e7e7daea83e4', isDeleted: false },
-        { residentID: null, customerName: 'Boyega John', reportTitle: 'second bin report2',  reportType: 'bin',   period: 'Apr 25 - Jun 25', requestBy: 'Emmanuel Akanji', generationDate: '2025-06-30T00:48:48.5207',   id: '08ddb767-7e52-4722-8b99-542e9ce8ffb5', isDeleted: false },
-        { residentID: null, customerName: 'Boyega John', reportTitle: 'second bin report',   reportType: 'bin',   period: 'Apr 25 - May 25', requestBy: 'Emmanuel Akanji', generationDate: '2025-06-30T00:47:41.106245', id: '08ddb767-5624-4655-8ac2-199bff439f38', isDeleted: false },
-        { residentID: null, customerName: 'Boyega John', reportTitle: 'First-Bin Report',    reportType: 'bin',   period: 'Apr 25 - May 25', requestBy: 'Emmanuel Akanji', generationDate: '2025-06-29T19:43:46.8082',   id: '08ddb73c-e1a6-4b36-8499-f8821c6a48aa', isDeleted: false },
-    ]);
+    const [reports, setReports] = useState([]);
 
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -134,6 +134,7 @@ const ReportsPage = () => {
     const [isCustomerOpen, setIsCustomerOpen] = useState(false);
     const [isCustomerListOpen, setIsCustomerListOpen] = useState(false);
     const [customerNameList, setCustomerNameList] = useState([]);
+    const [activeActionMenu, setActiveActionMenu] = useState(null);
 
     const [notification, setNotification] = useState({ message: '', type: '', visible: false });
     const [searchTerm, setSearchTerm] = useState('');
@@ -154,27 +155,42 @@ const ReportsPage = () => {
 
     const fetchReportsAPI = async () => {
         try {
-            const { data } = await api.get('/agent/reports');
-            // Response: { success, data: { reports: [], paging: { totalReports, page, pages, size } } }
-            if (data.success) {
-                const reportList = (data.data.reports ?? []).map((item) => ({
-                    id:             item.id,
-                    reportType:     item.reportType,
-                    reportTitle:    item.reportTitle,
-                    period:         item.period,
-                    generationDate: item.generationDate,
-                    customerName:   item.customerName,
-                    requestBy:      item.requestBy,
+            let backendType = '';
+            if (filterReportType === 'Payment History') backendType = 'payment-history';
+            else if (filterReportType === 'Bin Request') backendType = 'smartbin-request';
+            else if (filterReportType === 'Waste pickup') backendType = 'waste-pickup';
+
+            const params = {
+                search: searchTerm || undefined,
+                type: backendType || undefined,
+                startDate: filterDate ? new Date(filterDate).toISOString() : undefined,
+            };
+
+            const { data } = await api.get('/agent/reports', { params });
+            const succeeded = data.success || data.succeeded;
+            if (succeeded) {
+                const rawReports = data.data?.reports || data.data?.data || data.data || [];
+                const reportList = (Array.isArray(rawReports) ? rawReports : []).map((item) => ({
+                    id:             item.id || item._id,
+                    reportType:     item.reportType || item.type || '',
+                    reportTitle:    item.reportTitle || item.reportName || item.title || '',
+                    period:         item.period || '',
+                    generationDate: item.generationDate || item.createdAt || '',
+                    customerName:   item.customerName || '',
+                    requestBy:      item.requestBy || '',
                 }));
                 setReports(reportList);
             }
         } catch (error) {
             console.error('Error fetching reports:', error);
         }
-    }; // ← semicolon, not comma
+    };
 
     useEffect(() => {
         fetchReportsAPI();
+    }, [searchTerm, filterReportType, filterDate]);
+
+    useEffect(() => {
         setIsLoading(false);
     }, []);
 
@@ -229,6 +245,42 @@ const ReportsPage = () => {
             key,
             direction: prev.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending',
         }));
+    };
+
+    const handleActionMenuToggle = (reportId) => {
+        setActiveActionMenu(activeActionMenu === reportId ? null : reportId);
+    };
+
+    const handleViewReport = async (report) => {
+        setActiveActionMenu(null);
+        try {
+            const { data } = await api.get(`/agent/reports/${report.id}`);
+            if (data.success || data.succeeded) {
+                const reportObject = {
+                    period:         report.period || '',
+                    generationDate: formatGenerationDate(report.generationDate),
+                    title:          report.reportTitle,
+                    data:           data.data || {},
+                };
+                
+                const type = (report.reportType || '').toLowerCase();
+                if (type.includes('bin') || type.includes('smartbin')) {
+                    localStorage.setItem('binreport', JSON.stringify(reportObject));
+                    navigate('/smartbinreport');
+                } else if (type.includes('waste')) {
+                    localStorage.setItem('wastereport', JSON.stringify(reportObject));
+                    navigate('/wastereport');
+                } else {
+                    localStorage.setItem('paymentreport', JSON.stringify(reportObject));
+                    navigate('/paymentreport');
+                }
+            } else {
+                showNotification('Failed to retrieve report details.', 'error');
+            }
+        } catch (error) {
+            console.error('Error fetching report details:', error);
+            showNotification('Error retrieving report details.', 'error');
+        }
     };
 
     // ─── Modal helpers ────────────────────────────────────────────────────────
@@ -286,12 +338,16 @@ const ReportsPage = () => {
                     title:          newReportName,
                     data:           data.data,
                 };
-                if (selectedType === 'bin') {
+                const typeLower = (selectedType || '').toLowerCase();
+                if (typeLower.includes('bin') || typeLower.includes('smartbin')) {
                     localStorage.setItem('binreport', JSON.stringify(reportObject));
                     navigate('/smartbinreport');
-                } else if (selectedType === 'waste') {
+                } else if (typeLower.includes('waste')) {
                     localStorage.setItem('wastereport', JSON.stringify(reportObject));
                     navigate('/wastereport');
+                } else {
+                    localStorage.setItem('paymentreport', JSON.stringify(reportObject));
+                    navigate('/paymentreport');
                 }
                 // refresh the list so the new report appears
                 fetchReportsAPI();
@@ -420,7 +476,7 @@ const ReportsPage = () => {
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="bg-white rounded-2xl">
+                                        <div className="bg-white rounded-2xl min-h-[250px]">
                                             <table className="w-full min-w-[700px] m-4 bg-white">
                                                 <thead className="border-b border-zinc-200">
                                                     <tr>
@@ -449,10 +505,17 @@ const ReportsPage = () => {
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{formatGenerationDate(report.generationDate)}</td>
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{report.period}</td>
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{report.reportType}</td>
-                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500">
-                                                                <button className="text-zinc-400 hover:text-zinc-600">
+                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500 relative">
+                                                                <button onClick={() => handleActionMenuToggle(report.id)} className="text-zinc-400 hover:text-zinc-600">
                                                                     <EllipsisVerticalIcon className="h-5 w-5" />
                                                                 </button>
+                                                                {activeActionMenu === report.id && (
+                                                                    <div className="absolute right-6 mt-1 w-28 bg-white border border-zinc-200 rounded-lg shadow-lg z-50 py-1">
+                                                                        <button onClick={() => handleViewReport(report)} className="w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 font-medium">
+                                                                            View
+                                                                        </button>
+                                                                    </div>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     ))}

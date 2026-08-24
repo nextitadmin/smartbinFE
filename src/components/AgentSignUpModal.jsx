@@ -462,61 +462,62 @@ const SignUpModal = ({ show, onClose }) => {
             if (dataToSend.customerType === 'resident') {
                 const payload = {
                     firstName: dataToSend.firstName,
-                    surname: dataToSend.lastName,
+                    lastName: dataToSend.lastName,
                     email: dataToSend.email,
                     phoneNumber: dataToSend.phoneNo,
+                    customerType: "Resident",
+                    password: dataToSend.password,
+                    confirmPassword: dataToSend.confirmPassword,
                     payerId: dataToSend.payerId,
                     buildingType: dataToSend.buildingType,
-                    useYourAddress: true,
+                    streetName: dataToSend.address,
                     houseNumber: dataToSend.houseNo || '',
                     flatNumber: dataToSend.flatNumber,
                     address: dataToSend.address,
                     closestLandmark: dataToSend.closestLandmark,
                     localGovernmentArea: String(dataToSend.lga || ''),
-                    lawmaCustomerType: dataToSend.lawmaCustomerType,
-                    binType: 'smart',
-                    agentId: localStorage.getItem('agentId') || '',
+                    lawmaCustomerType: dataToSend.lawmaCustomerType === 'existing' ? 'Returning' : (dataToSend.lawmaCustomerType === 'new' ? 'New' : 'Returning')
                 };
 
-                const response = await api.post('smartbin-applications/resident', payload);
+                const response = await api.post('/residents-management', payload);
                 const isSuccess = response.data?.success || response.data?.succeeded || false;
 
                 if (isSuccess) {
-                    setSuccessMessage(response.data?.message || 'Resident application submitted successfully!');
+                    setSuccessMessage(response.data?.message || 'Resident registered successfully!');
                     setShowSuccessModal(true);
                 } else {
                     console.error("API Error:", response.data?.message);
-                    alert("Failed to submit application: " + (response.data?.message || 'Unknown error'));
+                    alert("Failed to register resident: " + (response.data?.message || 'Unknown error'));
                 }
             } else if (dataToSend.customerType === 'corporate') {
                 const payload = {
+                    payerId: dataToSend.payerId,
+                    businessName: dataToSend.businessName,
                     firstName: dataToSend.corporateFirstName,
-                    surname: dataToSend.corporateLastName,
+                    lastName: dataToSend.corporateLastName,
                     email: dataToSend.corporateEmailAddress,
                     phoneNumber: dataToSend.corporatePhoneNumber,
-                    payerId: dataToSend.payerId,
-                    buildingType: dataToSend.buildingType,
-                    useYourAddress: true,
-                    houseNumber: dataToSend.houseNo || '',
-                    flatNumber: dataToSend.flatNumber,
-                    address: dataToSend.address,
-                    closestLandmark: dataToSend.closestLandmark,
-                    localGovernmentArea: String(dataToSend.lga || ''),
-                    lawmaCustomerType: dataToSend.lawmaCustomerType,
-                    binType: 'smart',
-                    buildingName: dataToSend.businessName,
-                    agentId: localStorage.getItem('agentId') || '',
+                    branches: branches.map(b => ({
+                        branchName: b.branchName,
+                        branchAddress: b.address,
+                        localGovernmentArea: String(b.lga || ''),
+                        closestLandmark: b.closestLandmark,
+                        state: "Lagos",
+                        lawmaCustomerType: b.lawmaCustomerType === 'existing' ? 'Returning' : (b.lawmaCustomerType === 'new' ? 'New' : 'Returning')
+                    })),
+                    password: dataToSend.password,
+                    confirmPassword: dataToSend.confirmPassword
                 };
 
-                const response = await api.post('smartbin-applications/corporate', payload);
+                const response = await api.post('/corporates-management', payload);
                 const isSuccess = response.data?.success || response.data?.succeeded || false;
 
                 if (isSuccess) {
-                    setSuccessMessage(response.data?.message || 'Corporate application submitted successfully!');
+                    setSuccessMessage(response.data?.message || 'Corporate registered successfully!');
                     setShowSuccessModal(true);
                 } else {
                     console.error("API Error:", response.data?.message);
-                    alert("Failed to submit application: " + (response.data?.message || 'Unknown error'));
+                    alert("Failed to register corporate: " + (response.data?.message || 'Unknown error'));
                 }
             }
         } catch (error) {

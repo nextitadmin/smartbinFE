@@ -35,24 +35,45 @@ function AppManager() {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/SmartBin/tracking-details?id=${currentId}`);
-            if (data.succeeded) {
-                const enhancedTrackingInfos = data.data.trackInfos.map((event, index, arr) => ({
-                    ...event,
+            const appResponse = await api.get(`/smartbin-applications/${currentId}`);
+            let appData = {};
+            let orderId = '';
+            if (appResponse.data.success || appResponse.data.succeeded) {
+                appData = appResponse.data.data || {};
+                orderId = appData.orderID || appData.orderId;
+            }
+
+            if (!orderId) {
+                console.error("No orderId found for application", currentId);
+                return;
+            }
+
+            const { data } = await api.get(`/smartbin-applications/${orderId}/status-timeline`);
+            
+            if (data.success || data.succeeded || Array.isArray(data.data) || Array.isArray(data)) {
+                const rawTimeline = data.data?.trackInfos || data.data?.timeline || data.data || [];
+                const timelineArray = Array.isArray(rawTimeline) ? rawTimeline : [];
+
+                const enhancedTrackingInfos = timelineArray.map((event, index, arr) => ({
+                    statusName: event.statusName || event.status || 'PENDING',
+                    date: event.date || event.timestamp || event.createdAt || '',
+                    description: event.description || '',
                     isCurrent: index === arr.length - 1,
-                    isCompleted: event.statusName?.toLowerCase() === 'delivered'
+                    isCompleted: (event.statusName || event.status || '').toLowerCase() === 'delivered'
                 }));
 
                 setOrderDetails({
-                    ...data.data,
+                    orderID: orderId,
+                    processDate: appData.requestDate || appData.createdAt || '',
+                    customerName: appData.residentFullName || appData.customerName || '',
+                    customerAddress: appData.residentDetails || appData.address || '',
                     trackInfos: enhancedTrackingInfos
                 });
-                console.log(orderDetails);
             }
         } catch (error) {
             console.log("error", error);
         }
-    }
+    };
 
 
     function formatDate(dateString) {

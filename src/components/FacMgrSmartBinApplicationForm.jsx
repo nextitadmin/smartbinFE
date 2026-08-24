@@ -55,6 +55,7 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card');
     const [smartBinAmount, setSmartbinAmount] = useState(0);
+    const [facilityId, setFacilityId] = useState('');
     const [debitType, setDebitType] = useState("");
     const [notification, setNotification] = useState(null);
     const [options, setOptions] = useState({
@@ -153,12 +154,25 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
         }
     };
 
+    const fetchFacilities = async () => {
+        try {
+            const { data } = await api.get('/facilities');
+            const list = data.data?.facilities || data.facilities || [];
+            if (list.length > 0) {
+                setFacilityId(list[0]._id || list[0].id || '');
+            }
+        } catch (error) {
+            console.error("Error fetching facilities:", error);
+        }
+    };
+
     // --- Initialize Form ---
     useEffect(() => {
         if (isOpen) {
             fetchTenants();
             fetchLga();
             fetchSmartBinAmount();
+            fetchFacilities();
             // Pre-fill form with facility manager data if available
             if (initialFacilityMgrData) {
                 setFormData(prev => ({
@@ -253,8 +267,34 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
 
     const submitApplication = (e) => {
         e.preventDefault();
+        
+        if (!selfRequest && !formData.tenantId) {
+            setNotification({ type: 'error', message: 'Please select a tenant.' });
+            return;
+        }
+        if (!formData.email) {
+            setNotification({ type: 'error', message: 'Email address is required.' });
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            setNotification({ type: 'error', message: 'Please enter a valid email address.' });
+            return;
+        }
+        if (!formData.phoneNo) {
+            setNotification({ type: 'error', message: 'Phone number is required.' });
+            return;
+        }
+        if (!/^\+?[0-9]{8,15}$/.test(formData.phoneNo.replace(/\s+/g, ''))) {
+            setNotification({ type: 'error', message: 'Please enter a valid phone number.' });
+            return;
+        }
+        if (!formData.buildingType || !formData.streetName || !formData.lga) {
+            setNotification({ type: 'error', message: 'Please fill in all address details (Building Type, Address/Street, LGA).' });
+            return;
+        }
+
         console.log("Form Submitted:", formData);
-        openModal(); // Open payment modal instead of closing form immediately
+        openModal();
     };
 
     const handleBack = () => {
@@ -278,21 +318,21 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
         if (ref && amount && channel) {
             try {
                 const payload = {
-                    phoneNo: formData.phoneNo,
-                    emailAddress: formData.email,
-                    payerID: formData.payerId,
-                    useYourAddress: selfRequest,
+                    tenantName: formData.tenantName || 'Self',
+                    binType: formData.binType?.toLowerCase() || 'smart',
+                    email: formData.email,
+                    phone: formData.phoneNo,
+                    payerId: formData.payerId,
+                    lawmaCustomerType: formData.lawmaCustomerType || 'Existing',
+                    closestLandmark: formData.closestLandmark,
+                    buildingName: formData.houseNo || formData.streetName || '',
                     buildingType: formData.buildingType,
-                    houseNo: formData.houseNo,
-                    flatNo: formData.flatNo,
+                    flatNumber: formData.flatNo || '',
+                    localGovernmentArea: formData.lga,
                     address: formData.streetName,
-                    lga: formData.lga,
-                    landmark: formData.closestLandmark,
-                    lawmaCustomerType: formData.lawmaCustomerType,
-                    paymentType: channel,
-                    paidAmount: amount,
-                    transRef: ref,
-                    binType: formData.binType,
+                    receiptId: ref,
+                    facilityId: facilityId || '64f8b6d82f2e4c4b1c7e92a1',
+                    transactionReference: ref
                 };
                 console.log("Submitting application with payload:", payload);
                 const { data } = await api.post("/facility-managers/smart-bin/applications", payload);

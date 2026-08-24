@@ -11,14 +11,17 @@ const Sidebar = ({ addkey }) => {
         { label: 'Dashboard', icon: DashboardIcon, route: { routes: ['/dashboard'], main: '/dashboard' } },
         { label: 'User Management', icon: PersonIcon, route: { routes: ['/user-management'], main: '/user-management' } },
         { label: 'Application Manager', icon: DocumentIcon, route: { routes: ['/appmanager', '/applyforsmartbin'], main: '/applyforsmartbin' } },
-        { label: 'Waste Management', icon: WasteIcon, route: { routes: ['/wm', "/wastes"], main: '/wastes' } },
-        { label: 'Bills', icon: BillIcon, route: { routes: ['/billconfirm', "/bills"], main: '/bills' } },
+        // { label: 'Waste Management', icon: WasteIcon, route: { routes: ['/wm', "/wastes"], main: '/wastes' } },
+        // { label: 'Bills', icon: BillIcon, route: { routes: ['/billconfirm', "/bills"], main: '/bills' } },
+
         { label: 'Payment', icon: PaymentIcon, route: { routes: ['/payments', '/receipts', '/wallet'], main: '/payments' } },
         { label: 'Report', icon: ReportIcon, route: { routes: ['/reports'], main: '/reports' } },
-        { label: 'Service Configuration', icon: SettingsIcon, route: { routes: ['/service', '/notifications-settings', '/helpandsupport', "/client-preferences"], main: '/service' } },
-        { label: 'Team Members', icon: TeamIcon, route: { routes: ['/team-members'], main: '/team-members' } },
-
         { label: 'KYC Application', icon: UserIcon, route: { routes: ['/newkycapplication', '/kycapplication'], main: '/newkycapplication' } },
+        { label: 'Team Members', icon: TeamIcon, route: { routes: ['/team-members'], main: '/team-members' } },
+        { label: 'Service Configuration', icon: SettingsIcon, route: { routes: ['/service', '/notifications-settings', '/helpandsupport', "/client-preferences"], main: '/service' } },
+
+
+
     ];
 
 

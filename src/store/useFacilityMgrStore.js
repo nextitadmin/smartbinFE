@@ -10,10 +10,12 @@ const useFacilityMgrStore = create(
         payerID: "",
         firstName: "",
         lastName: "",
+        fullName: "",
         emailAddress: "",
         phoneNo: "",
         address: null,
         passport: "",
+        profilePicture: "",
         accountNo: "",
         userType: "",
         buildingType: "",
@@ -38,10 +40,12 @@ const useFacilityMgrStore = create(
             payerID: "",
             firstName: "",
             lastName: "",
+            fullName: "",
             emailAddress: "",
             phoneNo: "",
             address: null,
             passport: "",
+            profilePicture: "",
             accountNo: "",
             userType: "",
             buildingType: "",
@@ -55,21 +59,23 @@ const useFacilityMgrStore = create(
         try {
           const response = await api.get("/facility-managers/profile");
           console.log("Raw profile response:", response.data);
-      
+
           if (response.data.success && response.data.data) {
             const data = response.data.data;
-      
+
             // Log the individual fields to inspect structure
             console.log("Parsed data:", data);
-      
+
             const mappedInfo = {
               payerID: data.payerId || "",
               firstName: data.fullName?.split(" ")[0] || "",
               lastName: data.fullName?.split(" ")[1] || "",
+              fullName: data.fullName || "",
               emailAddress: data.email || "",
               phoneNo: data.phoneNumber || "",
               address: data.address || null,
               passport: data.profilePicture?.trim() || "",
+              profilePicture: data.profilePicture?.trim() || "",
               accountNo: data.accountNumber || "",
               userType: "facilitymgr",
               buildingType: data.buildingType || "",
@@ -77,7 +83,7 @@ const useFacilityMgrStore = create(
               lga: data.localGovermentArea || "",
               nextPickupDate: data.nextPickupDate || "",
             };
-      
+
             console.log("Mapped info:", mappedInfo);
             set({ facilityMgrInfo: mappedInfo });
           } else {
@@ -88,7 +94,7 @@ const useFacilityMgrStore = create(
         }
       },
 
-      
+
     }),
     {
       name: "facilitymgr-storage", // unique key in localStorage

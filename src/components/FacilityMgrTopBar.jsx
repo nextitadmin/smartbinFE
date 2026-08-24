@@ -18,33 +18,17 @@ const FacilityMgrTopBar = () => {
     const clearFacilityMgr = useFacilityMgrStore((state) => state.clearFacilityMgrInfo);
     const navigate = useNavigate();
 
-    const setDashboard = useFacilityMgrStore((state) => state.setFacilityMgrInfo);
-    const FacilityMgr = useFacilityMgrStore(
-  (state) => state.facilityMgrInfo
-);
-
-
-    const fetchFacilityMgr = async () => {
-        try {
-            const { data } = await api.get("/facility-managers/dashboard");
-            if (data.success) {
-                const failityMgrInfo = {}
-
-                console.log(data.data)
-
-                setDashboard(data.data);
-                console.log( "Data:", data.data, FacilityMgr)
-
-            }
-
-        } catch (error) {
-            console.log(error);
-        }
-    }
+    const FacilityMgr = useFacilityMgrStore((state) => state.facilityMgrInfo);
+    const fetchFacilityManagerInfo = useFacilityMgrStore((state) => state.fetchFacilityManagerInfo);
 
     useEffect(() => {
-        fetchFacilityMgr();
-    }, [])
+        fetchFacilityManagerInfo();
+    }, []);
+
+
+
+
+
 
 
     const handleLogout = () => {
@@ -189,18 +173,18 @@ const FacilityMgrTopBar = () => {
 
                     onClick={() => setViewProfileModal(true)}
                 >
-                    <img src={FacilityMgr?.passport ? FacilityMgr.passport : "/images/emptyimage.png"} className="size-8 rounded-full" />
+                    <img
+                        src={FacilityMgr?.profilePicture ? FacilityMgr.profilePicture : "/images/emptyimage.png"}
+                        className="size-8 rounded-full"
+                    />
                     <div className="text-sm flex flex-col items-end">
                         <p className="font-semibold">
-                            {`${FacilityMgr?.fullName} `}
+                            {`${FacilityMgr?.firstName || ''} ${FacilityMgr?.lastName || ''}`}
                         </p>
                         <p className="text-xs text-zinc-900 flex items-center gap-1">
                             <span className="w-3 h-3 bg-green-600 border border-white rounded-full"></span>
-                            {FacilityMgr?.userType
-                                ? (FacilityMgr.userType === "FacilityMgr" ? 'Facility Manager' : FacilityMgr.userType)
-                                : 'Facility Manager'}
+                            Facility Manager
                         </p>
-
                     </div>
                     <button className={viewProfileModal ? "transform rotate-180" : ''}
                     >

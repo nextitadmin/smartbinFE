@@ -45,25 +45,27 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
     const fetchData = async () => {
         try {
             const { data } = await api.get(`/facility-managers/smart-bin/applications?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
-            if (data.success && Array.isArray(data.data?.data)) {
-                const newData = data.data.data.map((item, index) => ({
-                    id: item.id,
+            const succeeded = data.success || data.succeeded;
+            if (succeeded && data.data) {
+                const list = Array.isArray(data.data.data) ? data.data.data : (Array.isArray(data.data) ? data.data : []);
+                const newData = list.map((item, index) => ({
+                    id: item.id || item._id,
                     sn: index + 1 + (currentPage - 1) * itemsPerPage,
-                    orderId: item.orderID,
-                    date: item.requestDate?.slice(0, 10),
+                    orderId: item.orderID || item.orderId || '',
+                    date: (item.requestDate || item.createdAt || '').slice(0, 10),
                     address: item.residentDetails || item.address || '-',
-                    status: item.statusName,
+                    status: item.statusName || item.status || 'Pending',
                     deliveredDate: item.deliveredDate,
                     deliveredBy: item.deliveredBy,
                     approvedDate: item.approvedDate,
-                    customerName: item.residentFullName,
-                    customerType: item.customerType,
+                    customerName: item.residentFullName || item.customerName || '',
+                    customerType: item.customerType || 'Resident',
                     buildingName: item.buildingName ?? item.houseNo ?? item.propertyName ?? '-',
                     binType: item.binType ?? item.binTypeName ?? 'Smart',
                 }));
                 setApplications(newData);
-                setTotalPages(data.data.totalPages || 0);
-                setTotalItems(data.data.totalCount || 0);
+                setTotalPages(data.data.totalPages || data.meta?.paging?.pages || 0);
+                setTotalItems(data.data.totalCount || data.meta?.paging?.total || 0);
             } else {
                 setApplications([]);
                 setTotalPages(0);

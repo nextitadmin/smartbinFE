@@ -12,6 +12,15 @@ import useAgentStore from '../store/useAgentStore';
 
 
 
+const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+    });
+};
+
 const KYCApplication = () => {
 
     // --- State ---
@@ -71,7 +80,8 @@ const KYCApplication = () => {
         const checkKycStatus = async () => {
             try {
                 const { data } = await api.get('/agent/kyc/status');
-                if (data.success && data.data) {
+                const succeeded = data.success || data.succeeded;
+                if (succeeded && data.data) {
                     const { 
                         hasSubmittedPersonalInformation, 
                         hasSubmittedAddress, 
@@ -83,7 +93,7 @@ const KYCApplication = () => {
                     const identityStatus = (identityVerificationStatus || '').toLowerCase();
                     const addressStatus = (addressVerificationStatus || '').toLowerCase();
                     
-                    const hasStartedKyc = hasSubmittedPersonalInformation || hasSubmittedAddress || hasSubmittedIdentity;
+                    const hasStartedKyc = hasSubmittedPersonalInformation || hasSubmittedAddress || hasSubmittedIdentity || identityStatus || addressStatus;
                     if (hasStartedKyc && 
                         identityStatus !== 'rejected' && identityStatus !== '0' && 
                         addressStatus !== 'rejected' && addressStatus !== '0') {
@@ -264,8 +274,19 @@ const KYCApplication = () => {
     };
 
     const handleSubmit = async () => {
-        // Ensure all validations pass one last time (optional, as nextStage should handle it)
-        if (!formData.agency.agencyName ||
+        // Enforce validations for all steps
+        if (
+            !formData.personal.firstName ||
+            !formData.personal.lastName ||
+            !formData.personal.nationality ||
+            !formData.personal.gender
+        ) {
+            setNotification({ type: 'error', message: 'Please ensure all personal details are filled.' });
+            return;
+        }
+
+        if (
+            !formData.agency.agencyName ||
             !formData.agency.registrationNumber ||
             !formData.agency.businessEmail ||
             !formData.agency.businessPhone ||
@@ -274,18 +295,62 @@ const KYCApplication = () => {
             setNotification({ type: 'error', message: 'Please ensure all agency details are filled correctly.' });
             return;
         }
+
+        if (!formData.documents.idNumber) {
+            setNotification({ type: 'error', message: 'Please enter your NIN or identity document number.' });
+            return;
+        }
+
+        if (!formData.documents.file && !formData.documents.fileName) {
+            setNotification({ type: 'error', message: 'Please upload a valid identity document.' });
+            return;
+        }
+
+        if (!formData.agency.agencyCertificate) {
+            setNotification({ type: 'error', message: 'Please upload your agency certificate.' });
+            return;
+        }
+
         try {
+            let idDocBase64 = '';
+            if (formData.documents.file) {
+                idDocBase64 = await fileToBase64(formData.documents.file);
+            } else {
+                idDocBase64 = formData.documents.fileName || '';
+            }
+
+            let certDocBase64 = '';
+            if (formData.agency.file) {
+                certDocBase64 = await fileToBase64(formData.agency.file);
+            } else {
+                certDocBase64 = formData.agency.agencyCertificate || '';
+            }
+
             const payload = {
-                residentID: useAuthStore.getState().token,
-                agencyName: formData.agency.agencyName,
-                registrationNumber: formData.agency.registrationNumber,
-                businessEmail: formData.agency.businessEmail,
-                businessPhone: formData.agency.businessPhone,
-                branches: formData.agency.branches.map(branch => ({
-                    name: branch.name,
-                    address: branch.address
-                }))
+                personalInformation: {
+                    firstName: formData.personal.firstName,
+                    lastName: formData.personal.lastName,
+                    nationality: formData.personal.nationality,
+                    gender: formData.personal.gender,
+                    lawmaCustomerType: agentInfo?.lawmaCustomerType || agentInfo?.customerType || 'Agent',
+                    NinNo: formData.documents.idNumber || '',
+                    idDocument: idDocBase64
+                },
+                agencyInformation: {
+                    agencyName: formData.agency.agencyName,
+                    businessRegistrationNumber: formData.agency.registrationNumber,
+                    businessEmailAddress: formData.agency.businessEmail,
+                    businessPhoneNumber: formData.agency.businessPhone,
+                    branches: formData.agency.branches.map(branch => ({
+                        branchName: branch.name,
+                        branchAddress: branch.address
+                    }))
+                },
+                addressDocument: {
+                    agencyCertificateDocument: certDocBase64
+                }
             };
+
             console.log("Submitting KYC with payload:", payload);
             const { data } = await api.post(
                 '/agent/kyc',
@@ -295,11 +360,12 @@ const KYCApplication = () => {
                 setNotification({ type: 'success', message: 'Submitted successfully!' });
                 setCurrentStage(4); // Move to confirmation stage
             } else {
-                setNotification({ type: 'error', message: data.message || "Error submitting" });
+                setNotification({ type: 'error', message: data.message || "Error submitting kyc application." });
             }
         } catch (error) {
             console.log("Error creating KYC", error);
-            setNotification({ type: 'error', message: "Error submitting. Check console for details." });
+            const errorMsg = error.response?.data?.message || error.message || "Error submitting kyc application.";
+            setNotification({ type: 'error', message: Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg });
         }
     };
 

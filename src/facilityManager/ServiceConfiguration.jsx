@@ -7,6 +7,7 @@ import ServiceConfigNav from "../components/FacilityMgrServiceConfigNav";
 import useFacilityMgrStore from "../store/useFacilityMgrStore";
 import useAuthStore from "../store/authStore";
 import { useNavigate } from "react-router-dom";
+import { uploadFile } from "../utils/fileUpload";
 // --- Default Data Layer ---
 const defaultProfileData = {
   payerId: "",
@@ -70,7 +71,7 @@ function ProfilePage() {
         lastName: FacilityMgr.lastName || "",
         email: FacilityMgr.emailAddress || "",
         phone: FacilityMgr.phoneNo || "",
-        profileImageUrl: FacilityMgr.passport || "/images/emptyimage.png",
+        profileImageUrl: FacilityMgr.profilePicture || "/images/emptyimage.png",
       });
     }
   }, [FacilityMgr]);
@@ -98,31 +99,50 @@ function ProfilePage() {
     clearNotification();
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileData((prevData) => ({
-          ...prevData,
-          profileImageUrl: reader.result,
-        }));
-      };
-      reader.readAsDataURL(file);
-      console.log("Selected image:", file.name);
-      // TODO: Add actual image upload logic here (e.g., prepare FormData for API)
-      clearNotification();
+    if (!file) return;
+
+    // Show a local preview immediately while the upload happens
+    const previewReader = new FileReader();
+    previewReader.onloadend = () => {
+      setProfileData((prevData) => ({ ...prevData, profileImageUrl: previewReader.result }));
+    };
+    previewReader.readAsDataURL(file);
+
+    clearNotification();
+
+    try {
+      // 1. Upload the raw file to get a hosted URL
+      const { url } = await uploadFile(file);
+
+      // 2. Save that URL as the profile picture
+      const { data } = await api.put("/facility-managers/account/profile-picture", {
+        profilePicture: url,
+      });
+
+      if (data.success) {
+        setNotification({ type: "success", message: data.message || "Profile picture updated!" });
+        fetchResident();
+      } else {
+        setNotification({ type: "error", message: data.message || "Error updating profile picture" });
+      }
+    } catch (error) {
+      setNotification({ type: "error", message: error.message || "Failed to update profile picture." });
     }
   };
 
-  const handleDeleteImage = () => {
-    setProfileData((prevData) => ({
-      ...prevData,
-      profileImageUrl: "/images/emptyimage.png",
-    }));
-    // TODO: Add API call to delete image on the server if needed
-    console.log("Image deleted (client-side)");
-    clearNotification();
+  const handleDeleteImage = async () => {
+    setProfileData((prevData) => ({ ...prevData, profileImageUrl: "/images/emptyimage.png" }));
+
+    try {
+      const { data } = await api.put("/facility-managers/account/profile-picture", {
+        profilePicture: "",
+      });
+      if (data.success) fetchResident();
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const clearNotification = () => {
@@ -140,47 +160,47 @@ function ProfilePage() {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setIsLoading(true);
-  clearNotification();
+    e.preventDefault();
+    setIsLoading(true);
+    clearNotification();
 
-  const dataToSend = {
-    firstName: profileData.firstName,
-    lastName: profileData.lastName,
-    email: profileData.email,
-    phoneNumber: profileData.phone,
-  };
+    const dataToSend = {
+      firstName: profileData.firstName,
+      lastName: profileData.lastName,
+      email: profileData.email,
+      phoneNumber: profileData.phone,
+    };
 
-  try {
-    const { data } = await api.put(
-      '/facility-managers/account/profile',
-      dataToSend
-    );
+    try {
+      const { data } = await api.put(
+        '/facility-managers/account/profile',
+        dataToSend
+      );
 
-    if (data.success) {
-      setNotification({
-        type: 'success',
-        message: data.message || 'Profile updated successfully!',
-      });
+      if (data.success) {
+        setNotification({
+          type: 'success',
+          message: data.message || 'Profile updated successfully!',
+        });
 
-      fetchResident();
-    } else {
-      setNotification({
-        type: 'error',
-        message: data.message || 'Error updating profile',
-      });
+        fetchResident();
+      } else {
+        setNotification({
+          type: 'error',
+          message: data.message || 'Error updating profile',
+        });
+      }
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to update profile. Please try again.';
+
+      setNotification({ type: 'error', message: errorMessage });
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    const errorMessage =
-      error.response?.data?.message ||
-      error.message ||
-      'Failed to update profile. Please try again.';
-
-    setNotification({ type: 'error', message: errorMessage });
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   // --- Auto-dismiss notification ---
   useEffect(() => {
@@ -526,11 +546,10 @@ function ProfilePage() {
                           <button
                             type="submit"
                             disabled={isLoading}
-                            className={`inline-flex items-center justify-center px-6 py-2 border border-transparent text-base font-medium rounded-md  text-white ${
-                              isLoading
+                            className={`inline-flex items-center justify-center px-6 py-2 border border-transparent text-base font-medium rounded-md  text-white ${isLoading
                                 ? "bg-green-400 cursor-not-allowed"
                                 : "bg-green-700 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                            } transition-colors duration-150 ease-in-out`}
+                              } transition-colors duration-150 ease-in-out`}
                           >
                             {isLoading ? (
                               <>
@@ -550,11 +569,10 @@ function ProfilePage() {
                   {/* Notification Pop-up */}
                   {notification && (
                     <div
-                      className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 ${
-                        notification.type === "success"
+                      className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 ${notification.type === "success"
                           ? "bg-green-100 border border-green-400 text-green-800"
                           : "bg-red-100 border border-red-400 text-red-800"
-                      }`}
+                        }`}
                       role={notification.type === "error" ? "alert" : "status"}
                     >
                       <div className="flex items-center justify-between">

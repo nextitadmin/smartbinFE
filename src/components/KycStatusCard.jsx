@@ -52,6 +52,26 @@ const getStatusDisplay = (status, onReupload) => {
                 ),
                 action: null,
             };
+        case 'not_submitted':
+        case 'not submitted':
+        case 'unsubmitted':
+            return {
+                text: 'Not Submitted',
+                textColor: 'text-yellow-600',
+                icon: (
+                    <svg className="w-4 h-4 text-yellow-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                ),
+                action: (
+                    <button
+                        onClick={onReupload}
+                        className="ml-4 text-sm font-medium text-green-700 hover:text-green-800 underline focus:outline-none"
+                    >
+                        Submit now
+                    </button>
+                ),
+            };
         case 'loading':
         default:
             return {
@@ -83,8 +103,11 @@ function KycStatusCard({ endpoint = '/resident/kyc/status' }) {
 
             const statusInfo = data.data || data;
             if (statusInfo) {
-                const documentStatus = statusInfo.identityVerificationStatus || 'pending';
-                const addressStatus = statusInfo.addressVerificationStatus || 'pending';
+                const hasSubmittedId = statusInfo.hasSubmittedIdentity;
+                const hasSubmittedAddr = statusInfo.hasSubmittedAddress;
+
+                const documentStatus = hasSubmittedId ? (statusInfo.identityVerificationStatus || 'pending') : 'not_submitted';
+                const addressStatus = hasSubmittedAddr ? (statusInfo.addressVerificationStatus || 'pending') : 'not_submitted';
 
                 setKycData(prevData =>
                     prevData.map(item => {
