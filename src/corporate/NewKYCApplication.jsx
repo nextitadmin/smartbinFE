@@ -14,7 +14,7 @@ function NewKycApplication() {
 
 
     // const title = 'Where is my Smart Bin?';
-    const [kycStatus, setKycStatus] = useState(true);
+    const [kycStatus, setKycStatus] = useState(false);
     const navigate = useNavigate();
 
     const startkyc = () => {
@@ -34,10 +34,10 @@ function NewKycApplication() {
             }
 
             const data = response.data;
-            if (data.hasSubmittedIdentity === false) {
-                setKycStatus(false);
-            } else {
+            if (data && data.data && data.data.hasSubmittedIdentity) {
                 setKycStatus(true);
+            } else {
+                setKycStatus(false);
             }
 
             // Handle API response structure errors

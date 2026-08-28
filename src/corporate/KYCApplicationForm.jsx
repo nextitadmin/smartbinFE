@@ -553,7 +553,7 @@ const KYCApplication = () => {
     );
 
     const handleDone = () => {
-        navigate("/dashboard"); // Adjust route as needed
+        window.location.href = "/newkycapplication";
     };
 
     // --- Clear notification helper ---
@@ -685,7 +685,7 @@ const KYCApplication = () => {
                                                                 <div className="flex text-sm text-zinc-600 justify-center">
                                                                     <p className="pl-1"><span className="text-green-700 font-semibold">Click to upload</span> or drag and drop</p>
                                                                 </div>
-                                                                <p className="text-xs text-zinc-500">SVG, PNG, JPG or GIF (max. 800x400px)</p>
+                                                                <p className="text-xs text-zinc-500">SVG, PNG, JPG or GIF (max. 1MB)</p>
                                                                 <input
                                                                     type="file"
                                                                     onChange={(e) => handleFileUpload(e, "documents")}
@@ -966,7 +966,7 @@ const KYCApplication = () => {
                                                             <div className="flex text-sm text-zinc-600 justify-center">
                                                                 <p className="pl-1"><span className="text-green-700 font-semibold">Click to upload</span> or drag and drop</p>
                                                             </div>
-                                                            <p className="text-xs text-zinc-500">SVG, PNG, JPG or GIF (max. 800x400px)</p>
+                                                            <p className="text-xs text-zinc-500">SVG, PNG, JPG or GIF (max. 1MB)</p>
                                                             <input
                                                                 type="file"
                                                                 onChange={(e) => handleFileUpload(e, "personal.documents")}

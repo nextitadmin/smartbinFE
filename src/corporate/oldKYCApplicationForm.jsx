@@ -66,18 +66,18 @@ const KYCApplication = () => {
   });
 
   const handleCompanyKYCSubmit = async () => {
-  
+
     const payload = {
       address: formData.company.address,
       businessRegistrationNumber: formData.company.regNo,
       businessSector: formData.company.businessSector,
     };
-  
+
     try {
       const response = await api.post("/corporate/kyc/add-company-info",
         payload
       );
-  
+
       console.log("KYC Success:", response.data);
       // toast.success("Company info submitted successfully!");
     } catch (error) {
@@ -152,7 +152,7 @@ const KYCApplication = () => {
 
   // --- Dynamic Options Data ---
   const businessSectorOptions = [
-    
+
     { value: "Agriculture", label: "Agriculture" },
     { value: "Automotive", label: "Automotive" },
     { value: "Construction", label: "Construction" },
@@ -184,7 +184,7 @@ const KYCApplication = () => {
     { value: "Waste Management", label: "Waste Management" },
     { value: "Wholesale & Distribution", label: "Wholesale & Distribution" },
   ];
-  
+
 
   const nationalityOptions = [
     { value: "Nigerian", label: "Nigerian" },
@@ -413,7 +413,7 @@ const KYCApplication = () => {
     if (!file) return;
 
     const allowedTypes = ["image/png", "image/jpeg", "application/pdf"];
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 1 * 1024 * 1024; // 1MB
 
     if (!allowedTypes.includes(file.type)) {
       setNotification({
@@ -425,7 +425,7 @@ const KYCApplication = () => {
     }
 
     if (file.size > maxSize) {
-      setNotification({ type: "error", message: "File exceeds 10MB limit." });
+      setNotification({ type: "error", message: "File exceeds 1MB limit." });
       event.target.value = "";
       return;
     }
@@ -566,7 +566,7 @@ const KYCApplication = () => {
         phoneNumber: formData.company.phone,
         email: formData.company.email,
 
-       
+
 
         // Document
         idType: formData.documents.idType || "nin", // fallback if missing
@@ -619,7 +619,7 @@ const KYCApplication = () => {
 
   const handleReuploadSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.documents.file) {
       setNotification({
         type: "error",
@@ -631,7 +631,7 @@ const KYCApplication = () => {
     try {
       // Handle document file upload
       const corporateFile = formData.documents.file;
-      
+
       const uploadFileWrapper = async (file) => {
         try {
           const res = await uploadFile(file);
@@ -641,12 +641,12 @@ const KYCApplication = () => {
           throw error;
         }
       };
-      
+
       const processedImageString = await uploadFileWrapper(corporateFile);
 
       // Update document status to submitted
-      setDocuments(prev => prev.map(doc => 
-        doc.id === reuploadDocumentId 
+      setDocuments(prev => prev.map(doc =>
+        doc.id === reuploadDocumentId
           ? { ...doc, status: "submitted" }
           : doc
       ));
@@ -658,7 +658,7 @@ const KYCApplication = () => {
 
       // Close modal and reset
       handleCloseReuploadModal();
-      
+
       // Reset file data
       setFormData(prev => ({
         ...prev,
@@ -931,7 +931,7 @@ const KYCApplication = () => {
                                   </p>
                                 </div>
                                 <p className="text-xs text-zinc-500">
-                                  SVG, PNG, JPG or GIF (max. 800x400px)
+                                  SVG, PNG, JPG or GIF (max. 1MB)
                                 </p>
                                 <input
                                   type="file"
@@ -1381,7 +1381,7 @@ const KYCApplication = () => {
                                 </p>
                               </div>
                               <p className="text-xs text-zinc-500">
-                                SVG, PNG, JPG or GIF (max. 800x400px)
+                                SVG, PNG, JPG or GIF (max. 1MB)
                               </p>
                               <input
                                 type="file"
@@ -1517,7 +1517,7 @@ const KYCApplication = () => {
                                 </p>
                               </div>
                               <p className="text-xs text-zinc-500">
-                                SVG, PNG, JPG or GIF (max. 800x400px)
+                                SVG, PNG, JPG or GIF (max. 1MB)
                               </p>
                               <input
                                 type="file"
