@@ -292,7 +292,7 @@ const KYCApplication = () => {
         const file = event.target.files[0];
         if (!file) return;
         const allowedTypes = ["image/png", "image/jpeg", "application/pdf"];
-        const maxSize = 10 * 1024 * 1024; // 10MB
+        const maxSize = 1 * 1024 * 1024; // 1MB
 
         if (!allowedTypes.includes(file.type)) {
             setNotification({ type: "error", message: "Invalid file type. Please upload PNG, JPG, or PDF." });
@@ -300,7 +300,7 @@ const KYCApplication = () => {
             return;
         }
         if (file.size > maxSize) {
-            setNotification({ type: "error", message: "File exceeds 10MB limit." });
+            setNotification({ type: "error", message: "File exceeds 1MB limit." });
             event.target.value = "";
             return;
         }
