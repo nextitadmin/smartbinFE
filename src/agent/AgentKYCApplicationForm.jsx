@@ -82,20 +82,19 @@ const KYCApplication = () => {
                 const { data } = await api.get('/agent/kyc/status');
                 const succeeded = data.success || data.succeeded;
                 if (succeeded && data.data) {
-                    const { 
-                        hasSubmittedPersonalInformation, 
-                        hasSubmittedAddress, 
+                    const {
+                        hasSubmittedPersonalInformation,
+                        hasSubmittedAddress,
                         hasSubmittedIdentity,
                         identityVerificationStatus,
-                        addressVerificationStatus 
+                        addressVerificationStatus
                     } = data.data;
 
                     const identityStatus = (identityVerificationStatus || '').toLowerCase();
                     const addressStatus = (addressVerificationStatus || '').toLowerCase();
-                    
-                    const hasStartedKyc = hasSubmittedPersonalInformation || hasSubmittedAddress || hasSubmittedIdentity || identityStatus || addressStatus;
-                    if (hasStartedKyc && 
-                        identityStatus !== 'rejected' && identityStatus !== '0' && 
+
+                    if (hasSubmittedIdentity &&
+                        identityStatus !== 'rejected' && identityStatus !== '0' &&
                         addressStatus !== 'rejected' && addressStatus !== '0') {
                         navigate('/newkycapplication');
                     }
@@ -176,14 +175,14 @@ const KYCApplication = () => {
         const file = event.target.files[0];
         if (file) {
             const allowedTypes = ['image/png', 'image/jpeg', 'application/pdf'];
-            const maxSize = 10 * 1024 * 1024; // 10MB
+            const maxSize = 1 * 1024 * 1024; // 1MB
             if (!allowedTypes.includes(file.type)) {
                 setNotification({ type: 'error', message: "Invalid file type. Please upload PNG, JPG, or PDF." });
                 event.target.value = ''; // Reset file input
                 return;
             }
             if (file.size > maxSize) {
-                setNotification({ type: 'error', message: "File exceeds 10MB limit." });
+                setNotification({ type: 'error', message: "File exceeds 1MB limit." });
                 event.target.value = ''; // Reset file input
                 return;
             }
@@ -201,14 +200,14 @@ const KYCApplication = () => {
         const file = event.target.files[0];
         if (file) {
             const allowedTypes = ['image/png', 'image/jpeg', 'application/pdf'];
-            const maxSize = 10 * 1024 * 1024; // 10MB
+            const maxSize = 1 * 1024 * 1024; // 1MB
             if (!allowedTypes.includes(file.type)) {
                 setNotification({ type: 'error', message: "Invalid file type. Please upload PNG, JPG, or PDF." });
                 event.target.value = ''; // Reset file input
                 return;
             }
             if (file.size > maxSize) {
-                setNotification({ type: 'error', message: "File exceeds 10MB limit." });
+                setNotification({ type: 'error', message: "File exceeds 1MB limit." });
                 event.target.value = ''; // Reset file input
                 return;
             }
@@ -592,7 +591,7 @@ const KYCApplication = () => {
                                                         <div className="flex text-sm text-zinc-600">
                                                             <p>Drag &amp; drop a file here</p>
                                                         </div>
-                                                        <p className="text-xs text-zinc-500">JPG, PNG, file size no more than 10MB</p>
+                                                        <p className="text-xs text-zinc-500">JPG, PNG, file size no more than 1MB</p>
                                                         <button
                                                             type="button"
                                                             className="mt-2 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -766,7 +765,7 @@ const KYCApplication = () => {
                                                             <div className="flex text-sm text-zinc-600">
                                                                 <p className="pl-1">Click to upload or drag and drop</p>
                                                             </div>
-                                                            <p className="text-xs text-zinc-500">PNG, JPG, PDF up to 10MB</p>
+                                                            <p className="text-xs text-zinc-500">PNG, JPG, PDF up to 1MB</p>
                                                             <input type="file" onChange={handleAgencyDocUpload} accept=".png,.jpg,.jpeg,.pdf" className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer" />
                                                         </div>
                                                     </div>

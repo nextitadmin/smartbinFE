@@ -292,7 +292,7 @@ const KYCApplication = () => {
         const file = event.target.files[0];
         if (!file) return;
         const allowedTypes = ["image/png", "image/jpeg", "application/pdf"];
-        const maxSize = 10 * 1024 * 1024; // 10MB
+        const maxSize = 1 * 1024 * 1024; // 1MB
 
         if (!allowedTypes.includes(file.type)) {
             setNotification({ type: "error", message: "Invalid file type. Please upload PNG, JPG, or PDF." });
@@ -300,7 +300,7 @@ const KYCApplication = () => {
             return;
         }
         if (file.size > maxSize) {
-            setNotification({ type: "error", message: "File exceeds 10MB limit." });
+            setNotification({ type: "error", message: "File exceeds 1MB limit." });
             event.target.value = "";
             return;
         }
@@ -372,7 +372,7 @@ const KYCApplication = () => {
                     console.log("Business Registration Certificate uploaded:", res);
                 } catch (uploadError) {
                     console.error("Certificate upload failed:", uploadError.message);
-                    throw new Error("Failed to upload Business Registration Certificate.");
+                    throw new Error(`Failed to upload Business Registration Certificate: ${uploadError.message}`);
                 }
             } else {
                 throw new Error("Business Registration Certificate file is required.");
@@ -389,7 +389,7 @@ const KYCApplication = () => {
                         console.log(`Signatory ${m.firstName} ${m.lastName} ID uploaded:`, res);
                     } catch (uploadError) {
                         console.error(`Signatory ${m.firstName} ${m.lastName} ID upload failed:`, uploadError.message);
-                        throw new Error(`Failed to upload ID document for signatory ${m.firstName} ${m.lastName}.`);
+                        throw new Error(`Failed to upload ID document for signatory ${m.firstName} ${m.lastName}: ${uploadError.message}`);
                     }
                 } else {
                     // Decide if a signatory document is mandatory. If so, throw an error.

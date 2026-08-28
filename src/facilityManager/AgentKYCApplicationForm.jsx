@@ -470,7 +470,7 @@ const KYCApplication = () => {
                                                         <div className="flex text-sm text-zinc-600">
                                                             <p>Drag &amp; drop a file here</p>
                                                         </div>
-                                                        <p className="text-xs text-zinc-500">JPG, PNG, file size no more than 10MB</p>
+                                                        <p className="text-xs text-zinc-500">JPG, PNG, file size no more than 1MB</p>
                                                         <button
                                                             type="button"
                                                             className="mt-2 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
