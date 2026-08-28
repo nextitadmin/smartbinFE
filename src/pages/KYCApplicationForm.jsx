@@ -256,7 +256,7 @@ const KYCApplication = () => {
     );
 
     const handleDone = () => {
-        navigate("/kycapplication") // Or wherever 'Done' should lead
+        window.location.href = "/newkycapplication";
     }
 
     const handleSubmit = async () => {
