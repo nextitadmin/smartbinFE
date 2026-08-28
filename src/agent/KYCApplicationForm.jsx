@@ -249,6 +249,7 @@ const KYCApplication = () => {
                     return res.url;
                 } catch (error) {
                     console.error("Upload failed:", error.message);
+                    throw error;
                 }
             }
             const processedImageString = file ? await uploadFileWrapper(file) : null;

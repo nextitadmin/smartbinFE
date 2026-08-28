@@ -372,7 +372,7 @@ const KYCApplication = () => {
                     console.log("Business Registration Certificate uploaded:", res);
                 } catch (uploadError) {
                     console.error("Certificate upload failed:", uploadError.message);
-                    throw new Error("Failed to upload Business Registration Certificate.");
+                    throw new Error(`Failed to upload Business Registration Certificate: ${uploadError.message}`);
                 }
             } else {
                 throw new Error("Business Registration Certificate file is required.");
@@ -389,7 +389,7 @@ const KYCApplication = () => {
                         console.log(`Signatory ${m.firstName} ${m.lastName} ID uploaded:`, res);
                     } catch (uploadError) {
                         console.error(`Signatory ${m.firstName} ${m.lastName} ID upload failed:`, uploadError.message);
-                        throw new Error(`Failed to upload ID document for signatory ${m.firstName} ${m.lastName}.`);
+                        throw new Error(`Failed to upload ID document for signatory ${m.firstName} ${m.lastName}: ${uploadError.message}`);
                     }
                 } else {
                     // Decide if a signatory document is mandatory. If so, throw an error.

@@ -82,20 +82,19 @@ const KYCApplication = () => {
                 const { data } = await api.get('/agent/kyc/status');
                 const succeeded = data.success || data.succeeded;
                 if (succeeded && data.data) {
-                    const { 
-                        hasSubmittedPersonalInformation, 
-                        hasSubmittedAddress, 
+                    const {
+                        hasSubmittedPersonalInformation,
+                        hasSubmittedAddress,
                         hasSubmittedIdentity,
                         identityVerificationStatus,
-                        addressVerificationStatus 
+                        addressVerificationStatus
                     } = data.data;
 
                     const identityStatus = (identityVerificationStatus || '').toLowerCase();
                     const addressStatus = (addressVerificationStatus || '').toLowerCase();
-                    
-                    const hasStartedKyc = hasSubmittedPersonalInformation || hasSubmittedAddress || hasSubmittedIdentity || identityStatus || addressStatus;
-                    if (hasStartedKyc && 
-                        identityStatus !== 'rejected' && identityStatus !== '0' && 
+
+                    if (hasSubmittedIdentity &&
+                        identityStatus !== 'rejected' && identityStatus !== '0' &&
                         addressStatus !== 'rejected' && addressStatus !== '0') {
                         navigate('/newkycapplication');
                     }
@@ -592,7 +591,7 @@ const KYCApplication = () => {
                                                         <div className="flex text-sm text-zinc-600">
                                                             <p>Drag &amp; drop a file here</p>
                                                         </div>
-                                                        <p className="text-xs text-zinc-500">JPG, PNG, file size no more than 10MB</p>
+                                                        <p className="text-xs text-zinc-500">JPG, PNG, file size no more than 1MB</p>
                                                         <button
                                                             type="button"
                                                             className="mt-2 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
