@@ -4,6 +4,7 @@ import Topbar from '../components/AgentTopBar';
 import useAgentStore from '../store/useAgentStore';
 import api from '../api/axiosConfig';
 import PaymentNav from '../components/PaymentNav';
+import { exportToCSV } from '../utils/exportHelper';
 
 const PaymentReceipts = () => {
     // --- State ---
@@ -12,33 +13,60 @@ const PaymentReceipts = () => {
     const [sortColumn, setSortColumn] = useState('date');
     const [sortDirection, setSortDirection] = useState('dsc');
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 6;
+    const itemsPerPage = 10;
     const [notification, setNotification] = useState(null);
-    const [totalPages, setTotalPages] = useState('');
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
 
 
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get('/agents/payment');
-            if (data.succeeded) {
-                const newData = data.data.data.map((item) => ({
-                    id: item.id,
-                    transactionId: item.transactionReference,
-                    date: item.transactionDate?.slice(0, 10),
-                    service: item.description,
-                    status: item.transactionStatus,
-                    amount: item.amount,
-                    paymentMethod: item.paymentMethod,
-                    customerName : ""
-                }));;
+            const { data } = await api.get(`/agents/payment?page=${currentPage}&limit=${itemsPerPage}`);
+            if (data.success || data.succeeded) {
+                const rawTransactions =
+                    data.data?.transactions ||
+                    data.data?.data ||
+                    data.data?.items ||
+                    (Array.isArray(data.data) ? data.data : []) ||
+                    (Array.isArray(data.transactions) ? data.transactions : []) ||
+                    [];
+
+                const list = Array.isArray(rawTransactions) ? rawTransactions : [];
+
+                const defaultCustomer = `${useAgentStore.getState().agentInfo?.firstName || ''} ${useAgentStore.getState().agentInfo?.lastName || ''}`.trim() || 'Agent User';
+
+                const newData = list.map((item) => ({
+                    id: item._id || item.id,
+                    transactionId: item.transactionReference || item.transactionId || item.reference || item._id || item.id || '',
+                    date: (item.createdAt || item.transactionDate || item.date)?.slice(0, 10) || '',
+                    service: item.service || item.description || item.meta?.description || 'Wallet Top-Up',
+                    status: item.status || item.transactionStatus || 'Pending',
+                    amount: item.amount ?? 0,
+                    paymentMethod: item.paymentMethod || item.meta?.paymentMethod || 'wallet',
+                    customerName: item.customerName || (item.user ? `${item.user.firstName || ''} ${item.user.lastName || ''}`.trim() : '') || item.userType || defaultCustomer
+                }));
+
                 setPayments(newData);
-                setTotalPages(data.data.totalPages);
+
+                const pages =
+                    data.data?.paging?.pages ||
+                    data.data?.totalPages ||
+                    data.data?.paging?.totalPages ||
+                    (data.data?.paging?.total ? Math.ceil(data.data.paging.total / itemsPerPage) : 1) ||
+                    1;
+                setTotalPages(pages);
+
+                const total =
+                    data.data?.paging?.total ||
+                    data.data?.total ||
+                    list.length;
+                setTotalItems(total);
             }
         } catch (error) {
-            console.log(error);
+            console.log("Error fetching agent payments:", error);
         }
-    }
+    };
 
     useEffect(() => {
         // Add serial numbers to wastes data
@@ -78,13 +106,14 @@ const PaymentReceipts = () => {
         const lowerQuery = searchQuery.toLowerCase();
         return payments.filter(payment => {
             return (
-                payment.transactionId.toLowerCase().includes(lowerQuery) ||
-                payment.service.toLowerCase().includes(lowerQuery) ||
-                payment.paymentMethod.toLowerCase().includes(lowerQuery) ||
-                payment.status.toLowerCase().includes(lowerQuery) ||
-                formatDate(payment.date).includes(lowerQuery) ||
-                payment.amount.toString().includes(lowerQuery)
-            )
+                payment.transactionId?.toLowerCase().includes(lowerQuery) ||
+                payment.customerName?.toLowerCase().includes(lowerQuery) ||
+                payment.service?.toLowerCase().includes(lowerQuery) ||
+                payment.paymentMethod?.toLowerCase().includes(lowerQuery) ||
+                payment.status?.toLowerCase().includes(lowerQuery) ||
+                payment.date?.includes(lowerQuery) ||
+                payment.amount?.toString().includes(lowerQuery)
+            );
         });
     }, [payments, searchQuery]);
 
@@ -95,21 +124,14 @@ const PaymentReceipts = () => {
 
             if (sortColumn === 'amount') {
                 // Numeric comparison for amounts
-                valA = Number(valA);
-                valB = Number(valB);
+                valA = Number(valA) || 0;
+                valB = Number(valB) || 0;
+            } else if (sortColumn === 'date') {
+                valA = new Date(valA).getTime() || 0;
+                valB = new Date(valB).getTime() || 0;
             } else if (typeof valA === 'string') {
                 valA = valA.toLowerCase();
                 valB = valB.toLowerCase();
-            }
-
-            if (sortColumn === 'date') {
-                // Convert dates to comparable format (assuming DD-MM-YY format)
-                const [dayA, monthA, yearA] = valA.split('-').map(Number);
-                const [dayB, monthB, yearB] = valB.split('-').map(Number);
-                const dateA = new Date(2000 + yearA, monthA - 1, dayA);
-                const dateB = new Date(2000 + yearB, monthB - 1, dayB);
-                valA = dateA.getTime();
-                valB = dateB.getTime();
             }
 
             let comparison = 0;
@@ -154,11 +176,17 @@ const PaymentReceipts = () => {
     };
 
     const getStatusClass = (status) => {
-        switch (status?.toLowerCase() ?? "1") {
+        switch (status?.toLowerCase() ?? "") {
             case 'successful':
+            case 'completed':
+            case 'paid':
                 return 'bg-green-100 text-green-800 border-green-300';
             case 'failed':
                 return 'bg-red-100 text-red-800 border-red-300';
+            case 'abandoned':
+                return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+            case 'pending':
+                return 'bg-amber-100 text-amber-800 border-amber-300';
             default:
                 return 'bg-zinc-100 text-zinc-800 border-zinc-300';
         }
@@ -171,7 +199,7 @@ const PaymentReceipts = () => {
             style: 'currency',
             currency: 'NGN',
             minimumFractionDigits: 2
-        }).format(amount);
+        }).format(Number(amount) || 0);
     };
 
     // Placeholder Action Methods
@@ -181,8 +209,23 @@ const PaymentReceipts = () => {
     };
 
     const exportData = () => {
-        console.log("Export action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+        if (!sortedPayments || sortedPayments.length === 0) {
+            setNotification({ type: 'error', message: 'No payments to export.' });
+            return;
+        }
+
+        const exportRows = sortedPayments.map((p) => ({
+            'Transaction ID': p.transactionId,
+            'Customer Name': p.customerName,
+            'Service': p.service,
+            'Amount': p.amount,
+            'Date': p.date,
+            'Payment Method': p.paymentMethod,
+            'Status': p.status,
+        }));
+
+        exportToCSV(exportRows, 'agent_payments');
+        setNotification({ type: 'success', message: 'Payments exported successfully!' });
     };
 
 
@@ -309,15 +352,15 @@ const PaymentReceipts = () => {
                                                 </tr>
                                             ) : (
                                                 sortedPayments.map((payment, index) => (
-                                                    <tr key={payment.transactionId + index} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
+                                                    <tr key={payment.id || payment.transactionId || index} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
                                                         <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{payment.transactionId}</td>
                                                         <td className="px-4 py-3">{payment.customerName}</td>
                                                         <td className="px-4 py-3">{payment.service}</td>
                                                         <td className="px-4 py-3 whitespace-nowrap">{formatCurrency(payment.amount)}</td>
                                                         <td className="px-4 py-3 whitespace-nowrap">{formatDate(payment.date)}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{payment.paymentMethod}</td>
+                                                        <td className="px-4 py-3 whitespace-nowrap capitalize">{payment.paymentMethod}</td>
                                                         <td className="px-4 py-3 whitespace-nowrap">
-                                                            <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(payment.status)}`}>
+                                                            <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block capitalize ${getStatusClass(payment.status)}`}>
                                                                 {payment.status}
                                                             </span>
                                                         </td>
@@ -332,9 +375,9 @@ const PaymentReceipts = () => {
                                 {/* Pagination */}
                                 <div className="flex flex-col md:flex-row justify-between items-center mt-6 gap-4">
                                     <span className="text-sm text-zinc-700">
-                                        Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages}</span>
+                                        Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages || 1}</span>
                                         <span className="mx-2">|</span>
-                                        Total <span className="font-semibold">{payments.length}</span> items
+                                        Total <span className="font-semibold">{totalItems || payments.length}</span> items
                                     </span>
                                     <div className="inline-flex rounded-md shadow-sm -space-x-px" role="group">
                                         <button

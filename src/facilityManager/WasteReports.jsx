@@ -29,8 +29,8 @@ const WasteReports = () => {
         // Simulate fetching data
         const wasteData = JSON.parse(localStorage.getItem('wastereport'));
         setSummary({
-            period: wasteData.period,
-            generationDate: wasteData.generationDate,
+            period: typeof wasteData?.period === 'object' ? `${wasteData.period.from || ''} - ${wasteData.period.to || ''}` : (wasteData?.period || ''),
+            generationDate: wasteData?.generationDate || '',
             title: wasteData.title,
             totalDisposed: wasteData.data.wasteSummary.totalDisposed,
             totalWeight: wasteData.data.wasteSummary.totalWeight

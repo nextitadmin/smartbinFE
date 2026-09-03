@@ -96,7 +96,7 @@ const TenantDetailsSideBar = ({ tenantId, isOpen, onClose }) => {
                     if (item) {
                         const newData = {
                             dateAdded: item.createdAt ? item.createdAt.slice(0,10) : '',
-                            payerId: item.payerId || item.payerID || '-',
+                            payerId: item.userId || item.payerId || item.payerID || '-',
                             firstName: item.firstName,
                             lastName: item.lastName,
                             email: item.email,

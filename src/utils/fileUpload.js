@@ -9,6 +9,7 @@ const ALLOWED_IMAGE_TYPES = [
   "image/gif",
   "image/webp",
   "image/svg+xml",
+  "application/pdf",
 ];
 
 /**

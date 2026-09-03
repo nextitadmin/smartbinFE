@@ -84,6 +84,7 @@ const Dashboard = () => {
     const [chartDetails, setChartDetails] = useState([]);
     const [dashboardDetails, setDashboardDetails] = useState({});
     const [walletBalance, setWalletBalance] = useState('');
+    const [showBalance, setShowBalance] = useState(true);
 
     // Payment modal data
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('card');
@@ -526,13 +527,29 @@ const Dashboard = () => {
                                     <div className="flex p-6 rounded-2xl min-h-[230px] w-full bg-[linear-gradient(288.72deg,rgba(0,120,54,0.75)_0%,#007836_98.68%)]">
                                         <div className="w-full">
                                             <p className="text-white text-xs font-light ">Available Balance</p>
-                                            <div className="flex items-center ">
-                                                <h2 className="text-white text-3xl font-sans mt-1 mr-20">{walletBalance || '₦0'}
+                                            <div className="flex items-center">
+                                                <h2 className="text-white text-3xl font-sans mt-1 mr-6">
+                                                    {showBalance ? (walletBalance || '₦0') : '₦ ****'}
                                                 </h2>
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="text-white opacity-75" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                                                    <circle cx="12" cy="12" r="3" />
-                                                </svg>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowBalance(prev => !prev)}
+                                                    className="text-white opacity-75 hover:opacity-100 transition-opacity focus:outline-none cursor-pointer mt-1"
+                                                    aria-label={showBalance ? "Hide balance" : "Show balance"}
+                                                    title={showBalance ? "Hide balance" : "Show balance"}
+                                                >
+                                                    {showBalance ? (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                                                            <circle cx="12" cy="12" r="3" />
+                                                        </svg>
+                                                    ) : (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="M17.94 17.94A10.948 10.948 0 0112 19c-5 0-9.27-3-11-7 1.06-2.45 2.92-4.49 5.23-5.82M1 1l22 22" strokeLinecap="round" strokeLinejoin="round" />
+                                                            <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" strokeLinecap="round" strokeLinejoin="round" />
+                                                        </svg>
+                                                    )}
+                                                </button>
                                             </div>
                                             <div className="mt-14  mb-2">
                                                 <button className="bg-white text-green-700 py-4 px-4 rounded-xl flex items-center " onClick={() => openModal("topup")} >

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import api from "../api/axiosConfig.js"
@@ -88,20 +88,44 @@ const KYCApplication = () => {
     }
 
 
+    const location = useLocation();
+    const reuploadItem = location.state?.reuploadItem;
     const { residentInfo, fetchResidentInfo } = useResidentStore();
 
     const checkStatus = async () => {
         try {
             const { data } = await api.get('/resident/kyc/status')
             if ((data.succeeded || data.success) && data.data) {
-                const { hasSubmittedIdentity, identityVerificationStatus, addressVerificationStatus } = data.data;
+                const { hasSubmittedIdentity, hasSubmittedAddress, identityVerificationStatus, addressVerificationStatus } = data.data;
                 const identityStatus = (identityVerificationStatus || '').toLowerCase();
                 const addressStatus = (addressVerificationStatus || '').toLowerCase();
 
-                if (hasSubmittedIdentity &&
-                    identityStatus !== 'rejected' && identityStatus !== '0' &&
-                    addressStatus !== 'rejected' && addressStatus !== '0') {
+                const isStatusPendingOrDone = (status) => {
+                    return status === 'submitted' || status === 'pending' || status === 'approved';
+                };
+
+                const isIdDone = hasSubmittedIdentity || isStatusPendingOrDone(identityStatus);
+                const isAddrDone = hasSubmittedAddress || isStatusPendingOrDone(addressStatus);
+
+                const isIdRejected = identityStatus === 'rejected' || identityStatus === '0';
+                const isAddrRejected = addressStatus === 'rejected' || addressStatus === '0';
+
+                if (reuploadItem === 'address_info') {
+                    setCurrentStage(3);
+                    return;
+                }
+                if (reuploadItem === 'id_docs') {
+                    setCurrentStage(2);
+                    return;
+                }
+
+                if (isIdDone && isAddrDone && !isIdRejected && !isAddrRejected) {
                     navigate('/newkycapplication');
+                    return;
+                }
+
+                if (isIdDone && (!isAddrDone || isAddrRejected)) {
+                    setCurrentStage(3);
                 }
             }
         } catch (error) {

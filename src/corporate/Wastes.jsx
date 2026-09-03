@@ -828,14 +828,14 @@ const Wastes = () => {
                                 );
                             })}
                         </div>
-                        {/* <div className="px-6 py-4 flex flex-col items-center gap-3">
+                        <div className="px-6 py-4 flex flex-col items-center gap-3">
                             {
                                 selectedPaymentMethod === 'card' ?
                                     (
                                         <Pay4ItButton
                                             amount={pickUpAmount}
-                                            email={useAuthStore.getState().email || "manifestomixx@gmail.com"}
-                                            customerName={useCorporateStore.getState().corporateInfo.companyName || "Corporate User"}
+                                            email={Corporate?.emailAddress || Corporate?.email || useAuthStore.getState().email || "corporate@email.com"}
+                                            customerName={Corporate?.companyName || "Corporate User"}
                                             description="Waste Collection Payment"
                                             userType="corporate"
                                             customEndpoint="/corporate/wallets/charge"
@@ -855,7 +855,7 @@ const Wastes = () => {
                                             onClose={() => {
                                                 console.log("Pay4It window closed");
                                             }}
-                                            buttonText="Pay Now "
+                                            buttonText="Make Payment"
                                             buttonClassName="btn btn-primary w-full"
                                         />
                                     )
@@ -864,19 +864,19 @@ const Wastes = () => {
                                     (
                                         <button
                                             onClick={handlePaymentWithWallet}
-                                            className="btn btn-primary w-full"
+                                            className="btn btn-primary w-full cursor-pointer"
                                         >
                                             Make Payment
                                         </button>
                                     )
                             }
                             <button
-                                onClick={() => { closeModal('payment'); openModal('pickup'); }} // Inline handleBack logic
-                                className="w-full text-center font-medium text-green-700 hover:text-green-900 py-2"
+                                onClick={() => { closeModal('payment'); openModal('pickup'); }}
+                                className="w-full text-center font-medium text-green-700 hover:text-green-900 py-2 cursor-pointer"
                             >
                                 Go back
                             </button>
-                        </div> */}
+                        </div>
                     </div>
                 </div>
             )}

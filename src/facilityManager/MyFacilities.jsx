@@ -36,6 +36,16 @@ const initialFacilities = [
   { id: 'facility-6', sn: 6, buildingName: 'Lekki Garden', address: '8, Akin Adesola Street, Victoria Island', lga: 'Magodo' },
 ];
 
+const BUILDING_TYPES = [
+  'Duplex',
+  'Bungalow',
+  'Block of Flats',
+  'Terrace',
+  'Detached',
+  'Semi-Detached',
+  'Other',
+];
+
 const MyFacilities = () => {
   const [facilities, setFacilities] = useState(() => {
     const saved = localStorage.getItem('smartbin_facilities');
@@ -394,7 +404,27 @@ const MyFacilities = () => {
               </label>
               <label className="space-y-2 text-sm text-zinc-700">
                 <span>Building type</span>
-                <input id="buildingType" value={formData.buildingType} onChange={handleFormChange} placeholder="Building type" className="w-full rounded-2xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100" />
+                <select
+                  id="buildingType"
+                  value={formData.buildingType}
+                  onChange={handleFormChange}
+                  required
+                  className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
+                >
+                  <option value="" disabled>
+                    Select building type
+                  </option>
+                  {BUILDING_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                  {formData.buildingType && !BUILDING_TYPES.includes(formData.buildingType) && (
+                    <option value={formData.buildingType}>
+                      {formData.buildingType}
+                    </option>
+                  )}
+                </select>
               </label>
               <label className="space-y-2 text-sm text-zinc-700 sm:col-span-2">
                 <span>Address of facility</span>

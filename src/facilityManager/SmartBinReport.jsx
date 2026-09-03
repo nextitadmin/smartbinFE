@@ -89,9 +89,9 @@ const SmartBinReport = () => {
             status: item.status,
         }));
         setReportData({
-            reportTitle: binData.title,
-            reportPeriod: binData.period,
-            generatedDate: binData.generationDate,
+            reportTitle: binData?.title || 'Report',
+            reportPeriod: typeof binData?.period === 'object' ? `${binData.period.from || ''} - ${binData.period.to || ''}` : (binData?.period || ''),
+            generatedDate: binData?.generationDate || '',
             totalBinsOrdered: reportsData.length,
             items: reportsData
         });

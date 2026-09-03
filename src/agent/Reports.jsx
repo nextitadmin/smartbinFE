@@ -174,7 +174,7 @@ const ReportsPage = () => {
                     id:             item.id || item._id,
                     reportType:     item.reportType || item.type || '',
                     reportTitle:    item.reportTitle || item.reportName || item.title || '',
-                    period:         item.period || '',
+                    period:         typeof item.period === 'object' ? `${item.period.from || ''} - ${item.period.to || ''}` : (item.period || ''),
                     generationDate: item.generationDate || item.createdAt || '',
                     customerName:   item.customerName || '',
                     requestBy:      item.requestBy || '',
@@ -257,7 +257,7 @@ const ReportsPage = () => {
             const { data } = await api.get(`/agent/reports/${report.id}`);
             if (data.success || data.succeeded) {
                 const reportObject = {
-                    period:         report.period || '',
+                    period:         typeof report.period === 'object' ? `${report.period.from || ''} - ${report.period.to || ''}` : (report.period || ''),
                     generationDate: formatGenerationDate(report.generationDate),
                     title:          report.reportTitle,
                     data:           data.data || {},
@@ -503,7 +503,11 @@ const ReportsPage = () => {
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-900 whitespace-nowrap">{report.reportTitle}</td>
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-900 whitespace-nowrap">{report.customerName}</td>
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{formatGenerationDate(report.generationDate)}</td>
-                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{report.period}</td>
+                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">
+                                                                {typeof report.period === 'object'
+                                                                    ? `${report.period.from || ''} - ${report.period.to || ''}`
+                                                                    : (report.period || 'N/A')}
+                                                            </td>
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{report.reportType}</td>
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500 relative">
                                                                 <button onClick={() => handleActionMenuToggle(report.id)} className="text-zinc-400 hover:text-zinc-600">

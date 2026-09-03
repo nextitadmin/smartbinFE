@@ -136,12 +136,35 @@ const formatGenerationDate = (isoDateString) => {
         const date = new Date(isoDateString);
         const datePart = date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
         const timePart = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-        console.log(`${datePart} @ ${timePart}`);
         return `${datePart} @ ${timePart}`;
     } catch (e) {
-        console.log(e)
+        console.log(e);
         return 'Invalid Date';
     }
+};
+
+const formatPeriodValue = (period, startDate, endDate) => {
+    if (period && typeof period === 'object') {
+        if (period.from && period.to) {
+            return `${period.from} - ${period.to}`;
+        }
+        if (period.startDate && period.endDate) {
+            return `${period.startDate} - ${period.endDate}`;
+        }
+    }
+    if (typeof period === 'string' && period.trim()) {
+        return period;
+    }
+    if (startDate && endDate) {
+        try {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            return `${start.toLocaleDateString('en-US', { month: 'long', day: '2-digit' })} - ${end.toLocaleDateString('en-US', { month: 'long', day: '2-digit' })}`;
+        } catch {
+            return `${startDate} - ${endDate}`;
+        }
+    }
+    return 'N/A';
 };
 
 
@@ -155,9 +178,6 @@ const ReportsPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
-    const [isCustomerOpen, setIsCustomerOpen] = useState(false);
-    const [isCustomerListOpen, setIsCustomerListOpen] = useState(false);
-    const [customerNameList, setCustomerNameList] = useState(['John Babatunde', 'Alima Philips']);
     const navigate = useNavigate();
 
 
@@ -170,13 +190,11 @@ const ReportsPage = () => {
     const [sortConfig, setSortConfig] = useState({ key: 'generationDate', direction: 'descending' });
 
     const [newReportName, setNewReportName] = useState('');
-    const [newCustomerName, setNewCustomerName] = useState('');
     const [newReportType, setNewReportType] = useState('');
-    const [newCustomerType, setNewCustomerType] = useState('');
     const [newReportStartDate, setNewReportStartDate] = useState('');
     const [newReportEndDate, setNewReportEndDate] = useState('');
 
-    const fetchReportsAPI = async() =>{
+    const fetchReportsAPI = async () => {
         try {
             const params = new URLSearchParams();
             if (filterReportType && filterReportType !== 'All') {
@@ -195,9 +213,18 @@ const ReportsPage = () => {
             const queryString = params.toString();
             const url = `/facility-manager/reports${queryString ? `?${queryString}` : ''}`;
             const { data } = await api.get(url);
-            if(data.success && data.data){
+            if (data.success && data.data) {
                 const reportsArray = data.data.reports || data.data.data || data.data || [];
-                setReports(reportsArray);
+                const formatted = (Array.isArray(reportsArray) ? reportsArray : []).map((item, idx) => ({
+                    ...item,
+                    id: item._id || item.id || `report-${idx}`,
+                    reportTitle: item.reportTitle || item.reportName || item.title || 'Untitled Report',
+                    reportType: item.reportType || item.type || 'General',
+                    generationDate: item.generationDate || item.createdAt || item.requestDate || item.date || '',
+                    period: formatPeriodValue(item.period, item.startDate, item.endDate),
+                    customerName: item.customerName || item.customer || '-',
+                }));
+                setReports(formatted);
             } else {
                 console.error("Failed to fetch reports:", data?.message);
                 setReports([]);
@@ -234,13 +261,15 @@ const ReportsPage = () => {
     const processedReports = useMemo(() => {
         let filtered = [...reports];
         if (searchTerm) {
+            const term = searchTerm.toLowerCase();
             filtered = filtered.filter(report =>
-                report.reportTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                report.reportType.toLowerCase().includes(searchTerm.toLowerCase())
+                (report.reportTitle || '').toLowerCase().includes(term) ||
+                (report.customerName || '').toLowerCase().includes(term) ||
+                (report.reportType || '').toLowerCase().includes(term)
             );
         }
         if (filterReportType !== 'All') {
-            filtered = filtered.filter(report => report.reportType === filterReportType);
+            filtered = filtered.filter(report => (report.reportType || '').toLowerCase() === filterReportType.toLowerCase());
         }
         if (filterDate) {
             filtered = filtered.filter(report =>
@@ -274,8 +303,6 @@ const ReportsPage = () => {
     const handleOpenModal = () => {
         setNewReportName('');
         setNewReportType('');
-        setNewCustomerType('');
-        setNewCustomerName('');
         setNewReportStartDate('');
         setNewReportEndDate('');
         setIsModalOpen(true);
@@ -295,8 +322,8 @@ const ReportsPage = () => {
 
     const handleGenerateReportSubmit = async (e) => {
         e.preventDefault();
-        
-        if (!newReportName || !newReportType || !newReportStartDate || !newReportEndDate || !newCustomerType || !newCustomerName) {
+
+        if (!newReportName || !newReportType || !newReportStartDate || !newReportEndDate) {
             showNotification('Please fill all fields in the report form.', 'error');
             return;
         }
@@ -311,8 +338,6 @@ const ReportsPage = () => {
         try {
             const payload = {
                 reportName: newReportName,
-                customerType: newCustomerType,
-                customerName: newCustomerName,
                 type: selectedType,
                 startDate: new Date(newReportStartDate).toISOString(),
                 endDate: new Date(newReportEndDate).toISOString()
@@ -338,7 +363,7 @@ const ReportsPage = () => {
     const modalRef = useRef();
 
     const handleRowAction = (appId, reportType) => {
-        setCurrentDataId({id : appId, type : reportType});
+        setCurrentDataId({ id: appId, type: reportType });
         setRowActionModal(true);
     };
 
@@ -357,16 +382,16 @@ const ReportsPage = () => {
     const handleReportView = async () => {
         const reportId = currentDataId.id;
         const reportType = currentDataId.type;
-        
+
         try {
             setIsLoading(true);
             const { data } = await api.get(`/facility-manager/reports/${reportId}`);
-            
+
             if (data.success && data.data) {
                 const reportDetail = data.data;
                 const reportObject = {
                     title: reportDetail.reportName || reportDetail.title || 'Report',
-                    period: formatPeriod(reportDetail.startDate, reportDetail.endDate),
+                    period: formatPeriodValue(reportDetail.period, reportDetail.startDate, reportDetail.endDate),
                     generationDate: formatGenerationDate(reportDetail.createdAt || new Date()),
                     data: reportDetail.data || reportDetail.records || []
                 };
@@ -405,7 +430,6 @@ const ReportsPage = () => {
 
     const tableHeaders = [
         { key: 'reportTitle', label: 'Report Title' },
-        { key: 'customerName', label: 'Customer Name' },
         { key: 'generationDate', label: 'Generation Date' },
         { key: 'period', label: 'Period' },
         { key: 'reportType', label: 'Report Type' },
@@ -545,9 +569,13 @@ const ReportsPage = () => {
                                                         <tr key={report.id} className="hover:bg-zinc-50 transition-colors duration-150">
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500">{index + 1}.</td>
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-900 whitespace-nowrap">{report.reportTitle}</td>
-                                                            <td className="lg:p-6 p-3 text-sm text-zinc-900 whitespace-nowrap">{report.customerName}</td>
+
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{formatGenerationDate(report.generationDate)}</td>
-                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">{report.period}</td>
+                                                            <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">
+                                                                {typeof report.period === 'object'
+                                                                    ? formatPeriodValue(report.period)
+                                                                    : (report.period || 'N/A')}
+                                                            </td>
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap">
 
                                                                 <span>
@@ -555,7 +583,7 @@ const ReportsPage = () => {
                                                                 </span>
                                                             </td>
                                                             <td className="lg:p-6 p-3 text-sm text-zinc-500 whitespace-nowrap relative">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => handleRowAction(report.id, report.reportType)}
                                                                     type="button"
                                                                     className="p-1 text-zinc-400 hover:text-zinc-600"
@@ -603,98 +631,6 @@ const ReportsPage = () => {
                                                     />
                                                 </div>
                                                 <div className="mb-4">
-                                                    <label htmlFor="customerType" className="block text-sm font-medium text-zinc-700 mb-1">Customer type</label>
-                                                    <div className="relative">
-                                                        <div className="relative inline-block w-full">
-                                                            <button
-                                                                type="button"
-                                                                className={`w-full lg:p-4 p-2 pr-8 border border-zinc-300 rounded-2xl appearance-none focus:ring focus:outline-none focus:ring-green-700 focus:border-green-700 bg-white text-left flex justify-between items-center ${!newReportType ? 'text-zinc-400' : 'text-zinc-900'
-                                                                    }`}
-                                                                onClick={() => setIsCustomerOpen(!isCustomerOpen)}
-                                                                aria-haspopup="listbox"
-                                                                aria-expanded={isCustomerOpen}
-                                                            >
-                                                                {newCustomerType !== '' ? newCustomerType : "Select customer type"}
-                                                                <ChevronDownIcon className={`h-4 w-4 text-zinc-400 transform ${isCustomerOpen ? 'rotate-180' : ''}`} />
-                                                            </button>
-
-                                                            {isCustomerOpen && (
-                                                                <ul
-                                                                    className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none"
-                                                                    role="listbox"
-                                                                    tabIndex={-1}
-                                                                >
-
-                                                                    {CUSTOMER_TYPES.map((type) => (
-                                                                        <li
-                                                                            key={type}
-                                                                            className="text-zinc-900 cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-zinc-50"
-                                                                            role="option"
-                                                                            onClick={() => {
-                                                                                setNewCustomerType(type);
-                                                                                setIsCustomerOpen(false);
-                                                                            }}
-                                                                        >
-                                                                            <span className="block truncate">{type}</span>
-                                                                            {newCustomerType === type && (
-                                                                                <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-green-600">
-                                                                                    <CheckIcon className="h-5 w-5" />
-                                                                                </span>
-                                                                            )}
-                                                                        </li>
-                                                                    ))}
-                                                                </ul>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="mb-4">
-                                                    <label htmlFor="customerType" className="block text-sm font-medium text-zinc-700 mb-1">Customer Name</label>
-                                                    <div className="relative">
-                                                        <div className="relative inline-block w-full">
-                                                            <button
-                                                                type="button"
-                                                                className={`w-full lg:p-4 p-2 pr-8 border border-zinc-300 rounded-2xl appearance-none focus:ring focus:outline-none focus:ring-green-700 focus:border-green-700 bg-white text-left flex justify-between items-center ${!newReportType ? 'text-zinc-400' : 'text-zinc-900'
-                                                                    }`}
-                                                                onClick={() => setIsCustomerListOpen(!isCustomerListOpen)}
-                                                                aria-haspopup="listbox"
-                                                                aria-expanded={isCustomerListOpen}
-                                                            >
-                                                                {newCustomerName !== '' ? newCustomerName : "Select customer name"}
-                                                                <ChevronDownIcon className={`h-4 w-4 text-zinc-400 transform ${isCustomerListOpen ? 'rotate-180' : ''}`} />
-                                                            </button>
-
-                                                            {isCustomerListOpen && (
-                                                                <ul
-                                                                    className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none"
-                                                                    role="listbox"
-                                                                    tabIndex={-1}
-                                                                >
-
-                                                                    {customerNameList.map((type) => (
-                                                                        <li
-                                                                            key={type}
-                                                                            className="text-zinc-900 cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-zinc-50"
-                                                                            role="option"
-                                                                            onClick={() => {
-                                                                                setNewCustomerName(type);
-                                                                                setIsCustomerListOpen(false);
-                                                                            }}
-                                                                        >
-                                                                            <span className="block truncate">{type}</span>
-                                                                            {newCustomerName === type && (
-                                                                                <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-green-600">
-                                                                                    <CheckIcon className="h-5 w-5" />
-                                                                                </span>
-                                                                            )}
-                                                                        </li>
-                                                                    ))}
-                                                                </ul>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="mb-4">
                                                     <label htmlFor="reportType" className="block text-sm font-medium text-zinc-700 mb-1">Report type</label>
                                                     <div className="relative">
                                                         <div className="relative inline-block w-full">
@@ -716,7 +652,6 @@ const ReportsPage = () => {
                                                                     role="listbox"
                                                                     tabIndex={-1}
                                                                 >
-
                                                                     {REPORT_TYPES.map((type) => (
                                                                         <li
                                                                             key={type.name}
@@ -740,7 +675,7 @@ const ReportsPage = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="grid grid-cols-1 gap-4 mb-6">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                                                     <div>
                                                         <label htmlFor="startDate" className="block text-sm font-medium text-zinc-700 mb-1">Start Date</label>
                                                         <input
