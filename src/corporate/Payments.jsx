@@ -4,50 +4,38 @@ import Topbar from '../components/CorporateTopBar';
 import useCorporateStore from '../store/useCorporateStore';
 import api from '../api/axiosConfig';
 import PaymentNav from '../components/PaymentNav';
+import { exportToCSV } from '../utils/exportHelper';
 
 const PaymentReceipts = () => {
     // --- State ---
     const [payments, setPayments] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortColumn, setSortColumn] = useState('sn');
-    const [sortDirection, setSortDirection] = useState('asc');
+    const [sortColumn, setSortColumn] = useState('date');
+    const [sortDirection, setSortDirection] = useState('dsc');
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
     const [notification, setNotification] = useState(null);
-    const [totalPages, setTotalPages] = useState('');
-    const [totalItems, setTotalItems] = useState(0);
     const [isLoading, setIsLoading] = useState(false); // Loading state for fetchData
 
-    // --- Payments Data ---
-    // const paymentsData = [
-    //     { transactionId: "#OD12589048", service: "Smart Bin Purchase", amount: 20000, date: "21-01-25", paymentMethod: "Wallet", status: "Failed" },
-    //     { transactionId: "#OD12589049", service: "Waste Bin Disposal", amount: 11250, date: "22-01-25", paymentMethod: "Alat By Wema", status: "Successful" },
-    //     { transactionId: "#OD12589050", service: "Waste Bin Disposal", amount: 15000, date: "23-01-25", paymentMethod: "Credit Card", status: "Successful" },
-    //     { transactionId: "#OD12589051", service: "Waste Bin Disposal", amount: 20000, date: "24-01-25", paymentMethod: "Alat By Wema", status: "Failed" },
-    //     { transactionId: "#OD12589052", service: "Waste Bin Disposal", amount: 9500, date: "25-01-25", paymentMethod: "Wallet", status: "Successful" },
-    //     { transactionId: "#OD12589053", service: "Waste Bin Disposal", amount: 17000, date: "26-01-25", paymentMethod: "Wallet", status: "Successful" },
-    //     { transactionId: "#OD12589054", service: "Waste Bin Disposal", amount: 12500, date: "27-01-25", paymentMethod: "Credit Card", status: "Successful" },
-    //     { transactionId: "#OD12589055", service: "Waste Bin Disposal", amount: 6000, date: "28-01-25", paymentMethod: "Wallet", status: "Successful" },
-    //     { transactionId: "#OD12589056", service: "Subscription", amount: 12600, date: "29-01-25", paymentMethod: "Credit Card", status: "Successful" },
-    //     { transactionId: "#OD12589057", service: "Waste Bin Disposal", amount: 3500, date: "30-01-25", paymentMethod: "Alat By Wema", status: "Successful" },
-    //     { transactionId: "#OD12589058", service: "Waste Bin Disposal", amount: 22000, date: "31-01-25", paymentMethod: "Alat By Wema", status: "Failed" },
-    //     { transactionId: "#OD12589059", service: "Waste Bin Disposal", amount: 14500, date: "01-02-25", paymentMethod: "Wallet", status: "Successful" },
-    // ];
+    // --- Filter States ---
+    const [showFilterPanel, setShowFilterPanel] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [serviceFilter, setServiceFilter] = useState('All');
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
+
+    const itemsPerPage = 10;
 
     const fetchData = async () => {
-        setIsLoading(true); // Set loading to true
+        setIsLoading(true);
         try {
-            const endpoint = `/corporate/payments?AccountNo=${useCorporateStore.getState().corporateInfo.accountNo}&page=${currentPage}&limit=${itemsPerPage}`;
+            const endpoint = `/corporate/payments?AccountNo=${useCorporateStore.getState().corporateInfo.accountNo}&page=1&limit=10000`;
             console.log("Calling API endpoint:", endpoint);
             
-            // Fetch payment data from the correct backend endpoint
             const { data } = await api.get(endpoint);
             if (data.succeeded || data.success) {
-                // Map the transactions array from the backend response
                 const transactions = data.data?.transactions || data.transactions || [];
-                const newData = transactions.map((item, index) => {
-                    // Try to infer AlatPay if possible (same logic as Wallet.jsx)
-                    let paymentMethod = item.paymentMethod;
+                const newData = transactions.map((item) => {
+                    let paymentMethod = item.paymentMethod || "N/A";
                     if (
                         paymentMethod.toLowerCase() === "wallet" &&
                         (
@@ -59,8 +47,7 @@ const PaymentReceipts = () => {
                         paymentMethod = "alatPay";
                     }
                     
-                    // Try to infer Subscription service if it's a wallet charge for subscription
-                    let service = item.service;
+                    let service = item.service || "Payment";
                     if (
                         service.toLowerCase() === "wallet charge" &&
                         (
@@ -73,83 +60,86 @@ const PaymentReceipts = () => {
                     }
                     
                     return {
-                        sn: index + 1 + (currentPage - 1) * itemsPerPage,
                         id: item._id,
-                        transactionId: item.transactionReference,
-                        date: item.createdAt?.slice(0, 10),
+                        transactionId: item.transactionReference || item.id,
+                        date: (item.createdAt || item.date)?.slice(0, 10),
                         service: service,
-                        status: item.status,
+                        status: item.status || "Successful",
                         amount: item.amount,
                         paymentMethod: paymentMethod
                     };
                 });
                 setPayments(newData);
-                setTotalPages(data.data?.paging?.pages || data.paging?.pages || 1);
-                setTotalItems(data.data?.paging?.total || data.paging?.total || 0);
             }
-            console.log("payments", data);
-            console.log("Raw transactions data:", transactions);
-            console.log("Pagination data:", {
-                currentPage,
-                totalPages: data.data?.paging?.pages || data.paging?.pages,
-                totalItems: data.data?.paging?.total || data.paging?.total,
-                itemsPerPage
-            });
-            
         } catch (error) {
             console.log(error);
         } finally {
-            setIsLoading(false); // Set loading to false after fetch
+            setIsLoading(false);
         }
-    }
+    };
 
     useEffect(() => {
-        // Add serial numbers to wastes data
-        fetchData()
-    }, [currentPage]);
+        fetchData();
+    }, []);
 
     const clearNotification = () => {
         setNotification(null);
     };
-// new
-
 
     useEffect(() => {
         if (notification) {
             const timer = setTimeout(() => {
                 clearNotification();
-            }, 5000); // Hide after 5 seconds
-            return () => clearTimeout(timer); // Cleanup timer on component unmount or notification change
+            }, 5000);
+            return () => clearTimeout(timer);
         }
     }, [notification]);
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
-        const parts = dateString.split('-');
-        if (parts.length === 3) {
-            return `${parts[0]}-${parts[1]}-${parts[2]}`;
-        }
         return dateString;
     };
 
-
     // --- Computed Properties ---
+    const uniqueServices = useMemo(() => {
+        const services = payments.map(p => p.service).filter(Boolean);
+        return [...new Set(services)];
+    }, [payments]);
+
     const filteredPayments = useMemo(() => {
-        if (!searchQuery) {
-            return payments;
+        let result = payments;
+
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            result = result.filter(payment => {
+                return (
+                    (payment.transactionId || '').toLowerCase().includes(lowerQuery) ||
+                    (payment.service || '').toLowerCase().includes(lowerQuery) ||
+                    (payment.paymentMethod || '').toLowerCase().includes(lowerQuery) ||
+                    (payment.status || '').toLowerCase().includes(lowerQuery) ||
+                    formatDate(payment.date).includes(lowerQuery) ||
+                    (payment.amount || '').toString().includes(lowerQuery)
+                );
+            });
         }
-        const lowerQuery = searchQuery.toLowerCase();
-        return payments.filter(payment => {
-            return (
-                payment.transactionId.toLowerCase().includes(lowerQuery) ||
-                payment.service.toLowerCase().includes(lowerQuery) ||
-                payment.paymentMethod.toLowerCase().includes(lowerQuery) ||
-                payment.status.toLowerCase().includes(lowerQuery) ||
-                formatDate(payment.date).includes(lowerQuery) ||
-                payment.amount.toString().includes(lowerQuery)
-            )
-        });
-    }, [payments, searchQuery]);
+
+        if (statusFilter !== 'All') {
+            result = result.filter(payment => (payment.status || '').toLowerCase() === statusFilter.toLowerCase());
+        }
+
+        if (serviceFilter !== 'All') {
+            result = result.filter(payment => payment.service === serviceFilter);
+        }
+
+        if (startDateFilter) {
+            result = result.filter(payment => payment.date >= startDateFilter);
+        }
+        if (endDateFilter) {
+            result = result.filter(payment => payment.date <= endDateFilter);
+        }
+
+        return result;
+    }, [payments, searchQuery, statusFilter, serviceFilter, startDateFilter, endDateFilter]);
 
     const sortedPayments = useMemo(() => {
         return [...filteredPayments].sort((a, b) => {
@@ -157,22 +147,16 @@ const PaymentReceipts = () => {
             let valB = b[sortColumn];
 
             if (sortColumn === 'amount') {
-                // Numeric comparison for amounts
-                valA = Number(valA);
-                valB = Number(valB);
+                valA = Number(valA) || 0;
+                valB = Number(valB) || 0;
             } else if (typeof valA === 'string') {
                 valA = valA.toLowerCase();
                 valB = valB.toLowerCase();
             }
 
             if (sortColumn === 'date') {
-                // Convert dates to comparable format (assuming DD-MM-YY format)
-                const [dayA, monthA, yearA] = valA.split('-').map(Number);
-                const [dayB, monthB, yearB] = valB.split('-').map(Number);
-                const dateA = new Date(2000 + yearA, monthA - 1, dayA);
-                const dateB = new Date(2000 + yearB, monthB - 1, dayB);
-                valA = dateA.getTime();
-                valB = dateB.getTime();
+                valA = valA ? new Date(valA).getTime() : 0;
+                valB = valB ? new Date(valB).getTime() : 0;
             }
 
             let comparison = 0;
@@ -186,13 +170,22 @@ const PaymentReceipts = () => {
         });
     }, [filteredPayments, sortColumn, sortDirection]);
 
-    // const paginatedPayments = useMemo(() => {
-    //     const start = (currentPage - 1) * itemsPerPage;
-    //     const end = start + itemsPerPage;
-    //     return sortedPayments.slice(start, end);
-    // }, [sortedPayments, currentPage]);
 
 
+
+    const paginatedPayments = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return sortedPayments.slice(startIndex, endIndex);
+    }, [sortedPayments, currentPage]);
+
+    const totalItems = sortedPayments.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, serviceFilter, startDateFilter, endDateFilter]);
 
     // --- Methods ---
     const sortBy = (columnKey) => {
@@ -294,7 +287,9 @@ const PaymentReceipts = () => {
                                         <button
                                             onClick={filterData}
                                             type="button"
-                                            className="px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                            className={`px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                                                showFilterPanel ? 'bg-green-50 border-green-300 text-green-700 font-semibold' : 'text-zinc-700 bg-white hover:bg-zinc-50'
+                                            }`}
                                         >
                                             Filter
                                         </button>
@@ -307,6 +302,74 @@ const PaymentReceipts = () => {
                                         </button>
                                     </div>
                                 </div>
+
+                                {/* Filter Panel */}
+                                {showFilterPanel && (
+                                    <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 transition-all duration-300 ease-in-out">
+                                        {/* Status Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</label>
+                                            <select
+                                                value={statusFilter}
+                                                onChange={(e) => setStatusFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            >
+                                                <option value="All">All Statuses</option>
+                                                <option value="Successful">Successful</option>
+                                                <option value="Failed">Failed</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Service Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Service</label>
+                                            <select
+                                                value={serviceFilter}
+                                                onChange={(e) => setServiceFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            >
+                                                <option value="All">All Services</option>
+                                                {uniqueServices.map(service => (
+                                                    <option key={service} value={service}>{service}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Start Date Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date From</label>
+                                            <input
+                                                type="date"
+                                                value={startDateFilter}
+                                                onChange={(e) => setStartDateFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            />
+                                        </div>
+
+                                        {/* End Date Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date To</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="date"
+                                                    value={endDateFilter}
+                                                    onChange={(e) => setEndDateFilter(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 flex-1"
+                                                />
+                                                {(statusFilter !== 'All' || serviceFilter !== 'All' || startDateFilter || endDateFilter) && (
+                                                    <button
+                                                        onClick={clearFilters}
+                                                        type="button"
+                                                        className="px-2 text-zinc-500 hover:text-red-500 hover:bg-zinc-100 rounded-lg text-xs font-medium border border-zinc-200"
+                                                        title="Clear Filters"
+                                                    >
+                                                        Reset
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Table */}
                                 <div className="table-container border border-zinc-200 rounded-2xl">
@@ -362,7 +425,6 @@ const PaymentReceipts = () => {
                                                         </span>
                                                     </div>
                                                 </th>
-
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -375,27 +437,29 @@ const PaymentReceipts = () => {
                                                         </div>
                                                     </td>
                                                 </tr>
-                                            ) : sortedPayments.length === 0 ? (
+                                            ) : paginatedPayments.length === 0 ? (
                                                 <tr>
                                                     <td colSpan="7" className="text-center py-10 text-zinc-500">No payments found.</td>
                                                 </tr>
                                             ) : (
-                                                sortedPayments.map((payment, index) => (
-                                                    <tr key={payment.transactionId + index} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
-                                                        <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{payment.sn}</td>
-                                                        <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{payment.transactionId}</td>
-                                                        <td className="px-4 py-3">{payment.service}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{formatCurrency(payment.amount)}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{formatDate(payment.date)}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{payment.paymentMethod}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">
-                                                            <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(payment.status)}`}>
-                                                                {payment.status}
-                                                            </span>
-                                                        </td>
-
-                                                    </tr>
-                                                ))
+                                                paginatedPayments.map((payment, index) => {
+                                                    const sn = (currentPage - 1) * itemsPerPage + index + 1;
+                                                    return (
+                                                        <tr key={payment.transactionId + index} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
+                                                            <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{sn}</td>
+                                                            <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{payment.transactionId}</td>
+                                                            <td className="px-4 py-3">{payment.service}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">{formatCurrency(payment.amount)}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">{formatDate(payment.date)}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">{payment.paymentMethod}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                                <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(payment.status)}`}>
+                                                                    {payment.status}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
                                             )}
                                         </tbody>
                                     </table>

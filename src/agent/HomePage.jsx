@@ -316,7 +316,7 @@ const Dashboard = () => {
     };
 
     const closeModal = (modalName) => {
-        if (modalName === 'success') { setShowSuccessModal(false); setTopUpAmount(''); fetchDashboard(); }
+        if (modalName === 'success') { setShowSuccessModal(false); setTopUpAmount(''); window.location.reload(); }
         if (modalName === 'topup') setShowTopUpModal(false);
         if (modalName === 'error') setShowErrorModal(false);
         if (modalName === 'payment') setIsPaymentModalOpen(false);
@@ -357,7 +357,9 @@ const Dashboard = () => {
                 setNotification({ type: 'success', message: data.message || 'TopUp successful!' });
                 closeModal('topup');
                 openModal('success');
-                fetchBalance();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2500);
             } else {
                 setNotification({ type: 'error', message: formatErrorMessage(data.message) || 'Error during TopUp!' });
             }
@@ -601,11 +603,17 @@ const Dashboard = () => {
                                     </span>
                                 </div>
                             </div>
-                            <button onClick={downloadReceipt} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 mb-8 border border-green-700 font-medium rounded-md text-green-700 bg-white hover:bg-zinc-50">
+                            <button onClick={downloadReceipt} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 mb-3 border border-green-700 font-medium rounded-xl text-green-700 bg-white hover:bg-zinc-50">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                 </svg>
                                 Download Receipt
+                            </button>
+                            <button
+                                onClick={() => closeModal('success')}
+                                className="w-full py-3 mb-4 bg-green-700 hover:bg-green-600 text-white font-medium rounded-xl transition duration-150"
+                            >
+                                Done
                             </button>
                         </div>
                     </div>
@@ -662,8 +670,12 @@ const Dashboard = () => {
                                     userType="agent"
                                     onSuccess={() => {
                                         fetchDashboard();
+                                        fetchBalance();
                                         closeModal('topup');
                                         openModal('success');
+                                        setTimeout(() => {
+                                            window.location.reload();
+                                        }, 2500);
                                     }}
                                     onClose={() => {
                                         console.log("Pay4It closed");

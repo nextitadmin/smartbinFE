@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import { exportToCSV } from '../utils/exportHelper';
 
 // --- Icon Components (if not imported from elsewhere) ---
 const ChevronUpDownIcon = ({ className = "h-5 w-5" }) => (
@@ -18,6 +19,13 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
     const [sortDirection, setSortDirection] = useState('dsc');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 6;
+
+    // --- Filter States ---
+    const [showFilterPanel, setShowFilterPanel] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
+
     const [rowActionModal, setRowActionModal] = useState(false);
     const [viewApplicationModal, setViewApplicationModal] = useState(false);
     const [totalItems, setTotalItems] = useState(0);
@@ -44,13 +52,12 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
     // --- Fetch Data ---
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/facility-managers/smart-bin/applications?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
+            const { data } = await api.get(`/facility-managers/smart-bin/applications?PageNo=1&PageSize=10000`);
             const succeeded = data.success || data.succeeded;
             if (succeeded && data.data) {
                 const list = Array.isArray(data.data.data) ? data.data.data : (Array.isArray(data.data) ? data.data : []);
-                const newData = list.map((item, index) => ({
+                const newData = list.map((item) => ({
                     id: item.id || item._id,
-                    sn: index + 1 + (currentPage - 1) * itemsPerPage,
                     orderId: item.orderID || item.orderId || '',
                     date: (item.requestDate || item.createdAt || '').slice(0, 10),
                     address: item.residentDetails || item.address || '-',
@@ -64,12 +71,8 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
                     binType: item.binType ?? item.binTypeName ?? 'Smart',
                 }));
                 setApplications(newData);
-                setTotalPages(data.data.totalPages || data.meta?.paging?.pages || 0);
-                setTotalItems(data.data.totalCount || data.meta?.paging?.total || 0);
             } else {
                 setApplications([]);
-                setTotalPages(0);
-                setTotalItems(0);
             }
         } catch (error) {
             console.error("Error fetching applications:", error);
@@ -80,7 +83,7 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
 
     useEffect(() => {
         fetchData();
-    }, [currentPage, refreshTrigger]); // Re-fetch when page or refresh trigger changes
+    }, [refreshTrigger]); // Re-fetch when refresh trigger changes
 
     useEffect(() => {
         const details = applications.find((item) => item.id === currentDataId);
@@ -88,18 +91,44 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
     }, [currentDataId, applications]);
 
     // --- Computed Properties ---
+    const uniqueStatuses = useMemo(() => {
+        const statuses = applications.map(a => a.status).filter(Boolean);
+        return [...new Set(statuses)];
+    }, [applications]);
+
     const filteredApplications = useMemo(() => {
-        if (!searchQuery) return applications;
-        const lowerQuery = searchQuery.toLowerCase();
-        return applications.filter(app =>
-            app.orderId.toLowerCase().includes(lowerQuery) ||
-            app.address.toLowerCase().includes(lowerQuery) ||
-            app.status.toLowerCase().includes(lowerQuery) ||
-            (app.date).includes(lowerQuery) ||
-            app.customerName.toLowerCase().includes(lowerQuery) ||
-            app.customerType.toLowerCase().includes(lowerQuery)
-        );
-    }, [applications, searchQuery]);
+        let result = applications;
+
+        // 1. Search Query
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            result = result.filter(app => {
+                return (
+                    (app.orderId || '').toLowerCase().includes(lowerQuery) ||
+                    (app.address || '').toLowerCase().includes(lowerQuery) ||
+                    (app.status || '').toLowerCase().includes(lowerQuery) ||
+                    (app.date || '').includes(lowerQuery) ||
+                    (app.customerName || '').toLowerCase().includes(lowerQuery) ||
+                    (app.customerType || '').toLowerCase().includes(lowerQuery)
+                );
+            });
+        }
+
+        // 2. Status Filter
+        if (statusFilter !== 'All') {
+            result = result.filter(app => app.status === statusFilter);
+        }
+
+        // 3. Date Filters
+        if (startDateFilter) {
+            result = result.filter(app => app.date >= startDateFilter);
+        }
+        if (endDateFilter) {
+            result = result.filter(app => app.date <= endDateFilter);
+        }
+
+        return result;
+    }, [applications, searchQuery, statusFilter, startDateFilter, endDateFilter]);
 
     const sortedApplications = useMemo(() => {
         return [...filteredApplications].sort((a, b) => {
@@ -110,8 +139,8 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
                 valB = valB.toLowerCase();
             }
             if (sortColumn === 'date') {
-                valA = new Date(valA);
-                valB = new Date(valB);
+                valA = valA ? new Date(valA).getTime() : 0;
+                valB = valB ? new Date(valB).getTime() : 0;
             }
             let comparison = 0;
             if (valA > valB) comparison = 1;
@@ -119,6 +148,20 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
             return sortDirection === 'dsc' ? (comparison * -1) : comparison;
         });
     }, [filteredApplications, sortColumn, sortDirection]);
+
+    const paginatedApplications = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return sortedApplications.slice(startIndex, endIndex);
+    }, [sortedApplications, currentPage]);
+
+    const totalItemsCount = sortedApplications.length;
+    const totalPagesCount = Math.ceil(totalItemsCount / itemsPerPage) || 1;
+
+    // Reset page on filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, startDateFilter, endDateFilter]);
 
     // --- Methods ---
     const sortBy = (columnKey) => {
@@ -137,7 +180,7 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
     };
 
     const changePage = (page) => {
-        if (page >= 1 && page <= totalPages) {
+        if (page >= 1 && page <= totalPagesCount) {
             setCurrentPage(page);
         }
     };
@@ -160,15 +203,41 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
         return dateString;
     };
 
-    // --- Action Methods ---
+    const clearFilters = () => {
+        setStatusFilter('All');
+        setStartDateFilter('');
+        setEndDateFilter('');
+        setSearchQuery('');
+    };
+
     const filterData = () => {
-        console.log("Filter action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+        setShowFilterPanel(prev => !prev);
     };
 
     const exportData = () => {
-        console.log("Export action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+        if (sortedApplications.length === 0) {
+            setNotification({ type: 'error', message: "No records to export." });
+            return;
+        }
+
+        try {
+            const exportRows = sortedApplications.map((app, index) => ({
+                "S/N": index + 1,
+                "Order ID": app.orderId,
+                "Date": app.date,
+                "Customer Name": app.customerName,
+                "Customer Type": app.customerType,
+                "Bin Type": app.binType,
+                "Building Name": app.buildingName,
+                "Address": app.address,
+                "Status": app.status
+            }));
+            exportToCSV(exportRows, "fm_smart_bin_applications");
+            setNotification({ type: 'success', message: "Applications exported successfully!" });
+        } catch (error) {
+            console.error("Export error:", error);
+            setNotification({ type: 'error', message: "An error occurred during export." });
+        }
     };
 
     const handleRowAction = (appId) => {
@@ -195,7 +264,7 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
                 <div className="flex items-center gap-2">
                     <h1 className="text-xl md:text-2xl font-semibold text-zinc-800">Applications</h1>
                     <span className="bg-green-700 text-green-50 text-xs font-semibold px-2.5 py-2 rounded-full">
-                        {totalItems}
+                        {totalItemsCount}
                     </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -232,7 +301,9 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
                     <button
                         onClick={filterData}
                         type="button"
-                        className="px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        className={`px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                            showFilterPanel ? 'bg-green-50 border-green-300 text-green-700 font-semibold' : 'text-zinc-700 bg-white hover:bg-zinc-50'
+                        }`}
                     >
                         Filter
                     </button>
@@ -245,6 +316,60 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
                     </button>
                 </div>
             </div>
+
+            {/* Filter Panel */}
+            {showFilterPanel && (
+                <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 transition-all duration-300 ease-in-out">
+                    {/* Status Filter */}
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</label>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                        >
+                            <option value="All">All Statuses</option>
+                            {uniqueStatuses.map(status => (
+                                <option key={status} value={status}>{status}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Date From Filter */}
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date From</label>
+                        <input
+                            type="date"
+                            value={startDateFilter}
+                            onChange={(e) => setStartDateFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                        />
+                    </div>
+
+                    {/* Date To Filter */}
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date To</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="date"
+                                value={endDateFilter}
+                                onChange={(e) => setEndDateFilter(e.target.value)}
+                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 flex-1"
+                            />
+                            {(statusFilter !== 'All' || startDateFilter || endDateFilter) && (
+                                <button
+                                    onClick={clearFilters}
+                                    type="button"
+                                    className="px-2 text-zinc-500 hover:text-red-500 hover:bg-zinc-100 rounded-lg text-xs font-medium border border-zinc-200"
+                                    title="Clear Filters"
+                                >
+                                    Reset
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Table */}
             <div className="table-container border border-zinc-200 rounded-2xl">
@@ -285,36 +410,39 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {totalItems === 0 ? (
+                        {paginatedApplications.length === 0 ? (
                             <tr>
                                 <td colSpan="7" className="text-center py-10 text-zinc-500">No applications found.</td>
                             </tr>
                         ) : (
-                            sortedApplications.map(app => (
-                                <tr key={app.id} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
-                                    <td className="px-4 py-3 font-medium text-zinc-900">{app.sn}</td>
-                                    <td className="px-4 py-3 font-medium text-zinc-900">{app.buildingName}</td>
-                                    <td className="px-4 py-3">{app.address}</td>
-                                    <td className="px-4 py-3 font-medium text-zinc-900">{app.binType}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.date)}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap">
-                                        <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(app.status)}`}>
-                                            {app.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-center">
-                                        <button
-                                            onClick={() => handleRowAction(app.id)}
-                                            type="button"
-                                            className="p-1 text-zinc-500 hover:text-zinc-700"
-                                        >
-                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
-                                            </svg>
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
+                            paginatedApplications.map((app, index) => {
+                                const sn = (currentPage - 1) * itemsPerPage + index + 1;
+                                return (
+                                    <tr key={app.id} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
+                                        <td className="px-4 py-3 font-medium text-zinc-900">{sn}</td>
+                                        <td className="px-4 py-3 font-medium text-zinc-900">{app.buildingName}</td>
+                                        <td className="px-4 py-3">{app.address}</td>
+                                        <td className="px-4 py-3 font-medium text-zinc-900">{app.binType}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.date)}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(app.status)}`}>
+                                                {app.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            <button
+                                                onClick={() => handleRowAction(app.id)}
+                                                type="button"
+                                                className="p-1 text-zinc-500 hover:text-zinc-700"
+                                            >
+                                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
+                                                </svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>
@@ -323,9 +451,9 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
             {/* Pagination */}
             <div className="flex flex-col md:flex-row justify-between items-center mt-6 gap-4">
                 <span className="text-sm text-zinc-700">
-                    Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages}</span>
+                    Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPagesCount}</span>
                     <span className="mx-2">|</span>
-                    Total <span className="font-semibold">{totalItems}</span> items
+                    Total <span className="font-semibold">{totalItemsCount}</span> items
                 </span>
                 <div className="inline-flex rounded-md shadow-sm -space-x-px" role="group">
                     <button
@@ -340,7 +468,7 @@ const SmartBinApplicationsList = ({ onApplyClick, refreshTrigger }) => {
                     </button>
                     <button
                         onClick={() => changePage(currentPage + 1)}
-                        disabled={currentPage === totalPages || totalPages === 0}
+                        disabled={currentPage === totalPagesCount || totalPagesCount === 0}
                         type="button"
                         className="px-3 py-2 text-sm font-medium text-zinc-50 bg-green-700 border border-zinc-300 hover:bg-green-600 focus:z-10 focus:ring-2 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >

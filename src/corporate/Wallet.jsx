@@ -5,22 +5,27 @@ import useCorporateStore from "../store/useCorporateStore";
 import useAuthStore from "../store/authStore";
 import api from "../api/axiosConfig";
 import Pay4ItButton from "../components/Pay4ItButton";
-
 import PaymentNav from "../components/PaymentNav";
+import { exportToCSV } from "../utils/exportHelper";
 
 const PaymentReceipts = () => {
   const corporateInfo = useCorporateStore((state) => state.corporateInfo);
   const fetchCorporateInfo = useCorporateStore((state) => state.fetchCorporateInfo);
 
   // --- State ---
-
   const [payments, setPayments] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortColumn, setSortColumn] = useState("sn");
   const [sortDirection, setSortDirection] = useState("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [notification, setNotification] = useState(null);
-  const [totalPages, setTotalPages] = useState("");
+
+  // --- Filter States ---
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
+
   const itemsPerPage = 10;
   const [topUpAmount, setTopUpAmount] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -31,12 +36,9 @@ const PaymentReceipts = () => {
 
   const fetchData = async () => {
     try {
-      const endpoint = `/corporate/payments?AccountNo=${useCorporateStore.getState().corporateInfo.accountNo}&page=${currentPage}&limit=${itemsPerPage}`;
-      // console.log("Calling API endpoint:", endpoint);
-
+      const endpoint = `/corporate/payments?AccountNo=${useCorporateStore.getState().corporateInfo.accountNo}&page=1&limit=10000`;
       const { data } = await api.get(endpoint);
       if (data.succeeded || data.success) {
-        // Use the correct array and filter for wallet and alatPay
         const transactions = data.data?.transactions || data.transactions || [];
         const filtered = transactions.filter(
           (item) =>
@@ -47,8 +49,7 @@ const PaymentReceipts = () => {
               item.paymentMethod.toLowerCase() === "alat by wema")
         );
 
-        const newData = filtered.map((item, index) => {
-          // Try to infer AlatPay if possible
+        const newData = filtered.map((item) => {
           let paymentMethod = item.paymentMethod;
           if (
             paymentMethod.toLowerCase() === "wallet" &&
@@ -61,7 +62,6 @@ const PaymentReceipts = () => {
             paymentMethod = "alatPay";
           }
           return {
-            sn: index + 1 + (currentPage - 1) * itemsPerPage,
             id: item._id,
             transactionRef: item.transactionReference,
             date: item.createdAt?.slice(0, 10),
@@ -72,24 +72,15 @@ const PaymentReceipts = () => {
           };
         });
         setPayments(newData);
-        setTotalPages(data.data?.paging?.pages || data.paging?.pages || 1);
       }
-      // console.log("Wallet transactions data:", data);
-      // console.log("Pagination data:", {
-      //   currentPage,
-      //   totalPages: data.data?.paging?.pages || data.paging?.pages,
-      //   totalItems: data.data?.paging?.total || data.paging?.total,
-      //   itemsPerPage
-      // });
     } catch (error) {
       console.log(error);
     }
   };
 
   useEffect(() => {
-    // Add serial numbers to wastes data
     fetchData();
-  }, [currentPage]);
+  }, []);
 
   const fetchBalance = async () => {
     try {
@@ -160,45 +151,61 @@ const PaymentReceipts = () => {
   };
 
   // --- Computed Properties ---
+  const uniqueStatuses = useMemo(() => {
+    const statuses = payments.map(p => p.status).filter(Boolean);
+    return [...new Set(statuses)];
+  }, [payments]);
+
   const filteredPayments = useMemo(() => {
-    if (!searchQuery) {
-      return payments;
+    let result = payments;
+
+    // 1. Search Query
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      result = result.filter(payment => {
+        return (
+          (payment.transactionRef || '').toLowerCase().includes(lowerQuery) ||
+          (payment.service || '').toLowerCase().includes(lowerQuery) ||
+          (payment.paymentMethod || '').toLowerCase().includes(lowerQuery) ||
+          (payment.status || '').toLowerCase().includes(lowerQuery) ||
+          formatDate(payment.date).includes(lowerQuery) ||
+          (payment.amount || '').toString().includes(lowerQuery)
+        );
+      });
     }
-    const lowerQuery = searchQuery.toLowerCase();
-    return payments.filter((payment) => {
-      return (
-        payment.transactionRef.toLowerCase().includes(lowerQuery) ||
-        payment.service.toLowerCase().includes(lowerQuery) ||
-        payment.paymentMethod.toLowerCase().includes(lowerQuery) ||
-        payment.status.toLowerCase().includes(lowerQuery) ||
-        formatDate(payment.date).includes(lowerQuery) ||
-        payment.amount.toString().includes(lowerQuery)
-      );
-    });
-  }, [payments, searchQuery]);
+
+    // 2. Status Filter
+    if (statusFilter !== 'All') {
+      result = result.filter(payment => payment.status === statusFilter);
+    }
+
+    // 3. Date Filters
+    if (startDateFilter) {
+      result = result.filter(payment => payment.date >= startDateFilter);
+    }
+    if (endDateFilter) {
+      result = result.filter(payment => payment.date <= endDateFilter);
+    }
+
+    return result;
+  }, [payments, searchQuery, statusFilter, startDateFilter, endDateFilter]);
 
   const sortedPayments = useMemo(() => {
     return [...filteredPayments].sort((a, b) => {
       let valA = a[sortColumn];
       let valB = b[sortColumn];
 
-      if (sortColumn === "amount") {
-        // Numeric comparison for amounts
-        valA = Number(valA);
-        valB = Number(valB);
-      } else if (typeof valA === "string") {
+      if (sortColumn === 'amount') {
+        valA = Number(valA || 0);
+        valB = Number(valB || 0);
+      } else if (typeof valA === 'string') {
         valA = valA.toLowerCase();
         valB = valB.toLowerCase();
       }
 
-      if (sortColumn === "date") {
-        // Convert dates to comparable format (assuming DD-MM-YY format)
-        const [dayA, monthA, yearA] = valA.split("-").map(Number);
-        const [dayB, monthB, yearB] = valB.split("-").map(Number);
-        const dateA = new Date(2000 + yearA, monthA - 1, dayA);
-        const dateB = new Date(2000 + yearB, monthB - 1, dayB);
-        valA = dateA.getTime();
-        valB = dateB.getTime();
+      if (sortColumn === 'date') {
+        valA = valA ? new Date(valA).getTime() : 0;
+        valB = valB ? new Date(valB).getTime() : 0;
       }
 
       let comparison = 0;
@@ -208,9 +215,23 @@ const PaymentReceipts = () => {
         comparison = -1;
       }
 
-      return sortDirection === "dsc" ? comparison * -1 : comparison;
+      return sortDirection === 'dsc' ? (comparison * -1) : comparison;
     });
   }, [filteredPayments, sortColumn, sortDirection]);
+
+  const paginatedPayments = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return sortedPayments.slice(startIndex, endIndex);
+  }, [sortedPayments, currentPage]);
+
+  const totalItems = sortedPayments.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+  // Reset page on filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, startDateFilter, endDateFilter]);
 
   // --- Methods ---
   const sortBy = (columnKey) => {
@@ -253,15 +274,39 @@ const PaymentReceipts = () => {
     }).format(amount);
   };
 
-  // Placeholder Action Methods
+  const clearFilters = () => {
+    setStatusFilter('All');
+    setStartDateFilter('');
+    setEndDateFilter('');
+    setSearchQuery('');
+  };
+
   const filterData = () => {
-    console.log("Filter action triggered");
-    setNotification({ type: "error", message: "Coming soon..." });
+    setShowFilterPanel(prev => !prev);
   };
 
   const exportData = () => {
-    console.log("Export action triggered");
-    setNotification({ type: "error", message: "Coming soon..." });
+    if (sortedPayments.length === 0) {
+      setNotification({ type: 'error', message: "No records to export." });
+      return;
+    }
+
+    try {
+      const exportRows = sortedPayments.map((p, index) => ({
+        "S/N": index + 1,
+        "Transaction ID": p.transactionRef,
+        "Date": p.date,
+        "Service": p.service,
+        "Amount": p.amount,
+        "Payment Method": p.paymentMethod,
+        "Status": p.status
+      }));
+      exportToCSV(exportRows, "corporate_wallet_transactions");
+      setNotification({ type: 'success', message: "Transactions exported successfully!" });
+    } catch (error) {
+      console.error("Export error:", error);
+      setNotification({ type: 'error', message: "An error occurred during export." });
+    }
   };
 
   const closeAllModals = () => {
@@ -281,7 +326,7 @@ const PaymentReceipts = () => {
     if (modalName === "success") {
       setShowSuccessModal(false);
       setTopUpAmount("");
-      fetchBalance();
+      window.location.reload();
     }
     if (modalName === "topup") setShowTopUpModal(false);
 
@@ -391,6 +436,9 @@ const PaymentReceipts = () => {
         fetchBalance(); // Refresh balance
         closeModal("topup"); // Close top-up modal
         openModal("success"); // Show success modal
+        setTimeout(() => {
+          window.location.reload();
+        }, 2500);
       } else {
         setNotification({
           type: "error",
@@ -559,7 +607,9 @@ const PaymentReceipts = () => {
                     <button
                       onClick={filterData}
                       type="button"
-                      className="px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      className={`px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                        showFilterPanel ? 'bg-green-50 border-green-300 text-green-700 font-semibold' : 'text-zinc-700 bg-white hover:bg-zinc-50'
+                      }`}
                     >
                       Filter
                     </button>
@@ -573,6 +623,60 @@ const PaymentReceipts = () => {
                   </div>
                 </div>
 
+                {/* Filter Panel */}
+                {showFilterPanel && (
+                  <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 transition-all duration-300 ease-in-out">
+                    {/* Status Filter */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</label>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                      >
+                        <option value="All">All Statuses</option>
+                        {uniqueStatuses.map(status => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Start Date Filter */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date From</label>
+                      <input
+                        type="date"
+                        value={startDateFilter}
+                        onChange={(e) => setStartDateFilter(e.target.value)}
+                        className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                      />
+                    </div>
+
+                    {/* End Date Filter */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date To</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={endDateFilter}
+                          onChange={(e) => setEndDateFilter(e.target.value)}
+                          className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 flex-1"
+                        />
+                        {(statusFilter !== 'All' || startDateFilter || endDateFilter) && (
+                          <button
+                            onClick={clearFilters}
+                            type="button"
+                            className="px-2 text-zinc-500 hover:text-red-500 hover:bg-zinc-100 rounded-lg text-xs font-medium border border-zinc-200"
+                            title="Clear Filters"
+                          >
+                            Reset
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Table */}
                 <div className="table-container border border-zinc-200 rounded-2xl">
                   <table className="w-full min-w-[768px] text-sm text-left text-zinc-600">
@@ -585,7 +689,6 @@ const PaymentReceipts = () => {
                         >
                           S/N
                         </th>
-
                         <th
                           scope="col"
                           className="px-4 py-3"
@@ -685,7 +788,7 @@ const PaymentReceipts = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedPayments.length === 0 ? (
+                      {paginatedPayments.length === 0 ? (
                         <tr>
                           <td
                             colSpan="7"
@@ -695,40 +798,43 @@ const PaymentReceipts = () => {
                           </td>
                         </tr>
                       ) : (
-                        sortedPayments.map((payment, index) => (
-                          <tr
-                            key={payment.transactionRef}
-                            className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20"
-                          >
-                            <td className="px-4 py-3 text-center">
-                              <span className="text-sm font-medium text-zinc-900">
-                                {payment.sn}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">
-                              {payment.transactionRef}
-                            </td>
-                            <td className="px-4 py-3">{payment.service}</td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              {formatCurrency(payment.amount)}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              {formatDate(payment.date)}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              {payment.paymentMethod}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <span
-                                className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(
-                                  payment.status
-                                )}`}
-                              >
-                                {payment.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
+                        paginatedPayments.map((payment, index) => {
+                          const sn = (currentPage - 1) * itemsPerPage + index + 1;
+                          return (
+                            <tr
+                              key={payment.transactionRef}
+                              className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20"
+                            >
+                              <td className="px-4 py-3 text-center">
+                                <span className="text-sm font-medium text-zinc-900">
+                                  {sn}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">
+                                {payment.transactionRef}
+                              </td>
+                              <td className="px-4 py-3">{payment.service}</td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {formatCurrency(payment.amount)}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {formatDate(payment.date)}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {payment.paymentMethod}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span
+                                  className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(
+                                    payment.status
+                                  )}`}
+                                >
+                                  {payment.status}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -742,7 +848,7 @@ const PaymentReceipts = () => {
                     <span className="mx-2">|</span>
                     Total{" "}
                     <span className="font-semibold">
-                      {payments.length}
+                      {totalItems}
                     </span>{" "}
                     items
                   </span>
@@ -887,7 +993,7 @@ const PaymentReceipts = () => {
 
               <button
                 onClick={downloadReceipt}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 mb-8 border border-green-700 font-medium rounded-md text-green-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 mb-3 border border-green-700 font-medium rounded-xl text-green-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
                 <svg
                   className="w-5 h-5"
@@ -904,6 +1010,12 @@ const PaymentReceipts = () => {
                   ></path>
                 </svg>
                 Download Receipt
+              </button>
+              <button
+                onClick={() => closeModal("success")}
+                className="w-full py-3 mb-4 bg-green-700 hover:bg-green-600 text-white font-medium rounded-xl transition duration-150"
+              >
+                Done
               </button>
             </div>
           </div>
@@ -1002,6 +1114,9 @@ const PaymentReceipts = () => {
                       fetchBalance();
                       closeModal("topup");
                       openModal("success");
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 2500);
                     }}
                     onClose={() => {
                       console.log("Pay4It closed");

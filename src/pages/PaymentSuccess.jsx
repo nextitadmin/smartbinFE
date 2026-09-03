@@ -43,15 +43,15 @@ const PaymentSuccess = () => {
   const handleReturnToDashboard = () => {
     const userType = localStorage.getItem('userType') || 'resident';
     if (userType === 'resident') {
-      navigate('/wallet');
+      window.location.href = '/wallet';
     } else if (userType === 'facilitymgr') {
-      navigate('/facility-wallet');
+      window.location.href = '/facility-wallet';
     } else if (userType === 'corporate') {
-      navigate('/corporate-wallet');
+      window.location.href = '/corporate-wallet';
     } else if (userType === 'agent') {
-      navigate('/agent-wallet');
+      window.location.href = '/agent-wallet';
     } else {
-      navigate('/');
+      window.location.href = '/';
     }
   };
 
