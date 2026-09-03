@@ -96,7 +96,8 @@ function AppManager() {
             console.log('🔍 Checking payment status for:', transactionReference);
             
             // First, check if we have any smart bin payments in the general payments list
-            const { data } = await api.get(`/corporate/payments?AccountNo=${useCorporateStore.getState().corporateInfo.accountNo}&page=1&limit=100`);
+            const accountNo = useCorporateStore.getState().corporateInfo?.accountNo || '';
+            const { data } = await api.get(`/corporate/payments?AccountNo=${accountNo}&page=1&limit=100`);
             
             if (data.succeeded || data.success) {
                 const transactions = data.data?.transactions || data.transactions || [];
@@ -236,22 +237,26 @@ function AppManager() {
     const fetchData = async () => {
         try {
             const { data } = await api.get(`/corporates/smart-bin/applications/${currentId}`);
-            if (data.success) {
-                const enhancedTrackingInfos = data.data.applicationHistory.map((event, index, arr) => ({
+            if (data.success || data.succeeded) {
+                const appData = data.data?.data || data.data || {};
+                const history = Array.isArray(appData.applicationHistory) ? appData.applicationHistory : [];
+
+                const enhancedTrackingInfos = history.map((event, index, arr) => ({
                     ...event,
                     isCurrent: index === arr.length - 1,
-                    isCompleted: event.status?.toLowerCase() === 'delivered'
+                    isCompleted: event.status?.toLowerCase() === 'delivered' || event.status?.toLowerCase() === 'activated'
                 }));
 
                 setOrderDetails({
-                    ...data.data,
+                    ...appData,
                     trackInfos: enhancedTrackingInfos
                 });
-                console.log(orderDetails);
+                console.log("Application details:", appData);
 
                 // Check payment status after fetching application details
-                if (data.data.transactionReference) {
-                    await checkPaymentStatus(data.data.transactionReference);
+                const ref = appData.transactionReference || appData.id;
+                if (ref) {
+                    await checkPaymentStatus(ref);
                 }
             }
         } catch (error) {
@@ -261,7 +266,9 @@ function AppManager() {
 
 
     function formatDate(dateString) {
+        if (!dateString) return "N/A";
         const date = new Date(dateString);
+        if (isNaN(date.getTime())) return "N/A";
 
         const day = date.getDate();
         const month = date.toLocaleString('default', { month: 'long' });
@@ -282,7 +289,9 @@ function AppManager() {
     }
 
     const formatDelivery = (dateString) => {
+        if (!dateString) return "N/A";
         const date = new Date(dateString);
+        if (isNaN(date.getTime())) return "N/A";
 
         const day = date.getDate();
         const month = date.toLocaleString('default', { month: 'long' });
@@ -292,7 +301,7 @@ function AppManager() {
                 day % 10 === 2 && day !== 12 ? 'nd' :
                     day % 10 === 3 && day !== 13 ? 'rd' : 'th';
 
-        return `${day}${suffix} ${month}, ${year}`
+        return `${day}${suffix} ${month}, ${year}`;
     }
 
     // const trackOrder = () => {
@@ -347,7 +356,10 @@ function AppManager() {
                     </div>
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => orderDetails?.transactionReference && checkPaymentStatus(orderDetails.transactionReference)}
+                            onClick={() => {
+                                const ref = orderDetails?.transactionReference || orderDetails?.id;
+                                if (ref) checkPaymentStatus(ref);
+                            }}
                             className="px-4 py-2 text-sm font-medium rounded-lg text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                         >
                             Refresh Payment Status
@@ -426,20 +438,20 @@ function AppManager() {
 
                                     <div>
                                         <p className="text-sm text-zinc-500 font-normal">Order ID</p>
-                                        <p className="font-medium text-zinc-900">{orderDetails?.transactionReference}</p>
+                                        <p className="font-medium text-zinc-900">{orderDetails?.transactionReference || orderDetails?.id || 'N/A'}</p>
                                     </div>
                                 </div>
                                 <div>
                                     <p className="text-sm text-zinc-500 font-normal">Date Processed</p>
-                                    <p className="font-medium text-zinc-900">{formatDate(orderDetails?.updatedAt)}</p>
+                                    <p className="font-medium text-zinc-900">{formatDate(orderDetails?.datePending || orderDetails?.createdAt || orderDetails?.updatedAt)}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-zinc-500 font-normal">Customer</p>
-                                    <p className="font-medium text-zinc-900">{orderDetails?._doc?.firstName + " " + orderDetails?._doc?.lastName}</p>
+                                    <p className="font-medium text-zinc-900">{orderDetails?.customerName || (orderDetails?._doc ? `${orderDetails._doc.firstName || ''} ${orderDetails._doc.lastName || ''}`.trim() : '') || 'N/A'}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-zinc-500 font-normal">Destination</p>
-                                    <p className="font-medium text-zinc-900 leading-snug">{orderDetails?.address}</p>
+                                    <p className="font-medium text-zinc-900 leading-snug">{orderDetails?.address || 'N/A'}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-zinc-500 font-normal">Payment Status</p>

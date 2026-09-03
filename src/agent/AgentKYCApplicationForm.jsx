@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/AgentSidebar';
 import Topbar from '../components/AgentTopBar';
 import api from "../api/axiosConfig.js";
 import useAuthStore from '../store/authStore';
 import useAgentStore from '../store/useAgentStore';
+import { uploadFile } from '../utils/fileUpload.js';
 
 
 
@@ -71,6 +72,8 @@ const KYCApplication = () => {
 
     });
     const navigate = useNavigate();
+    const location = useLocation();
+    const reuploadItem = location.state?.reuploadItem;
     const { agentInfo, fetchAgentInfo } = useAgentStore();
     const clearNotification = () => {
         setNotification(null);
@@ -93,10 +96,35 @@ const KYCApplication = () => {
                     const identityStatus = (identityVerificationStatus || '').toLowerCase();
                     const addressStatus = (addressVerificationStatus || '').toLowerCase();
 
-                    if (hasSubmittedIdentity &&
-                        identityStatus !== 'rejected' && identityStatus !== '0' &&
-                        addressStatus !== 'rejected' && addressStatus !== '0') {
+                    const isStatusPendingOrDone = (status) => {
+                        return status === 'submitted' || status === 'pending' || status === 'approved';
+                    };
+
+                    const isIdDone = hasSubmittedIdentity || isStatusPendingOrDone(identityStatus);
+                    const isAddrDone = hasSubmittedAddress || isStatusPendingOrDone(addressStatus);
+
+                    const isIdRejected = identityStatus === 'rejected' || identityStatus === '0';
+                    const isAddrRejected = addressStatus === 'rejected' || addressStatus === '0';
+
+                    // If user was directed here to reupload a specific item
+                    if (reuploadItem === 'address_info' || reuploadItem === 'agency') {
+                        setCurrentStage(2);
+                        return;
+                    }
+                    if (reuploadItem === 'id_docs') {
+                        setCurrentStage(1);
+                        return;
+                    }
+
+                    // If both are submitted/pending and neither is rejected, redirect to status overview
+                    if (isIdDone && isAddrDone && !isIdRejected && !isAddrRejected) {
                         navigate('/newkycapplication');
+                        return;
+                    }
+
+                    // If identity is done, but address is missing or rejected, advance directly to Stage 2
+                    if (isIdDone && (!isAddrDone || isAddrRejected)) {
+                        setCurrentStage(2);
                     }
                 }
             } catch (error) {
@@ -106,7 +134,7 @@ const KYCApplication = () => {
 
         checkKycStatus();
         fetchAgentInfo();
-    }, [navigate]);
+    }, [navigate, reuploadItem]);
 
     useEffect(() => {
         if (agentInfo) {
@@ -234,7 +262,16 @@ const KYCApplication = () => {
         // e.g., fileInputRef.current.value = null;
     };
 
-
+    const removeAgencyFile = () => {
+        setFormData(prev => ({
+            ...prev,
+            agency: {
+                ...prev.agency,
+                file: null,
+                agencyCertificate: ''
+            }
+        }));
+    };
 
     const removeBranch = (index) => {
         setFormData(prev => ({
@@ -272,6 +309,27 @@ const KYCApplication = () => {
         }
     };
 
+    const processDocUpload = async (file, fallback) => {
+        if (!file) return fallback || '';
+        if (typeof file === 'string') return file;
+
+        // Try uploading to media endpoint first to get a file URL
+        try {
+            const res = await uploadFile(file);
+            if (res?.url) return res.url;
+        } catch (uploadErr) {
+            console.warn('uploadFile failed, falling back to base64:', uploadErr);
+        }
+
+        // Fallback to base64
+        try {
+            return await fileToBase64(file);
+        } catch (b64Err) {
+            console.error('fileToBase64 failed:', b64Err);
+            return fallback || '';
+        }
+    };
+
     const handleSubmit = async () => {
         // Enforce validations for all steps
         if (
@@ -305,48 +363,37 @@ const KYCApplication = () => {
             return;
         }
 
-        if (!formData.agency.agencyCertificate) {
+        if (!formData.agency.agencyCertificate && !formData.agency.file) {
             setNotification({ type: 'error', message: 'Please upload your agency certificate.' });
             return;
         }
 
         try {
-            let idDocBase64 = '';
-            if (formData.documents.file) {
-                idDocBase64 = await fileToBase64(formData.documents.file);
-            } else {
-                idDocBase64 = formData.documents.fileName || '';
-            }
-
-            let certDocBase64 = '';
-            if (formData.agency.file) {
-                certDocBase64 = await fileToBase64(formData.agency.file);
-            } else {
-                certDocBase64 = formData.agency.agencyCertificate || '';
-            }
+            const idDocString = await processDocUpload(formData.documents.file, formData.documents.fileName);
+            const certDocString = await processDocUpload(formData.agency.file, formData.agency.agencyCertificate);
 
             const payload = {
                 personalInformation: {
-                    firstName: formData.personal.firstName,
-                    lastName: formData.personal.lastName,
-                    nationality: formData.personal.nationality,
-                    gender: formData.personal.gender,
-                    lawmaCustomerType: agentInfo?.lawmaCustomerType || agentInfo?.customerType || 'Agent',
-                    NinNo: formData.documents.idNumber || '',
-                    idDocument: idDocBase64
+                    firstName: formData.personal.firstName?.trim() || '',
+                    lastName: formData.personal.lastName?.trim() || '',
+                    nationality: formData.personal.nationality?.trim() || '',
+                    gender: formData.personal.gender?.trim() || '',
+                    lawmaCustomerType: (agentInfo?.lawmaCustomerType || agentInfo?.customerType || 'Agent')?.trim(),
+                    NinNo: formData.documents.idNumber?.trim() || '',
+                    idDocument: idDocString || ''
                 },
                 agencyInformation: {
-                    agencyName: formData.agency.agencyName,
-                    businessRegistrationNumber: formData.agency.registrationNumber,
-                    businessEmailAddress: formData.agency.businessEmail,
-                    businessPhoneNumber: formData.agency.businessPhone,
-                    branches: formData.agency.branches.map(branch => ({
-                        branchName: branch.name,
-                        branchAddress: branch.address
+                    agencyName: formData.agency.agencyName?.trim() || '',
+                    businessRegistrationNumber: formData.agency.registrationNumber?.trim() || '',
+                    businessEmailAddress: formData.agency.businessEmail?.trim() || '',
+                    businessPhoneNumber: formData.agency.businessPhone?.trim() || '',
+                    branches: (formData.agency.branches || []).map(branch => ({
+                        branchName: (branch.branchName || branch.name || '').trim(),
+                        branchAddress: (branch.branchAddress || branch.address || '').trim()
                     }))
                 },
                 addressDocument: {
-                    agencyCertificateDocument: certDocBase64
+                    agencyCertificateDocument: certDocString || ''
                 }
             };
 
@@ -359,11 +406,13 @@ const KYCApplication = () => {
                 setNotification({ type: 'success', message: 'Submitted successfully!' });
                 setCurrentStage(4); // Move to confirmation stage
             } else {
-                setNotification({ type: 'error', message: data.message || "Error submitting kyc application." });
+                const errMsg = Array.isArray(data.message) ? data.message.join(', ') : (data.message || "Error submitting kyc application.");
+                setNotification({ type: 'error', message: errMsg });
             }
         } catch (error) {
             console.log("Error creating KYC", error);
-            const errorMsg = error.response?.data?.message || error.message || "Error submitting kyc application.";
+            const responseData = error.response?.data;
+            const errorMsg = responseData?.message || responseData?.error || responseData?.errors || error.message || "Error submitting kyc application.";
             setNotification({ type: 'error', message: Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg });
         }
     };
@@ -772,7 +821,7 @@ const KYCApplication = () => {
                                                     {formData.agency.agencyCertificate ? (
                                                         <p className="mt-2 text-sm text-zinc-600">
                                                             Uploaded file: <span className="font-medium text-green-700">{formData.agency.agencyCertificate}</span>
-                                                            <button onClick={removeFile} type="button" className="ml-2 text-red-600 hover:text-red-800 text-xs font-medium">
+                                                            <button onClick={removeAgencyFile} type="button" className="ml-2 text-red-600 hover:text-red-800 text-xs font-medium">
                                                                 (Remove)
                                                             </button>
                                                         </p>

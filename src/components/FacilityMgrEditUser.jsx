@@ -168,7 +168,7 @@ const ConfirmationModal = ({ show, onClose, onConfirm, userData, branches }) => 
                         </>
                     ) : (
                         <>
-                            <p className="mb-2"><span className="font-medium">Payer ID:</span> {userData.payerId}</p>
+                            <p className="mb-2"><span className="font-medium">Payer ID:</span> {userData.payerId || userData.userId || 'N/A'}</p>
                             <p className="mb-2"><span className="font-medium">First Name:</span> {userData.firstName}</p>
                             <p className="mb-2"><span className="font-medium">Last Name:</span> {userData.lastName}</p>
                             <p className="mb-2"><span className="font-medium">Email Address:</span> {userData.emailAddress}</p>
@@ -245,6 +245,7 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuc
     const [userData, setUserData] = useState({
         customerType: '',
         payerId: '',
+        userId: '',
         firstName: '',
         lastName: '',
         emailAddress: '',
@@ -330,7 +331,8 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuc
                     if (item) {
                         setUserData({
                             customerType: 'tenant',
-                            payerId: item.payerId || item.payerID || '',
+                            payerId: item.userId || item.payerId || item.payerID || '',
+                            userId: item.userId || item.payerId || item.payerID || '',
                             firstName: item.firstName || '',
                             lastName: item.lastName || '',
                             emailAddress: item.email || '',
@@ -489,6 +491,7 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuc
             let responseData;
             if (!devMode) {
                 const payload = {
+                    userId: userData.payerId || userData.userId || undefined,
                     firstName: userData.firstName,
                     lastName: userData.lastName,
                     email: userData.emailAddress || userData.email,
@@ -501,7 +504,7 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuc
                     localGovernment: userData.localGovernment,
                     closestLandmark: userData.closestLandmark,
                     lawmaCustomerType: userData.lawmaCustomerType,
-                    binType: userData.binType,
+                    binType: userData.binType?.toLowerCase() === 'non_smart' ? 'non_smart' : (userData.binType?.toLowerCase() === 'smart' ? 'smart' : userData.binType),
                 };
                 const res = await api.patch(`/facility-managers/user/${userId}`, payload);
                 responseData = res.data;
@@ -533,6 +536,7 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuc
         setUserData({
             customerType: '',
             payerId: '',
+            userId: '',
             firstName: '',
             lastName: '',
             emailAddress: '',
@@ -624,7 +628,7 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuc
                                             type="text"
                                             id="payerId"
                                             name="payerId"
-                                            value={userData.payerId}
+                                            value={userData.payerId || userData.userId || ''}
                                             onChange={handleChange}
                                             placeholder="Payer ID"
                                             className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14"
@@ -816,7 +820,7 @@ const EditUserModal = ({ show, onClose, devMode = false, userType, userId, onSuc
                                         >
                                             <option value="">Select Bin type</option>
                                             <option value="smart">Smart</option>
-                                            <option value="non_Smart">Not Smart</option>
+                                            <option value="non_smart">Not Smart</option>
                                         </select>
                                     </div>
                                 </div>

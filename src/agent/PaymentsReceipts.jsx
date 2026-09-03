@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
-import Topbar from '../components/Topbar';
+import Sidebar from '../components/AgentSidebar';
+import Topbar from '../components/AgentTopBar';
 import PaymentNav from '../components/PaymentNav';
 import api from '../api/axiosConfig';
 import { exportToCSV } from '../utils/exportHelper';
@@ -26,21 +26,36 @@ const PaymentReceipts = ({ transactionId }) => {
     const navigate = useNavigate();
 
     const fetchData = useCallback(async () => {
-        if (!transactionId) return;
         try {
-            const { data } = await api.get(`/api/v1/agents/payment/receipt/${transactionId}`, {
-                params: { page: 1, limit: 10000 },
-            });
-            if (data.success) {
-                const rawData = data.data?.data || data.data || [];
-                const list = Array.isArray(rawData) ? rawData : [];
+            const endpoint = transactionId
+                ? `/agents/payment/receipt/${transactionId}`
+                : `/agents/payment?page=1&limit=10000`;
+
+            const { data } = await api.get(endpoint);
+            if (data.success || data.succeeded) {
+                let list = [];
+                if (transactionId) {
+                    const item = data.data?.data || data.data || {};
+                    list = Array.isArray(item) ? item : [item];
+                } else {
+                    const rawData =
+                        data.data?.transactions ||
+                        data.data?.data ||
+                        data.data?.items ||
+                        (Array.isArray(data.data) ? data.data : []) ||
+                        (Array.isArray(data.transactions) ? data.transactions : []) ||
+                        [];
+                    list = Array.isArray(rawData) ? rawData : [];
+                }
+
                 const newData = list.map((item) => ({
-                    id: item.transactionid,
-                    transactionRef: item.transactionReference ?? '',
-                    receiptRef: item.transactionReference ?? '',
-                    date: item.transactionDate?.slice(0, 10) ?? '',
-                    service: item.description ?? '',
-                    amount: Number(item.amount) || 0,
+                    id: item._id || item.id || item.transactionid || item.transactionReference,
+                    transactionRef: item.transactionReference || item.transactionRef || item.reference || 'N/A',
+                    receiptRef: item.receiptNumber || item.receiptRef || item.transactionReference || item.transRef || item._id || item.id || 'N/A',
+                    date: (item.createdAt || item.transactionDate || item.date)?.slice(0, 10) || '',
+                    service: item.service || item.description || item.meta?.description || 'Wallet Top-Up',
+                    amount: Number(item.amount || item.amountPaid) || 0,
+                    status: item.status || item.transactionStatus || 'Successful',
                 }));
                 setReceipts(newData);
             }

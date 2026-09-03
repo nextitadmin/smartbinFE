@@ -157,7 +157,7 @@ function ProfilePage() {
             const { data } = await api.put('/residents/profile', dataToSend); // Or axios.post // Log successful response
 
             // Assuming API returns { success: true, message: '...' } on success
-            if (data.succeess) {
+            if (data.success || data.succeeded) {
                 setNotification({ type: 'success', message: data.message || 'Profile updated successfully!' });
                 fetchResident();
             }
@@ -174,7 +174,8 @@ function ProfilePage() {
         } catch (error) {
             console.error("Update failed:", error);
             // Extract error message from Axios response if available
-            const errorMessage = error.data?.message || // Check for message in response data
+            const errorMessage = error.response?.data?.message ||
+                error.data?.message || // Check for message in response data
                 error.message || // Fallback to generic error message
                 'Failed to update profile. Please try again.';
             setNotification({ type: 'error', message: errorMessage });

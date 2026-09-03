@@ -35,7 +35,7 @@ const ConfirmationModal = ({ show, onClose, onConfirm, userData }) => {
                         ['Last Name', userData.lastName],
                         ['Email Address', userData.email],
                         ['Phone Number', userData.phoneNumber],
-                        ['Bin Type', userData.binType],
+                        ['Bin Type', userData.binType === 'non_smart' ? 'Non Smart' : (userData.binType === 'smart' ? 'Smart' : userData.binType)],
                         ['LAWMA Customer Type', userData.lawmaCustomerType],
                         ['Building Name', userData.buildingName],
                         ['Building Type', userData.buildingType],
@@ -193,7 +193,7 @@ const SignUpModal = ({ show, onClose }) => {
                 localGovernment: userData.localGovernment,
                 closestLandmark: userData.closestLandmark,
                 lawmaCustomerType: userData.lawmaCustomerType,
-                binType: userData.binType,
+                binType: userData.binType?.toLowerCase() === 'non_smart' ? 'non_smart' : (userData.binType?.toLowerCase() === 'smart' ? 'smart' : userData.binType),
             };
 
             const response = await api.post('/facility-managers/user', payload);
@@ -202,11 +202,17 @@ const SignUpModal = ({ show, onClose }) => {
                 setSuccessMessage(response.data.message || 'User registered successfully!');
                 setShowSuccessModal(true);
             } else {
-                setErrorMessage(response.data?.message || 'Failed to register user. Please try again.');
+                const msg = Array.isArray(response.data?.message)
+                    ? response.data.message.join(', ')
+                    : (response.data?.message || 'Failed to register user. Please try again.');
+                setErrorMessage(msg);
             }
         } catch (error) {
             console.error('Submission error:', error);
-            const msg = error.response?.data?.message || 'An error occurred during submission.';
+            const errData = error.response?.data;
+            const msg = Array.isArray(errData?.message)
+                ? errData.message.join(', ')
+                : (errData?.message || error.message || 'An error occurred during submission.');
             setErrorMessage(msg);
         } finally {
             setIsSubmitting(false);
@@ -254,7 +260,7 @@ const SignUpModal = ({ show, onClose }) => {
                                     className="mt-1 block w-full rounded-xl border border-zinc-300 focus:border-green-700 focus:ring-green-700 sm:text-sm p-3 h-14 bg-white">
                                     <option value="">Select Bin type</option>
                                     <option value="smart">Smart</option>
-                                    <option value="non_Smart">Non Smart</option>
+                                    <option value="non_smart">Non Smart</option>
                                 </select>
                             </div>
                         </div>

@@ -103,11 +103,21 @@ function KycStatusCard({ endpoint = '/resident/kyc/status' }) {
 
             const statusInfo = data.data || data;
             if (statusInfo) {
-                const hasSubmittedId = statusInfo.hasSubmittedIdentity;
-                const hasSubmittedAddr = statusInfo.hasSubmittedAddress;
+                const isStatusActive = (status) => {
+                    const s = (status || '').toLowerCase();
+                    return s === 'submitted' || s === 'pending' || s === 'approved';
+                };
 
-                const documentStatus = hasSubmittedId ? (statusInfo.identityVerificationStatus || 'pending') : 'not_submitted';
-                const addressStatus = hasSubmittedAddr ? (statusInfo.addressVerificationStatus || 'pending') : 'not_submitted';
+                const hasSubmittedId = statusInfo.hasSubmittedIdentity || isStatusActive(statusInfo.identityVerificationStatus);
+                const hasSubmittedAddr = statusInfo.hasSubmittedAddress || isStatusActive(statusInfo.addressVerificationStatus);
+
+                const documentStatus = (hasSubmittedId && statusInfo.identityVerificationStatus)
+                    ? statusInfo.identityVerificationStatus
+                    : (hasSubmittedId ? 'pending' : 'not_submitted');
+
+                const addressStatus = (hasSubmittedAddr && statusInfo.addressVerificationStatus)
+                    ? statusInfo.addressVerificationStatus
+                    : (hasSubmittedAddr ? 'pending' : 'not_submitted');
 
                 setKycData(prevData =>
                     prevData.map(item => {
@@ -135,7 +145,7 @@ function KycStatusCard({ endpoint = '/resident/kyc/status' }) {
     // --- Reupload Handler ---
     const handleReupload = (itemId) => {
         console.log(`Reupload requested for item: ${itemId}`);
-        navigate('/kycapplication');
+        navigate('/kycapplication', { state: { reuploadItem: itemId } });
     };
 
     return (
