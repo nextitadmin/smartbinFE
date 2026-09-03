@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Sidebar from '../components/FacilityMgrSideBar';
 import Topbar from '../components/FacilityMgrTopBar';
 import api from '../api/axiosConfig';
+import { exportToCSV } from '../utils/exportHelper';
 
 const PlusIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
@@ -37,12 +38,16 @@ const TeamMembers = () => {
     // --- State ---
     const [applications, setApplications] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortColumn, setSortColumn] = useState('date');
+    const [sortColumn, setSortColumn] = useState('dateAdded');
     const [sortDirection, setSortDirection] = useState('dsc');
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalItems, setTotalItems] = useState(0);
-    const [totalPages, setTotalPages] = useState(0);
     const itemsPerPage = 6;
+
+    // --- Filter States ---
+    const [showFilterPanel, setShowFilterPanel] = useState(false);
+    const [branchFilter, setBranchFilter] = useState('All');
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
     const [notification, setNotification] = useState(null);
     const [activeActionMenu, setActiveActionMenu] = useState(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -150,10 +155,9 @@ const TeamMembers = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/team-members?page=${currentPage}&limit=${itemsPerPage}`);
+            const { data } = await api.get(`/team-members?page=1&limit=10000`);
             if (data.success) {
-                const newData = data.data.map((item, index) => ({
-                    sn: index + 1 + (currentPage - 1) * itemsPerPage,
+                const newData = data.data.map((item) => ({
                     id: item._id,
                     name: item.name,
                     dateAdded: item.createdAt?.slice(0, 10),
@@ -163,8 +167,6 @@ const TeamMembers = () => {
                     isDeleted: false
                 }));
                 setApplications(newData);
-                setTotalPages(data.meta.paging.pages);
-                setTotalItems(data.meta.paging.total);
             }
         } catch (error) {
             console.log(error);
@@ -172,29 +174,50 @@ const TeamMembers = () => {
     }
 
     useEffect(() => {
-        // Add serial numbers to wastes data
         fetchData()
-    }, [currentPage]);
+    }, []);
 
 
 
 
     // --- Computed Properties ---
+    const uniqueBranches = useMemo(() => {
+        const branches = applications.map(a => a.branch).filter(Boolean);
+        return [...new Set(branches)];
+    }, [applications]);
+
     const filteredApplications = useMemo(() => {
-        if (!searchQuery) {
-            return applications;
+        let result = applications;
+
+        // 1. Search Query
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            result = result.filter(app => {
+                return (
+                    (app.name || '').toLowerCase().includes(lowerQuery) ||
+                    (app.emailAddress || '').toLowerCase().includes(lowerQuery) ||
+                    (app.phoneNo || '').toLowerCase().includes(lowerQuery) ||
+                    (app.branch || '').toLowerCase().includes(lowerQuery) ||
+                    (app.dateAdded || '').includes(lowerQuery)
+                );
+            });
         }
-        const lowerQuery = searchQuery.toLowerCase();
-        return applications.filter(app => {
-            return (
-                app.name.toLowerCase().includes(lowerQuery) ||
-                app.emailAddress.toLowerCase().includes(lowerQuery) ||
-                app.phoneNo.toLowerCase().includes(lowerQuery) ||
-                app.branch.toLowerCase().includes(lowerQuery) ||
-                app.dateAdded.includes(lowerQuery)
-            );
-        });
-    }, [applications, searchQuery]);
+
+        // 2. Branch Filter
+        if (branchFilter !== 'All') {
+            result = result.filter(app => app.branch === branchFilter);
+        }
+
+        // 3. Date Filters
+        if (startDateFilter) {
+            result = result.filter(app => app.dateAdded >= startDateFilter);
+        }
+        if (endDateFilter) {
+            result = result.filter(app => app.dateAdded <= endDateFilter);
+        }
+
+        return result;
+    }, [applications, searchQuery, branchFilter, startDateFilter, endDateFilter]);
 
     const sortedApplications = useMemo(() => {
         return [...filteredApplications].sort((a, b) => {
@@ -206,11 +229,10 @@ const TeamMembers = () => {
                 valB = valB.toLowerCase();
             }
 
-            // if (sortColumn === 'date') {
-            //     // Convert dates to comparable format (YY-MM-DD)
-            //     valA = new Date(`20${valA.split('-').reverse().join('-')}`);
-            //     valB = new Date(`20${valB.split('-').reverse().join('-')}`);
-            // }
+            if (sortColumn === 'dateAdded') {
+                valA = valA ? new Date(valA).getTime() : 0;
+                valB = valB ? new Date(valB).getTime() : 0;
+            }
 
             let comparison = 0;
             if (valA > valB) {
@@ -223,7 +245,19 @@ const TeamMembers = () => {
         });
     }, [filteredApplications, sortColumn, sortDirection]);
 
+    const paginatedApplications = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return sortedApplications.slice(startIndex, endIndex);
+    }, [sortedApplications, currentPage]);
 
+    const totalItemsCount = sortedApplications.length;
+    const totalPagesCount = Math.ceil(totalItemsCount / itemsPerPage) || 1;
+
+    // Reset page on filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, branchFilter, startDateFilter, endDateFilter]);
 
     // --- Methods ---
     const sortBy = (columnKey) => {
@@ -242,21 +276,43 @@ const TeamMembers = () => {
     };
 
     const changePage = (page) => {
-        if (page >= 1 && page <= totalPages) {
+        if (page >= 1 && page <= totalPagesCount) {
             setCurrentPage(page);
         }
     };
 
+    const clearFilters = () => {
+        setBranchFilter('All');
+        setStartDateFilter('');
+        setEndDateFilter('');
+        setSearchQuery('');
+    };
 
-
-
-
-    // Placeholder Action Methods
-
+    const filterData = () => {
+        setShowFilterPanel(prev => !prev);
+    };
 
     const exportData = () => {
-        console.log("Export action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+        if (sortedApplications.length === 0) {
+            setNotification({ type: 'error', message: "No records to export." });
+            return;
+        }
+
+        try {
+            const exportRows = sortedApplications.map((app, index) => ({
+                "S/N": index + 1,
+                "Name": app.name,
+                "Email": app.emailAddress,
+                "Phone": app.phoneNo,
+                "Branch": app.branch,
+                "Date Added": app.dateAdded
+            }));
+            exportToCSV(exportRows, "fm_team_members");
+            setNotification({ type: 'success', message: "Team members exported successfully!" });
+        } catch (error) {
+            console.error("Export error:", error);
+            setNotification({ type: 'error', message: "An error occurred during export." });
+        }
     };
 
     // const handleRowAction = (appId) => {
@@ -390,7 +446,7 @@ const TeamMembers = () => {
                                     <div className="flex items-center gap-2">
                                         <h1 className="text-xl md:text-2xl font-semibold text-zinc-800">Team Members</h1>
                                         <span className="bg-green-700 text-green-50 text-xs font-semibold px-2.5 py-2 rounded-full">
-                                            {applications.length}
+                                            {totalItemsCount}
                                         </span>
                                     </div>
 
@@ -419,11 +475,20 @@ const TeamMembers = () => {
                                             type="text"
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            placeholder="Search waste collections..."
+                                            placeholder="Search team members..."
                                             className="w-full lg:w-[24rem] pl-10 pr-4 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent"
                                         />
                                     </div>
                                     <div>
+                                        <button
+                                            onClick={filterData}
+                                            type="button"
+                                            className={`px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                                                showFilterPanel ? 'bg-green-50 border-green-300 text-green-700 font-semibold' : 'text-zinc-700 bg-white hover:bg-zinc-50'
+                                            }`}
+                                        >
+                                            Filter
+                                        </button>
                                         <button
                                             onClick={exportData}
                                             type="button"
@@ -433,6 +498,60 @@ const TeamMembers = () => {
                                         </button>
                                     </div>
                                 </div>
+
+                                {/* Filter Panel */}
+                                {showFilterPanel && (
+                                    <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 transition-all duration-300 ease-in-out">
+                                        {/* Branch Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Branch</label>
+                                            <select
+                                                value={branchFilter}
+                                                onChange={(e) => setBranchFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            >
+                                                <option value="All">All Branches</option>
+                                                {uniqueBranches.map(branch => (
+                                                    <option key={branch} value={branch}>{branch}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Date From Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date From</label>
+                                            <input
+                                                type="date"
+                                                value={startDateFilter}
+                                                onChange={(e) => setStartDateFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            />
+                                        </div>
+
+                                        {/* Date To Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date To</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="date"
+                                                    value={endDateFilter}
+                                                    onChange={(e) => setEndDateFilter(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 flex-1"
+                                                />
+                                                {(branchFilter !== 'All' || startDateFilter || endDateFilter) && (
+                                                    <button
+                                                        onClick={clearFilters}
+                                                        type="button"
+                                                        className="px-2 text-zinc-500 hover:text-red-500 hover:bg-zinc-100 rounded-lg text-xs font-medium border border-zinc-200"
+                                                        title="Clear Filters"
+                                                     >
+                                                        Reset
+                                                     </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Table */}
                                 <div className="table-container border border-zinc-200 rounded-2xl">
@@ -485,30 +604,33 @@ const TeamMembers = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {sortedApplications.length === 0 ? (
+                                            {paginatedApplications.length === 0 ? (
                                                 <tr>
                                                     <td colSpan="7" className="text-center py-10 text-zinc-500">No team members found.</td>
                                                 </tr>
                                             ) : (
-                                                sortedApplications.map(app => (
-                                                    <tr key={app.id} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
-                                                        <td className="px-4 py-3 font-medium text-zinc-900">{app.sn}</td>
-                                                        <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.name}</td>
-                                                        <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.emailAddress}</td>
-                                                        <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.phoneNo}</td>
-                                                        <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.branch}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{app.dateAdded}</td>
-                                                        <td className="py-4 px-6 text-sm text-zinc-500 relative">
-                                                            <DotsVerticalIcon onClick={() => handleActionMenuToggle(app.id)} />
-                                                            {activeActionMenu === app.id && (
-                                                                <div className="absolute right-8 top-0 z-10 w-48 bg-white rounded-xl shadow-lg border border-zinc-200">
-                                                                    <a href="#" onClick={(e) => { e.preventDefault(); handleEditClick(app); }} className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Edit</a>
-                                                                    <a href="#" onClick={(e) => { e.preventDefault(); handleDeleteClick(app); }} className="block px-4 py-2 text-sm text-red-600 hover:bg-zinc-100">Delete</a>
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))
+                                                paginatedApplications.map((app, index) => {
+                                                    const sn = (currentPage - 1) * itemsPerPage + index + 1;
+                                                    return (
+                                                        <tr key={app.id} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
+                                                            <td className="px-4 py-3 font-medium text-zinc-900">{sn}</td>
+                                                            <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.name}</td>
+                                                            <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.emailAddress}</td>
+                                                            <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.phoneNo}</td>
+                                                            <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.branch}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">{app.dateAdded}</td>
+                                                            <td className="py-4 px-6 text-sm text-zinc-500 relative">
+                                                                <DotsVerticalIcon onClick={() => handleActionMenuToggle(app.id)} />
+                                                                {activeActionMenu === app.id && (
+                                                                    <div className="absolute right-8 top-0 z-10 w-48 bg-white rounded-xl shadow-lg border border-zinc-200">
+                                                                        <a href="#" onClick={(e) => { e.preventDefault(); handleEditClick(app); }} className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100">Edit</a>
+                                                                        <a href="#" onClick={(e) => { e.preventDefault(); handleDeleteClick(app); }} className="block px-4 py-2 text-sm text-red-600 hover:bg-zinc-100">Delete</a>
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
                                             )}
                                         </tbody>
                                     </table>
@@ -517,9 +639,9 @@ const TeamMembers = () => {
                                 {/* Pagination */}
                                 <div className="flex flex-col md:flex-row justify-between items-center mt-6 gap-4">
                                     <span className="text-sm text-zinc-700">
-                                        Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages}</span>
+                                        Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPagesCount}</span>
                                         <span className="mx-2">|</span>
-                                        Total <span className="font-semibold">{totalItems}</span> items
+                                        Total <span className="font-semibold">{totalItemsCount}</span> items
                                     </span>
                                     <div className="inline-flex rounded-md shadow-sm -space-x-px" role="group">
                                         <button
@@ -534,7 +656,7 @@ const TeamMembers = () => {
                                         </button>
                                         <button
                                             onClick={() => changePage(currentPage + 1)}
-                                            disabled={currentPage === totalPages || totalPages === 0}
+                                            disabled={currentPage === totalPagesCount || totalPagesCount === 0}
                                             type="button"
                                             className="px-3 py-2 text-sm font-medium text-zinc-50 bg-green-700 border border-zinc-300 hover:bg-green-600 focus:z-10 focus:ring-2 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >

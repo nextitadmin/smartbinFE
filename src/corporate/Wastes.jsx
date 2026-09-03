@@ -6,7 +6,8 @@ import api from '../api/axiosConfig';
 import Pay4ItButton from '../components/Pay4ItButton';
 import useAuthStore from '../store/authStore';
 import useCorporateStore from '../store/useCorporateStore';
-import ScheduleWasteCollectionModal from '../components/CorporateSchedulePickupForm'; // Import the new component
+import ScheduleWasteCollectionModal from '../components/CorporateSchedulePickupForm';
+import { exportToCSV } from '../utils/exportHelper';
 
 const Wastes = () => {
     // --- State (Keep only states used in Wastes itself) ---
@@ -15,8 +16,13 @@ const Wastes = () => {
     const [sortColumn, setSortColumn] = useState('date');
     const [sortDirection, setSortDirection] = useState('dsc');
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalItems, setTotalItems] = useState(0);
-    const [totalPages, setTotalPages] = useState(0);
+
+    // --- Filter States ---
+    const [showFilterPanel, setShowFilterPanel] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
+
     const itemsPerPage = 10;
     const [notification, setNotification] = useState(null);
     const [pickUpAmount, setPickUpAmount] = useState(5000);
@@ -109,21 +115,43 @@ const Wastes = () => {
 
 
     // --- Computed Properties ---
+    const uniqueStatuses = useMemo(() => {
+        const statuses = applications.map(app => app.status).filter(Boolean);
+        return [...new Set(statuses)];
+    }, [applications]);
+
     const filteredApplications = useMemo(() => {
-        if (!searchQuery) {
-            return applications;
+        let result = applications;
+
+        // 1. Search Query
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            result = result.filter(app => {
+                return (
+                    (app.wasteId || '').toLowerCase().includes(lowerQuery) ||
+                    (app.address || '').toLowerCase().includes(lowerQuery) ||
+                    (app.representative || '').toLowerCase().includes(lowerQuery) ||
+                    (app.status || '').toLowerCase().includes(lowerQuery) ||
+                    formatDate(app.date).includes(lowerQuery)
+                );
+            });
         }
-        const lowerQuery = searchQuery.toLowerCase();
-        return applications.filter(app => {
-            return (
-                app.wasteId.toLowerCase().includes(lowerQuery) ||
-                app.address.toLowerCase().includes(lowerQuery) ||
-                app.representative.toLowerCase().includes(lowerQuery) ||
-                app.status.toLowerCase().includes(lowerQuery) ||
-                formatDate(app.date).includes(lowerQuery)
-            );
-        });
-    }, [applications, searchQuery]);
+
+        // 2. Status Filter
+        if (statusFilter !== 'All') {
+            result = result.filter(app => app.status === statusFilter);
+        }
+
+        // 3. Date Range Filters
+        if (startDateFilter) {
+            result = result.filter(app => app.date >= startDateFilter);
+        }
+        if (endDateFilter) {
+            result = result.filter(app => app.date <= endDateFilter);
+        }
+
+        return result;
+    }, [applications, searchQuery, statusFilter, startDateFilter, endDateFilter]);
 
     const sortedApplications = useMemo(() => {
         return [...filteredApplications].sort((a, b) => {
@@ -134,9 +162,8 @@ const Wastes = () => {
                 valB = valB.toLowerCase();
             }
             if (sortColumn === 'date') {
-                // Convert dates to comparable format (YY-MM-DD)
-                valA = new Date(`20${valA.split('-').reverse().join('-')}`);
-                valB = new Date(`20${valB.split('-').reverse().join('-')}`);
+                valA = valA ? new Date(valA).getTime() : 0;
+                valB = valB ? new Date(valB).getTime() : 0;
             }
             let comparison = 0;
             if (valA > valB) {
@@ -147,6 +174,20 @@ const Wastes = () => {
             return sortDirection === 'dsc' ? (comparison * -1) : comparison;
         });
     }, [filteredApplications, sortColumn, sortDirection]);
+
+    const paginatedApplications = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return sortedApplications.slice(startIndex, endIndex);
+    }, [sortedApplications, currentPage]);
+
+    const totalItems = sortedApplications.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+    // Reset page on filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, startDateFilter, endDateFilter]);
 
     // --- Methods ---
     const sortBy = (columnKey) => {
@@ -171,6 +212,7 @@ const Wastes = () => {
     };
 
     const getStatusClass = (status) => {
+        if (!status) return 'bg-zinc-100 text-zinc-800 border-zinc-300';
         switch (status.toLowerCase()) {
             case 'cancelled':
                 return 'bg-red-100 text-red-800 border-red-300';
@@ -184,10 +226,11 @@ const Wastes = () => {
     // --- Data Fetching ---
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/corporate/waste-management/pickups?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
+            const { data } = await api.get(`/corporate/waste-management/pickups?PageNo=1&PageSize=10000`);
             if (data.success) {
-                const newData = data.data.map((item, index) => ({
-                    sn: index + 1 + (currentPage - 1) * itemsPerPage,
+                const rawData = data.data || [];
+                const list = Array.isArray(rawData) ? rawData : [];
+                const newData = list.map((item) => ({
                     wasteId: item.wasteId || item._id,
                     branch: item.branch,
                     date: item.createdAt?.slice(0, 10),
@@ -198,8 +241,6 @@ const Wastes = () => {
                 }));
 
                 setApplications(newData);
-                setTotalPages(data.meta.paging.pages);
-                setTotalItems(data.meta.paging.total);
             }
         } catch (error) {
             console.log(error);
@@ -438,20 +479,46 @@ const Wastes = () => {
 
 
 
-    // Placeholder Action Methods
-    const filterData = () => {
-        console.log("Filter action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+    const clearFilters = () => {
+        setStatusFilter('All');
+        setStartDateFilter('');
+        setEndDateFilter('');
+        setSearchQuery('');
     };
+
+    const filterData = () => {
+        setShowFilterPanel(prev => !prev);
+    };
+
     const exportData = () => {
-        console.log("Export action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+        if (sortedApplications.length === 0) {
+            setNotification({ type: 'error', message: "No records to export." });
+            return;
+        }
+
+        try {
+            const exportRows = sortedApplications.map((app, index) => ({
+                "S/N": index + 1,
+                "Waste ID": app.wasteId,
+                "Branch": app.branch || 'N/A',
+                "Request Date": app.date,
+                "Address": app.address,
+                "Representative": app.representative,
+                "Status": app.status,
+                "Payment Status": app.paymentStatus
+            }));
+            exportToCSV(exportRows, "corporate_waste_pickups");
+            setNotification({ type: 'success', message: "Waste pickups exported successfully!" });
+        } catch (error) {
+            console.error("Export error:", error);
+            setNotification({ type: 'error', message: "An error occurred during export." });
+        }
     };
 
     // --- Effects ---
     useEffect(() => {
         fetchData();
-    }, [currentPage]);
+    }, []);
 
     // useEffect(() => {
     //     fetchPickUpAmount();
@@ -517,7 +584,9 @@ const Wastes = () => {
                                         <button
                                             onClick={filterData}
                                             type="button"
-                                            className="px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                            className={`px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                                                showFilterPanel ? 'bg-green-50 border-green-300 text-green-700 font-semibold' : 'text-zinc-700 bg-white hover:bg-zinc-50'
+                                            }`}
                                         >
                                             Filter
                                         </button>
@@ -530,6 +599,61 @@ const Wastes = () => {
                                         </button>
                                     </div>
                                 </div>
+
+                                {/* Filter Panel */}
+                                {showFilterPanel && (
+                                    <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 transition-all duration-300 ease-in-out">
+                                        {/* Status Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</label>
+                                            <select
+                                                value={statusFilter}
+                                                onChange={(e) => setStatusFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            >
+                                                <option value="All">All Statuses</option>
+                                                {uniqueStatuses.map(status => (
+                                                    <option key={status} value={status}>{status}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Start Date Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date From</label>
+                                            <input
+                                                type="date"
+                                                value={startDateFilter}
+                                                onChange={(e) => setStartDateFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            />
+                                        </div>
+
+                                        {/* End Date Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date To</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="date"
+                                                    value={endDateFilter}
+                                                    onChange={(e) => setEndDateFilter(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 flex-1"
+                                                />
+                                                {(statusFilter !== 'All' || startDateFilter || endDateFilter) && (
+                                                    <button
+                                                        onClick={clearFilters}
+                                                        type="button"
+                                                        className="px-2 text-zinc-500 hover:text-red-500 hover:bg-zinc-100 rounded-lg text-xs font-medium border border-zinc-200"
+                                                        title="Clear Filters"
+                                                    >
+                                                        Reset
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Table */}
                                 <div className="table-container border border-zinc-200 rounded-2xl">
                                     <table className="w-full min-w-[768px] text-sm text-left text-zinc-600">
@@ -577,14 +701,6 @@ const Wastes = () => {
                                                         </span>
                                                     </div>
                                                 </th>
-
-                                                {/* <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('status')}>
-                                                    <div className="flex items-center justify-between">
-                                                        Payment <span className={`sort-icon ${sortColumn === 'status' ? 'active' : ''}`}>
-                                                            {sortIcon('status')}
-                                                        </span>
-                                                    </div>
-                                                </th> */}
                                                 <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('status')}>
                                                     <div className="flex items-center justify-between">
                                                         Status <span className={`sort-icon ${sortColumn === 'status' ? 'active' : ''}`}>
@@ -592,55 +708,32 @@ const Wastes = () => {
                                                         </span>
                                                     </div>
                                                 </th>
-                                                {/* <th scope="col" className="px-4 py-3" role="button" onClick={() => sortBy('status')}>
-                                                    <div className="flex items-center justify-between">
-                                                        Action
-                                                    </div>
-                                                </th> */}
-
-                                                {/* <th scope="col" className="px-4 py-3 text-center">Action</th> */}
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {sortedApplications.length === 0 ? (
+                                            {paginatedApplications.length === 0 ? (
                                                 <tr>
                                                     <td colSpan="7" className="text-center py-10 text-zinc-500">No waste collections found.</td>
                                                 </tr>
                                             ) : (
-                                                sortedApplications.map(app => (
-                                                    <tr key={app.wasteId} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
-                                                        <td className="px-4 py-3 font-medium text-zinc-900">{app.sn}</td>
-                                                        <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.wasteId}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.date)}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.branch)}</td>
-                                                        <td className="px-4 py-3">{app.address}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{app.representative}</td>
-                                                        {/* <td className="px-4 py-3 whitespace-nowrap">
-                                                            <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${app.paymentStatus?.toLowerCase() === 'successful' || app.paymentStatus?.toLowerCase() === 'paid'
-                                                                ? 'bg-green-100 text-green-800 border-green-300'
-                                                                : 'bg-red-100 text-red-800 border-red-500'
-                                                                }`}>
-                                                                {app.paymentStatus?.toLowerCase() === 'successful' || app.paymentStatus?.toLowerCase() === 'paid' ? 'Paid' : 'Unpaid'}
-                                                            </span>
-                                                        </td> */}
-                                                        <td className="px-4 py-3 whitespace-nowrap">
-                                                            <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(app.status)}`}>
-                                                                {app.status}
-                                                            </span>
-                                                        </td>
-                                                        {/* <td className="px-4 py-3 text-center">
-                                                             {(app.paymentStatus?.toLowerCase() !== 'successful' && app.paymentStatus?.toLowerCase() !== 'paid') && (
-                                                                 <button
-                                                                     onClick={() => handleMakePayment(app)}
-                                                                     type="button"
-                                                                     className="p-1 bg-green-100 border border-green-700 text-green-800 hover:text-zinc-900 rounded-2xl text-sm"
-                                                                 >
-                                                                     Make Payment
-                                                                 </button>
-                                                             )}
-                                                         </td> */}
-                                                    </tr>
-                                                ))
+                                                paginatedApplications.map((app, index) => {
+                                                    const sn = (currentPage - 1) * itemsPerPage + index + 1;
+                                                    return (
+                                                        <tr key={app.wasteId} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
+                                                            <td className="px-4 py-3 font-medium text-zinc-900">{sn}</td>
+                                                            <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.wasteId}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.date)}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">{app.branch || 'N/A'}</td>
+                                                            <td className="px-4 py-3">{app.address}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">{app.representative}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                                <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(app.status)}`}>
+                                                                    {app.status}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
                                             )}
                                         </tbody>
                                     </table>

@@ -5,8 +5,7 @@ import api from '../api/axiosConfig';
 import Pay4ItButton from '../components/Pay4ItButton';
 import useAuthStore from '../store/authStore';
 import useResidentStore from '../store/useResidentStore';
-
-
+import { exportToCSV } from '../utils/exportHelper';
 
 const Wastes = () => {
     // --- State ---
@@ -15,8 +14,13 @@ const Wastes = () => {
     const [sortColumn, setSortColumn] = useState('date');
     const [sortDirection, setSortDirection] = useState('dsc');
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalItems, setTotalItems] = useState(0);
-    const [totalPages, setTotalPages] = useState(0);
+
+    // --- Filter States ---
+    const [showFilterPanel, setShowFilterPanel] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
+
     const itemsPerPage = 6;
     const [otherReason, setOtherReason] = useState('');
     const [notification, setNotification] = useState(null);
@@ -66,20 +70,14 @@ const Wastes = () => {
                 const rawData = data.data?.data || data.data?.items || data.data || data.items || data;
                 const list = Array.isArray(rawData) ? rawData : [];
 
-                const newData = list.map((item, index) => ({
-                    sn: index + 1 + (currentPage - 1) * itemsPerPage,
+                const newData = list.map((item) => ({
                     wasteId: item.wasteID || item.wasteId || item._id,
-                    date: (item.requestDate || item.date || item.createdAt || item.generatedDate)?.slice(0, 10),
+                    date: (item.requestDate || item.date || item.createdAt || item.generatedDate || '').slice(0, 10),
                     address: item.address || "N/A",
                     status: item.statusName || item.status || "Pending",
                     representative: item.pickupBy || item.representative || item.assignedTo || "N/A"
                 }));
                 setApplications(newData);
-
-                const totalPagesVal = data.data?.totalPages || data.totalPages || 1;
-                const totalCountVal = data.data?.totalCount || data.data?.totalItems || data.totalCount || list.length;
-                setTotalPages(totalPagesVal);
-                setTotalItems(totalCountVal);
             }
         } catch (error) {
             console.log(error);
@@ -88,9 +86,8 @@ const Wastes = () => {
     };
 
     useEffect(() => {
-        // Add serial numbers to wastes data
-        fetchData()
-    }, [currentPage]);
+        fetchData();
+    }, []);
 
 
     const formatDate = (dateString) => {
@@ -103,21 +100,43 @@ const Wastes = () => {
     };
 
     // --- Computed Properties ---
+    const uniqueStatuses = useMemo(() => {
+        const statuses = applications.map(app => app.status).filter(Boolean);
+        return [...new Set(statuses)];
+    }, [applications]);
+
     const filteredApplications = useMemo(() => {
-        if (!searchQuery) {
-            return applications;
+        let result = applications;
+
+        // 1. Search Query
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            result = result.filter(app => {
+                return (
+                    (app.wasteId || '').toLowerCase().includes(lowerQuery) ||
+                    (app.address || '').toLowerCase().includes(lowerQuery) ||
+                    (app.representative || '').toLowerCase().includes(lowerQuery) ||
+                    (app.status || '').toLowerCase().includes(lowerQuery) ||
+                    formatDate(app.date).includes(lowerQuery)
+                );
+            });
         }
-        const lowerQuery = searchQuery.toLowerCase();
-        return applications.filter(app => {
-            return (
-                app.wasteId.toLowerCase().includes(lowerQuery) ||
-                app.address.toLowerCase().includes(lowerQuery) ||
-                app.representative.toLowerCase().includes(lowerQuery) ||
-                app.status.toLowerCase().includes(lowerQuery) ||
-                formatDate(app.date).includes(lowerQuery)
-            );
-        });
-    }, [applications, searchQuery]);
+
+        // 2. Status Filter
+        if (statusFilter !== 'All') {
+            result = result.filter(app => app.status === statusFilter);
+        }
+
+        // 3. Date Filters
+        if (startDateFilter) {
+            result = result.filter(app => app.date >= startDateFilter);
+        }
+        if (endDateFilter) {
+            result = result.filter(app => app.date <= endDateFilter);
+        }
+
+        return result;
+    }, [applications, searchQuery, statusFilter, startDateFilter, endDateFilter]);
 
     const sortedApplications = useMemo(() => {
         return [...filteredApplications].sort((a, b) => {
@@ -130,9 +149,8 @@ const Wastes = () => {
             }
 
             if (sortColumn === 'date') {
-                // Convert dates to comparable format (YY-MM-DD)
-                valA = new Date(`20${valA.split('-').reverse().join('-')}`);
-                valB = new Date(`20${valB.split('-').reverse().join('-')}`);
+                valA = valA ? new Date(valA).getTime() : 0;
+                valB = valB ? new Date(valB).getTime() : 0;
             }
 
             let comparison = 0;
@@ -145,6 +163,20 @@ const Wastes = () => {
             return sortDirection === 'dsc' ? (comparison * -1) : comparison;
         });
     }, [filteredApplications, sortColumn, sortDirection]);
+
+    const paginatedApplications = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return sortedApplications.slice(startIndex, endIndex);
+    }, [sortedApplications, currentPage]);
+
+    const totalItems = sortedApplications.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, startDateFilter, endDateFilter]);
 
 
 
@@ -183,15 +215,38 @@ const Wastes = () => {
 
 
 
-    // Placeholder Action Methods
+    const clearFilters = () => {
+        setStatusFilter('All');
+        setStartDateFilter('');
+        setEndDateFilter('');
+        setSearchQuery('');
+    };
+
     const filterData = () => {
-        console.log("Filter action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+        setShowFilterPanel(prev => !prev);
     };
 
     const exportData = () => {
-        console.log("Export action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+        if (sortedApplications.length === 0) {
+            setNotification({ type: 'error', message: "No records to export." });
+            return;
+        }
+
+        try {
+            const exportRows = sortedApplications.map((app, index) => ({
+                "S/N": index + 1,
+                "Waste ID": app.wasteId,
+                "Request Date": app.date,
+                "Address": app.address,
+                "Representative": app.representative,
+                "Status": app.status
+            }));
+            exportToCSV(exportRows, "waste_pickups");
+            setNotification({ type: 'success', message: "Waste pickups exported successfully!" });
+        } catch (error) {
+            console.error("Export error:", error);
+            setNotification({ type: 'error', message: "An error occurred during export." });
+        }
     };
 
     // const handleRowAction = (appId) => {
@@ -519,7 +574,9 @@ const Wastes = () => {
                                         <button
                                             onClick={filterData}
                                             type="button"
-                                            className="px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                            className={`px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                                                showFilterPanel ? 'bg-green-50 border-green-300 text-green-700 font-semibold' : 'text-zinc-700 bg-white hover:bg-zinc-50'
+                                            }`}
                                         >
                                             Filter
                                         </button>
@@ -532,6 +589,60 @@ const Wastes = () => {
                                         </button>
                                     </div>
                                 </div>
+
+                                {/* Filter Panel */}
+                                {showFilterPanel && (
+                                    <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 transition-all duration-300 ease-in-out">
+                                        {/* Status Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</label>
+                                            <select
+                                                value={statusFilter}
+                                                onChange={(e) => setStatusFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            >
+                                                <option value="All">All Statuses</option>
+                                                {uniqueStatuses.map(status => (
+                                                    <option key={status} value={status}>{status}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Start Date Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date From</label>
+                                            <input
+                                                type="date"
+                                                value={startDateFilter}
+                                                onChange={(e) => setStartDateFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            />
+                                        </div>
+
+                                        {/* End Date Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date To</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="date"
+                                                    value={endDateFilter}
+                                                    onChange={(e) => setEndDateFilter(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 flex-1"
+                                                />
+                                                {(statusFilter !== 'All' || startDateFilter || endDateFilter) && (
+                                                    <button
+                                                        onClick={clearFilters}
+                                                        type="button"
+                                                        className="px-2 text-zinc-500 hover:text-red-500 hover:bg-zinc-100 rounded-lg text-xs font-medium border border-zinc-200"
+                                                        title="Clear Filters"
+                                                    >
+                                                        Reset
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Table */}
                                 <div className="table-container border border-zinc-200 rounded-2xl">
@@ -584,36 +695,28 @@ const Wastes = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {sortedApplications.length === 0 ? (
+                                            {paginatedApplications.length === 0 ? (
                                                 <tr>
                                                     <td colSpan="7" className="text-center py-10 text-zinc-500">No waste collections found.</td>
                                                 </tr>
                                             ) : (
-                                                sortedApplications.map(app => (
-                                                    <tr key={app.wasteId} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
-                                                        <td className="px-4 py-3 font-medium text-zinc-900">{app.sn}</td>
-                                                        <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.wasteId}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.date)}</td>
-                                                        <td className="px-4 py-3">{app.address}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{app.representative}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">
-                                                            <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(app.status)}`}>
-                                                                {app.status}
-                                                            </span>
-                                                        </td>
-                                                        {/* <td className="px-4 py-3 text-center">
-                                                            <button
-                                                                onClick={() => handleRowAction(app.wasteId)}
-                                                                type="button"
-                                                                className="p-1 text-zinc-500 hover:text-zinc-700"
-                                                            >
-                                                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                                                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
-                                                                </svg>
-                                                            </button>
-                                                        </td> */}
-                                                    </tr>
-                                                ))
+                                                paginatedApplications.map((app, index) => {
+                                                    const sn = (currentPage - 1) * itemsPerPage + index + 1;
+                                                    return (
+                                                        <tr key={app.wasteId} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
+                                                            <td className="px-4 py-3 font-medium text-zinc-900">{sn}</td>
+                                                            <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.wasteId}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.date)}</td>
+                                                            <td className="px-4 py-3">{app.address}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">{app.representative}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                                <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(app.status)}`}>
+                                                                    {app.status}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
                                             )}
                                         </tbody>
                                     </table>

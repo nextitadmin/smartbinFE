@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Sidebar from '../components/AgentSidebar';
 import Topbar from '../components/AgentTopBar';
 import BinDisposalLineChart from '../components/BinDisposalLineChart';
+import { exportToCSV } from '../utils/exportHelper';
 
 const WasteReports = () => {
     // --- State ---
@@ -13,6 +14,13 @@ const WasteReports = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [notification, setNotification] = useState(null);
     const [summary, setSummary] = useState({});
+
+    // --- Filter States ---
+    const [showFilterPanel, setShowFilterPanel] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
+
     const itemsPerPage = 12;
 
     // --- Reports Data ---
@@ -64,21 +72,48 @@ const WasteReports = () => {
         }
     }, [notification]);
     // --- Computed Properties ---
+    const uniqueStatuses = useMemo(() => {
+        const statuses = reports.map(r => r.status).filter(Boolean);
+        return [...new Set(statuses)];
+    }, [reports]);
+
     const filteredReports = useMemo(() => {
-        if (!searchQuery) {
-            return reports;
+        let result = reports;
+
+        // 1. Search Query
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            result = result.filter(report => {
+                return (
+                    (report.wasteId || '').toLowerCase().includes(lowerQuery) ||
+                    (report.address || '').toLowerCase().includes(lowerQuery) ||
+                    (report.status || '').toLowerCase().includes(lowerQuery) ||
+                    formatDate(report.date).includes(lowerQuery) ||
+                    (report.weightKgTon || '').toString().includes(lowerQuery)
+                );
+            });
         }
-        const lowerQuery = searchQuery.toLowerCase();
-        return reports.filter(report => {
-            return (
-                report.wasteId.toLowerCase().includes(lowerQuery) ||
-                report.address.toLowerCase().includes(lowerQuery) ||
-                report.status.toLowerCase().includes(lowerQuery) ||
-                formatDate(report.date).includes(lowerQuery) ||
-                report.weightKgTon.toString().includes(lowerQuery)
-            );
-        });
-    }, [reports, searchQuery]);
+
+        // 2. Status Filter
+        if (statusFilter !== 'All') {
+            result = result.filter(report => report.status === statusFilter);
+        }
+
+        // 3. Date Filters
+        if (startDateFilter) {
+            result = result.filter(report => report.date >= startDateFilter);
+        }
+        if (endDateFilter) {
+            result = result.filter(report => report.date <= endDateFilter);
+        }
+
+        return result;
+    }, [reports, searchQuery, statusFilter, startDateFilter, endDateFilter]);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, startDateFilter, endDateFilter]);
 
     const sortedReports = useMemo(() => {
         return [...filteredReports].sort((a, b) => {
@@ -174,15 +209,38 @@ const WasteReports = () => {
         }
     };
 
-    // Placeholder Action Methods
+    const clearFilters = () => {
+        setStatusFilter('All');
+        setStartDateFilter('');
+        setEndDateFilter('');
+        setSearchQuery('');
+    };
+
     const filterData = () => {
-        console.log("Filter action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+        setShowFilterPanel(prev => !prev);
     };
 
     const exportData = () => {
-        console.log("Export action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+        if (sortedReports.length === 0) {
+            setNotification({ type: 'error', message: "No records to export." });
+            return;
+        }
+
+        try {
+            const exportRows = sortedReports.map((report, index) => ({
+                "S/N": index + 1,
+                "Waste ID": report.wasteId,
+                "Date": report.date,
+                "Address": report.address,
+                "Weight (kg)": report.weightKgTon,
+                "Status": report.status
+            }));
+            exportToCSV(exportRows, "agent_waste_reports");
+            setNotification({ type: 'success', message: "Waste reports exported successfully!" });
+        } catch (error) {
+            console.error("Export error:", error);
+            setNotification({ type: 'error', message: "An error occurred during export." });
+        }
     };
 
     const handleRowAction = (wasteId) => {
@@ -227,19 +285,75 @@ const WasteReports = () => {
                                         <button
                                             onClick={filterData}
                                             type="button"
-                                            className="px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                            className={`px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                                                showFilterPanel ? 'bg-green-50 border-green-300 text-green-700 font-semibold' : 'text-zinc-700 bg-white hover:bg-zinc-50'
+                                            }`}
                                         >
                                             Filter
                                         </button>
                                         <button
                                             onClick={exportData}
                                             type="button"
-                                            className="px-4 py-2 mx-4 border border-zinc-300 lg:mx-0 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                            className="px-4 py-2 mx-4 border border-zinc-300 lg:mx-0 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                         >
                                             Export
                                         </button>
                                     </div>
                                 </div>
+
+                                {/* Filter Panel */}
+                                {showFilterPanel && (
+                                    <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 transition-all duration-300 ease-in-out">
+                                        {/* Status Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</label>
+                                            <select
+                                                value={statusFilter}
+                                                onChange={(e) => setStatusFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            >
+                                                <option value="All">All Statuses</option>
+                                                {uniqueStatuses.map(status => (
+                                                    <option key={status} value={status}>{status}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Start Date Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date From</label>
+                                            <input
+                                                type="date"
+                                                value={startDateFilter}
+                                                onChange={(e) => setStartDateFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            />
+                                        </div>
+
+                                        {/* End Date Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date To</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="date"
+                                                    value={endDateFilter}
+                                                    onChange={(e) => setEndDateFilter(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 flex-1"
+                                                />
+                                                {(statusFilter !== 'All' || startDateFilter || endDateFilter) && (
+                                                    <button
+                                                        onClick={clearFilters}
+                                                        type="button"
+                                                        className="px-2 text-zinc-500 hover:text-red-500 hover:bg-zinc-100 rounded-lg text-xs font-medium border border-zinc-200"
+                                                        title="Clear Filters"
+                                                    >
+                                                        Reset
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Chart */}
                                 <div className='bg-white rounded-t-2xl border border-zinc-200 flex flex-col  pb-20 '>

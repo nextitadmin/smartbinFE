@@ -3,6 +3,7 @@ import Topbar from '../components/Topbar';
 import Sidebar from '../components/Sidebar';
 import api from '../api/axiosConfig';
 import useAuthStore from '../store/authStore';
+import Papa from 'papaparse';
 
 
 const SmartBinApplication = () => {
@@ -12,11 +13,17 @@ const SmartBinApplication = () => {
     const [sortColumn, setSortColumn] = useState('dueDate');
     const [sortDirection, setSortDirection] = useState('dsc');
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalItems, setTotalItems] = useState(0);
-    const [totalPages, setTotalPages] = useState(0);
     const [notification, setNotification] = useState(null);
     const [currentId, setCurrentId] = useState('');
     const [currentAmount, setCurrentAmount] = useState('');
+    
+    // --- Filter States ---
+    const [showFilterPanel, setShowFilterPanel] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [serviceFilter, setServiceFilter] = useState('All');
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
+    
     const itemsPerPage = 6;
 
     // --- Bills Data ---
@@ -39,11 +46,10 @@ const SmartBinApplication = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await api.get(`/resident/bills?PageNo=${currentPage}&PageSize=${itemsPerPage}`);
+            const { data } = await api.get(`/resident/bills?PageNo=1&PageSize=10000`);
             if (data.succeeded || data.success) {
                 const billsList = data.data?.data || data.data || [];
                 const newData = billsList.map((item, index) => ({
-                    sn: index + 1 + (currentPage - 1) * itemsPerPage,
                     billId: item.billID || item.billId || item.id,
                     dueDate: (item.dueDate || item.due_date)?.slice(0, 10),
                     service: item.serviceType || item.service || item.description,
@@ -51,8 +57,6 @@ const SmartBinApplication = () => {
                     amount: item.amount
                 }));
                 setApplications(newData);
-                setTotalPages(data.data?.totalPages || data.totalPages || 1);
-                setTotalItems(data.data?.totalCount || data.totalCount || billsList.length);
             }
         } catch (error) {
             console.log(error);
@@ -62,7 +66,7 @@ const SmartBinApplication = () => {
 
     useEffect(() => {
         fetchData();
-    }, [currentPage]);
+    }, []);
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -74,20 +78,47 @@ const SmartBinApplication = () => {
     };
 
     // --- Computed Properties ---
+    const uniqueServices = useMemo(() => {
+        const services = applications.map(app => app.service).filter(Boolean);
+        return [...new Set(services)];
+    }, [applications]);
+
     const filteredApplications = useMemo(() => {
-        if (!searchQuery) {
-            return applications;
+        let result = applications;
+
+        // 1. Search Query
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            result = result.filter(app => {
+                return (
+                    (app.billId || '').toLowerCase().includes(lowerQuery) ||
+                    (app.service || '').toLowerCase().includes(lowerQuery) ||
+                    (app.status || '').toLowerCase().includes(lowerQuery) ||
+                    formatDate(app.dueDate).includes(lowerQuery)
+                );
+            });
         }
-        const lowerQuery = searchQuery.toLowerCase();
-        return applications.filter(app => {
-            return (
-                app.billId.toLowerCase().includes(lowerQuery) ||
-                app.service.toLowerCase().includes(lowerQuery) ||
-                app.status.toLowerCase().includes(lowerQuery) ||
-                formatDate(app.dueDate).includes(lowerQuery)
-            );
-        });
-    }, [applications, searchQuery]);
+
+        // 2. Status Filter
+        if (statusFilter !== 'All') {
+            result = result.filter(app => (app.status || '').toLowerCase() === statusFilter.toLowerCase());
+        }
+
+        // 3. Service Filter
+        if (serviceFilter !== 'All') {
+            result = result.filter(app => app.service === serviceFilter);
+        }
+
+        // 4. Date Range Filters
+        if (startDateFilter) {
+            result = result.filter(app => app.dueDate >= startDateFilter);
+        }
+        if (endDateFilter) {
+            result = result.filter(app => app.dueDate <= endDateFilter);
+        }
+
+        return result;
+    }, [applications, searchQuery, statusFilter, serviceFilter, startDateFilter, endDateFilter]);
 
     const sortedApplications = useMemo(() => {
         return [...filteredApplications].sort((a, b) => {
@@ -100,14 +131,13 @@ const SmartBinApplication = () => {
             }
 
             if (sortColumn === 'dueDate') {
-                // Convert dates to comparable format (YY-MM-DD)
-                valA = new Date(`20${valA.split('-').reverse().join('-')}`);
-                valB = new Date(`20${valB.split('-').reverse().join('-')}`);
+                valA = valA ? new Date(valA).getTime() : 0;
+                valB = valB ? new Date(valB).getTime() : 0;
             }
 
             if (sortColumn === 'amount') {
-                valA = Number(valA);
-                valB = Number(valB);
+                valA = Number(valA) || 0;
+                valB = Number(valB) || 0;
             }
 
             let comparison = 0;
@@ -120,6 +150,21 @@ const SmartBinApplication = () => {
             return sortDirection === 'dsc' ? (comparison * -1) : comparison;
         });
     }, [filteredApplications, sortColumn, sortDirection]);
+
+    const paginatedApplications = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return sortedApplications.slice(startIndex, endIndex);
+    }, [sortedApplications, currentPage]);
+
+    const totalItems = sortedApplications.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+    // Reset to page 1 when search or filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, serviceFilter, startDateFilter, endDateFilter]);
+
 
 
 
@@ -168,15 +213,50 @@ const SmartBinApplication = () => {
         }).format(amount);
     };
 
-    // Placeholder Action Methods
+    const clearFilters = () => {
+        setStatusFilter('All');
+        setServiceFilter('All');
+        setStartDateFilter('');
+        setEndDateFilter('');
+        setSearchQuery('');
+    };
+
     const filterData = () => {
-        console.log("Filter action triggered");
-        setNotification({ type: 'error', message: "Coming soon.." });
+        setShowFilterPanel(prev => !prev);
     };
 
     const exportData = () => {
-        console.log("Export action triggered");
-        setNotification({ type: 'error', message: "Coming soon.." })
+        if (sortedApplications.length === 0) {
+            setNotification({ type: 'error', message: "No bills available to export." });
+            return;
+        }
+
+        try {
+            const exportRows = sortedApplications.map((app, index) => ({
+                "S/N": index + 1,
+                "Bill ID": app.billId,
+                "Due Date": app.dueDate,
+                "Service": app.service,
+                "Amount (NGN)": app.amount,
+                "Status": app.status
+            }));
+
+            // Convert to CSV using papaparse
+            const csv = Papa.unparse(exportRows);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `bills_export_${new Date().toISOString().slice(0, 10)}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setNotification({ type: 'success', message: "Bills exported successfully!" });
+        } catch (error) {
+            console.error("Export error:", error);
+            setNotification({ type: 'error', message: "An error occurred during export." });
+        }
     };
 
     const handleRowAction = (appId, amount) => {
@@ -308,7 +388,9 @@ const SmartBinApplication = () => {
                                         <button
                                             onClick={filterData}
                                             type="button"
-                                            className="px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                            className={`px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                                                showFilterPanel ? 'bg-green-50 border-green-300 text-green-700 font-semibold' : 'text-zinc-700 bg-white hover:bg-zinc-50'
+                                            }`}
                                         >
                                             Filter
                                         </button>
@@ -321,6 +403,74 @@ const SmartBinApplication = () => {
                                         </button>
                                     </div>
                                 </div>
+
+                                {/* Filter Panel */}
+                                {showFilterPanel && (
+                                    <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 transition-all duration-300 ease-in-out">
+                                        {/* Status Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</label>
+                                            <select
+                                                value={statusFilter}
+                                                onChange={(e) => setStatusFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            >
+                                                <option value="All">All Statuses</option>
+                                                <option value="Paid">Paid</option>
+                                                <option value="Pending">Pending</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Service Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Service</label>
+                                            <select
+                                                value={serviceFilter}
+                                                onChange={(e) => setServiceFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            >
+                                                <option value="All">All Services</option>
+                                                {uniqueServices.map(service => (
+                                                    <option key={service} value={service}>{service}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Start Date Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Due Date From</label>
+                                            <input
+                                                type="date"
+                                                value={startDateFilter}
+                                                onChange={(e) => setStartDateFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            />
+                                        </div>
+
+                                        {/* End Date Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Due Date To</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="date"
+                                                    value={endDateFilter}
+                                                    onChange={(e) => setEndDateFilter(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 flex-1"
+                                                />
+                                                {(statusFilter !== 'All' || serviceFilter !== 'All' || startDateFilter || endDateFilter) && (
+                                                    <button
+                                                        onClick={clearFilters}
+                                                        type="button"
+                                                        className="px-2 text-zinc-500 hover:text-red-500 hover:bg-zinc-100 rounded-lg text-xs font-medium border border-zinc-200"
+                                                        title="Clear Filters"
+                                                    >
+                                                        Reset
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Table */}
                                 <div className="table-container border border-zinc-200 rounded-2xl">
@@ -373,35 +523,38 @@ const SmartBinApplication = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {sortedApplications.length === 0 ? (
+                                            {paginatedApplications.length === 0 ? (
                                                 <tr>
                                                     <td colSpan="7" className="text-center py-10 text-zinc-500">No bills found.</td>
                                                 </tr>
                                             ) : (
-                                                sortedApplications.map(app => (
-                                                    <tr key={app.billId} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
-                                                        <td className="px-4 py-3 font-medium text-zinc-900">{app.sn}</td>
-                                                        <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.billId}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.dueDate)}</td>
-                                                        <td className="px-4 py-3">{app.service}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{formatCurrency(app.amount)}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">
-                                                            <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(app.status)}`}>
-                                                                {app.status}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-center">
-                                                            <button
-                                                                onClick={() => handleRowAction(app.billId, app.amount)}
-                                                                type="button"
-                                                                disabled={app.status === 'PENDING' ? false : true}
-                                                                className="p-1 text-zinc-500 hover:text-zinc-700"
-                                                            >
-                                                                <span className='text-green-600'>{app.status === 'PENDING' ? "Make Payment" : "Paid"}</span>
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))
+                                                paginatedApplications.map((app, index) => {
+                                                    const sn = (currentPage - 1) * itemsPerPage + index + 1;
+                                                    return (
+                                                        <tr key={app.billId} className="bg-white border-b border-zinc-200 hover:bg-zinc-50 lg:h-20">
+                                                            <td className="px-4 py-3 font-medium text-zinc-900">{sn}</td>
+                                                            <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{app.billId}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">{formatDate(app.dueDate)}</td>
+                                                            <td className="px-4 py-3">{app.service}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">{formatCurrency(app.amount)}</td>
+                                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                                <span className={`px-3 py-1 border rounded-full text-xs font-medium inline-block ${getStatusClass(app.status)}`}>
+                                                                    {app.status}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <button
+                                                                    onClick={() => handleRowAction(app.billId, app.amount)}
+                                                                    type="button"
+                                                                    disabled={app.status === 'PENDING' ? false : true}
+                                                                    className="p-1 text-zinc-500 hover:text-zinc-700"
+                                                                >
+                                                                    <span className='text-green-600'>{app.status === 'PENDING' ? "Make Payment" : "Paid"}</span>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
                                             )}
                                         </tbody>
                                     </table>
@@ -500,7 +653,7 @@ const SmartBinApplication = () => {
 
                         <div className="px-6 py-4 flex flex-col items-center gap-3">
                             <button
-                                onClick={handlePayment()}
+                                onClick={handlePayment}
                                 className="btn btn-primary w-full"
                             >
                                 Make Payment

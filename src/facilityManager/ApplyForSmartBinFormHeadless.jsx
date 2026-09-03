@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import BinDisposalLineChart from '../components/BinDisposalLineChart';
+import { exportToCSV } from '../utils/exportHelper';
 
 const WasteReports = () => {
     // --- State ---
@@ -12,6 +13,12 @@ const WasteReports = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [notification, setNotification] = useState(null);
     const itemsPerPage = 12;
+
+    // --- Filter States ---
+    const [showFilterPanel, setShowFilterPanel] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
 
     // --- Reports Data ---
     const reportsData = [
@@ -60,21 +67,53 @@ const WasteReports = () => {
         }
     }, [notification]);
     // --- Computed Properties ---
+    const uniqueStatuses = useMemo(() => {
+        const statuses = reports.map(r => r.status).filter(Boolean);
+        return [...new Set(statuses)];
+    }, [reports]);
+
     const filteredReports = useMemo(() => {
-        if (!searchQuery) {
-            return reports;
+        let result = reports;
+
+        // 1. Search Query
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            result = result.filter(report => {
+                return (
+                    (report.wasteId || '').toLowerCase().includes(lowerQuery) ||
+                    (report.address || '').toLowerCase().includes(lowerQuery) ||
+                    (report.status || '').toLowerCase().includes(lowerQuery) ||
+                    (formatDate(report.date) || '').includes(lowerQuery) ||
+                    (report.weightKgTon || '').toString().includes(lowerQuery)
+                );
+            });
         }
-        const lowerQuery = searchQuery.toLowerCase();
-        return reports.filter(report => {
-            return (
-                report.wasteId.toLowerCase().includes(lowerQuery) ||
-                report.address.toLowerCase().includes(lowerQuery) ||
-                report.status.toLowerCase().includes(lowerQuery) ||
-                formatDate(report.date).includes(lowerQuery) ||
-                report.weightKgTon.toString().includes(lowerQuery)
-            );
-        });
-    }, [reports, searchQuery]);
+
+        // 2. Status Filter
+        if (statusFilter !== 'All') {
+            result = result.filter(report => report.status === statusFilter);
+        }
+
+        // 3. Date Filters
+        // Note: reports date format in this file is "DD-MM-YY" (e.g. "21-01-25")
+        // To filter, we can convert DD-MM-YY date string into YYYY-MM-DD format for proper string comparison
+        if (startDateFilter || endDateFilter) {
+            result = result.filter(report => {
+                if (!report.date) return false;
+                const [day, month, year] = report.date.split('-').map(Number);
+                const fullYear = 2000 + year;
+                const formattedMonth = month < 10 ? `0${month}` : month;
+                const formattedDay = day < 10 ? `0${day}` : day;
+                const reportIsoDate = `${fullYear}-${formattedMonth}-${formattedDay}`;
+
+                if (startDateFilter && reportIsoDate < startDateFilter) return false;
+                if (endDateFilter && reportIsoDate > endDateFilter) return false;
+                return true;
+            });
+        }
+
+        return result;
+    }, [reports, searchQuery, statusFilter, startDateFilter, endDateFilter]);
 
     const sortedReports = useMemo(() => {
         return [...filteredReports].sort((a, b) => {
@@ -122,6 +161,11 @@ const WasteReports = () => {
         return Math.ceil(sortedReports.length / itemsPerPage);
     }, [sortedReports]);
 
+    // Reset page on filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, startDateFilter, endDateFilter]);
+
     // --- Methods ---
     const sortBy = (columnKey) => {
         if (sortColumn === columnKey) {
@@ -155,15 +199,39 @@ const WasteReports = () => {
         }
     };
 
-    // Placeholder Action Methods
+    // Action Methods
+    const clearFilters = () => {
+        setStatusFilter('All');
+        setStartDateFilter('');
+        setEndDateFilter('');
+        setSearchQuery('');
+    };
+
     const filterData = () => {
-        console.log("Filter action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+        setShowFilterPanel(prev => !prev);
     };
 
     const exportData = () => {
-        console.log("Export action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+        if (sortedReports.length === 0) {
+            setNotification({ type: 'error', message: "No records to export." });
+            return;
+        }
+
+        try {
+            const exportRows = sortedReports.map((report, index) => ({
+                "S/N": index + 1,
+                "Waste ID": report.wasteId,
+                "Date": formatDate(report.date),
+                "Address": report.address,
+                "Weight (kg)": report.weightKgTon,
+                "Status": report.status
+            }));
+            exportToCSV(exportRows, "waste_reports");
+            setNotification({ type: 'success', message: "Reports exported successfully!" });
+        } catch (error) {
+            console.error("Export error:", error);
+            setNotification({ type: 'error', message: "An error occurred during export." });
+        }
     };
 
     const handleRowAction = (wasteId) => {
@@ -208,19 +276,75 @@ const WasteReports = () => {
                                         <button
                                             onClick={filterData}
                                             type="button"
-                                            className="px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                            className={`px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                                                showFilterPanel ? 'bg-green-50 border-green-300 text-green-700 font-semibold' : 'text-zinc-700 bg-white hover:bg-zinc-50'
+                                            }`}
                                         >
                                             Filter
                                         </button>
                                         <button
                                             onClick={exportData}
                                             type="button"
-                                            className="px-4 py-2 mx-4 border border-zinc-300 lg:mx-0 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                            className="px-4 py-2 mx-4 border border-zinc-300 lg:mx-0 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                         >
                                             Export
                                         </button>
                                     </div>
                                 </div>
+
+                                {/* Filter Panel */}
+                                {showFilterPanel && (
+                                    <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 transition-all duration-300 ease-in-out">
+                                        {/* Status Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</label>
+                                            <select
+                                                value={statusFilter}
+                                                onChange={(e) => setStatusFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            >
+                                                <option value="All">All Statuses</option>
+                                                {uniqueStatuses.map(status => (
+                                                    <option key={status} value={status}>{status}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Date From Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date From</label>
+                                            <input
+                                                type="date"
+                                                value={startDateFilter}
+                                                onChange={(e) => setStartDateFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            />
+                                        </div>
+
+                                        {/* Date To Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date To</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="date"
+                                                    value={endDateFilter}
+                                                    onChange={(e) => setEndDateFilter(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 flex-1"
+                                                />
+                                                {(statusFilter !== 'All' || startDateFilter || endDateFilter) && (
+                                                    <button
+                                                        onClick={clearFilters}
+                                                        type="button"
+                                                        className="px-2 text-zinc-500 hover:text-red-500 hover:bg-zinc-100 rounded-lg text-xs font-medium border border-zinc-200"
+                                                        title="Clear Filters"
+                                                     >
+                                                        Reset
+                                                     </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Chart */}
                                 <div className='bg-white rounded-t-2xl border border-zinc-200 flex flex-col  pb-20 '>
@@ -351,7 +475,7 @@ const WasteReports = () => {
                                     <span className="text-sm text-zinc-700">
                                         Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages}</span>
                                         <span className="mx-2">|</span>
-                                        Total <span className="font-semibold">{reports.length}</span> items
+                                        Total <span className="font-semibold">{sortedReports.length}</span> items
                                     </span>
                                     <div className="inline-flex rounded-md shadow-sm -space-x-px" role="group">
                                         <button
