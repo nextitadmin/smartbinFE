@@ -376,26 +376,7 @@ const SmartBinTableCard = () => {
 
 
     const cancelForm = () => {
-        setFormData({
-            customerName: {
-                text: '',
-                value: '',
-            },
-            customerType: '',
-            email: FacilityMgr.emailAddress,
-            phoneNo: FacilityMgr.phoneNo,
-            payerId: FacilityMgr.payerID,
-            buildingType: '',
-            houseNo: '',
-            flatNo: '',
-            lga: '',
-            streetName: '', // For the main street address
-            closestLandmark: '',
-            lawmaCustomerType: 'Existing',
-
-        });
-        setIsDisabled(true);
-        setSelfRequest(true);
+        closeForm();
         console.log("Form Cancelled");
     };
 

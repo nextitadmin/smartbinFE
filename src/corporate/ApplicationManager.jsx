@@ -91,129 +91,128 @@ function AppManager() {
     };
 
     // Function to check payment status
-    const checkPaymentStatus = async (transactionReference) => {
+    const checkPaymentStatus = async (transactionReference, targetAppData = null) => {
         try {
             console.log('🔍 Checking payment status for:', transactionReference);
             
-            // First, check if we have any smart bin payments in the general payments list
+            // Fetch payments from the corporate payments list
             const accountNo = useCorporateStore.getState().corporateInfo?.accountNo || '';
             const { data } = await api.get(`/corporate/payments?AccountNo=${accountNo}&page=1&limit=100`);
             
             if (data.succeeded || data.success) {
                 const transactions = data.data?.transactions || data.transactions || [];
                 console.log('🔍 Total transactions found:', transactions.length);
-                
-                // Look for payments related to smart bin applications with more specific criteria
-                const smartBinPayments = transactions.filter(transaction => {
-                    console.log('🔍 Checking transaction:', {
-                        reference: transaction.transactionReference,
-                        narration: transaction.narration,
-                        paymentPurpose: transaction.paymentPurpose,
-                        service: transaction.service,
-                        meta: transaction.meta
-                    });
-                    
-                    // More specific smart bin payment detection
-                    const isSmartBinPayment = (
-                        // Must have specific smart bin narration
-                        (transaction.narration && transaction.narration.toLowerCase().includes('smart bin application payment')) ||
-                        // Must have specific smart bin payment purpose
-                        (transaction.paymentPurpose && transaction.paymentPurpose.toLowerCase().includes('smart bin application')) ||
-                        // Must have specific smart bin service
-                        (transaction.service && transaction.service.toLowerCase().includes('smart bin application')) ||
-                        // Must have specific smart bin meta description
-                        (transaction.meta?.description && transaction.meta.description.toLowerCase().includes('smart bin application'))
+
+                const currentApp = targetAppData || orderDetails || {};
+                const candidateIds = [
+                    transactionReference,
+                    currentId,
+                    currentApp.transactionReference,
+                    currentApp.transactionId,
+                    currentApp.orderId,
+                    currentApp.orderID,
+                    currentApp._id,
+                    currentApp.id
+                ].filter(Boolean).map(id => String(id).trim());
+
+                console.log('🔍 Candidate identifiers for payment match:', candidateIds);
+
+                // 1. Primary match: Look for matching transactionReference, transactionId, or _id
+                let matchingPayment = transactions.find(transaction =>
+                    candidateIds.some(id =>
+                        (transaction.transactionReference && String(transaction.transactionReference).trim() === id) ||
+                        (transaction.transactionId && String(transaction.transactionId).trim() === id) ||
+                        (transaction._id && String(transaction._id).trim() === id)
+                    )
+                );
+
+                // 2. Secondary match: Check for Smart Bin Purchase transactions
+                if (!matchingPayment) {
+                    const smartBinPayments = transactions.filter(transaction =>
+                        (transaction.service && (
+                            transaction.service.toLowerCase().includes('smart bin') ||
+                            transaction.service.toLowerCase().includes('smartbin')
+                        )) ||
+                        (transaction.metadata?.description && transaction.metadata.description.toLowerCase().includes('smart bin')) ||
+                        (transaction.meta?.description && transaction.meta.description.toLowerCase().includes('smart bin'))
                     );
-                    
-                    if (isSmartBinPayment) {
-                        console.log('✅ Found smart bin payment:', transaction.transactionReference);
-                    }
-                    
-                    return isSmartBinPayment;
-                });
-                
-                console.log('🔍 Smart bin payments found:', smartBinPayments.length);
-                
-                if (smartBinPayments.length > 0) {
-                    // For each smart bin payment, verify if it was actually successful
-                    for (const payment of smartBinPayments) {
-                        console.log('🔍 Verifying smart bin payment:', payment.transactionReference);
-                        const isActuallyPaid = await verifyActualPayment(payment);
-                        if (isActuallyPaid) {
-                            console.log('✅ Found verified successful payment for smart bin:', payment);
-                            setPaymentStatus('paid');
-                            return 'paid';
-                        }
-                    }
-                    
-                    // Check for pending payments
-                    const pendingPayment = smartBinPayments.find(payment => 
-                        payment.status?.toLowerCase() === 'pending'
+
+                    matchingPayment = smartBinPayments.find(transaction =>
+                        candidateIds.some(id =>
+                            (transaction.transactionReference && String(transaction.transactionReference).trim() === id) ||
+                            (transaction.transactionId && String(transaction.transactionId).trim() === id) ||
+                            (transaction._id && String(transaction._id).trim() === id)
+                        )
                     );
-                    
-                    if (pendingPayment) {
-                        console.log('⏳ Found pending smart bin payment');
-                        setPaymentStatus('pending');
-                        return 'pending';
-                    } else {
-                        // Check for failed payments
-                        const failedPayment = smartBinPayments.find(payment => 
-                            payment.status?.toLowerCase() === 'failed'
-                        );
-                        
-                        if (failedPayment) {
-                            console.log('❌ Found failed smart bin payment');
-                            setPaymentStatus('failed');
-                            return 'failed';
-                        }
-                    }
                 }
-                
-                // If no smart bin payments found, check if there's a payment with matching transaction reference
-                if (transactionReference) {
-                    const matchingPayment = transactions.find(transaction => 
-                        transaction.transactionReference === transactionReference
-                    );
-                    
-                    if (matchingPayment) {
-                        console.log('🔍 Found matching payment by reference:', matchingPayment);
-                        // Verify this specific payment was actually successful
-                        const isActuallyPaid = await verifyActualPayment(matchingPayment);
-                        if (isActuallyPaid) {
-                            console.log('✅ Matching payment verified as successful');
-                            setPaymentStatus('paid');
-                            return 'paid';
+
+                if (matchingPayment) {
+                    console.log('🔍 Found matching payment:', matchingPayment);
+
+                    // If AlatPay payment is pending, verify if it was verified on gateway
+                    if (matchingPayment.paymentMethod === 'alatPay' && matchingPayment.status?.toLowerCase() === 'pending') {
+                        try {
+                            const verifyResponse = await api.get(`/api/v1/wallets/mock-verify?reference=${matchingPayment.transactionReference}`);
+                            if (verifyResponse.data?.success || verifyResponse.data?.succeeded) {
+                                setPaymentStatus('successful');
+                                return 'successful';
+                            }
+                        } catch (e) {
+                            console.error('AlatPay verify error:', e);
                         }
-                        console.log('❌ Matching payment not verified as successful');
-                        const status = matchingPayment.status?.toLowerCase() || 'unpaid';
-                        setPaymentStatus(status);
-                        return status;
                     }
+
+                    // Directly match what the API sends out (e.g. "successful", "pending", "abandoned", "failed")
+                    const apiStatus = matchingPayment.status ? matchingPayment.status.toLowerCase() : 'unpaid';
+                    console.log('✅ Setting payment status matching API:', apiStatus);
+                    setPaymentStatus(apiStatus);
+                    return apiStatus;
                 }
-                
-                console.log('🔍 No smart bin payments found for this application');
+
+                // If no matching payment found in transactions, check if application data itself has payment status
+                if (currentApp.paymentStatus || currentApp.payment?.status) {
+                    const appStatus = (currentApp.paymentStatus || currentApp.payment?.status).toLowerCase();
+                    console.log('🔍 Using payment status from application data:', appStatus);
+                    setPaymentStatus(appStatus);
+                    return appStatus;
+                }
+
+                console.log('🔍 No smart bin payment found for this application');
                 setPaymentStatus('unpaid');
                 return 'unpaid';
             } else {
                 console.log('Failed to fetch payments:', data.message);
-                setPaymentStatus('unpaid');
-                return 'unpaid';
+                const fallback = (orderDetails?.paymentStatus || orderDetails?.payment?.status || 'unpaid').toLowerCase();
+                setPaymentStatus(fallback);
+                return fallback;
             }
         } catch (error) {
             console.error('Error checking payment status:', error);
-            setPaymentStatus('unpaid');
-            return 'unpaid';
+            const fallback = (orderDetails?.paymentStatus || orderDetails?.payment?.status || 'unpaid').toLowerCase();
+            setPaymentStatus(fallback);
+            return fallback;
         }
     };
 
-    // Function to get payment status display
+    // Function to get payment status display matching what the API sends out
     const getPaymentStatusDisplay = (status) => {
-        switch (status?.toLowerCase()) {
-            case 'paid':
+        if (!status) {
+            return {
+                text: 'Unpaid',
+                className: 'border-red-500 bg-red-100 text-red-900'
+            };
+        }
+
+        const normalized = status.toString().trim().toLowerCase();
+        // Capitalize status text so "successful" -> "Successful", "pending" -> "Pending", "abandoned" -> "Abandoned", etc.
+        const formattedText = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+
+        switch (normalized) {
             case 'successful':
+            case 'paid':
             case 'completed':
                 return {
-                    text: 'Paid',
+                    text: formattedText,
                     className: 'border-green-500 bg-green-100 text-green-900'
                 };
             case 'pending':
@@ -221,14 +220,20 @@ function AppManager() {
                     text: 'Pending',
                     className: 'border-yellow-500 bg-yellow-100 text-yellow-900'
                 };
+            case 'abandoned':
+                return {
+                    text: 'Abandoned',
+                    className: 'border-orange-500 bg-orange-100 text-orange-900'
+                };
             case 'failed':
                 return {
                     text: 'Failed',
                     className: 'border-red-500 bg-red-100 text-red-900'
                 };
+            case 'unpaid':
             default:
                 return {
-                    text: 'Unpaid',
+                    text: formattedText || 'Unpaid',
                     className: 'border-red-500 bg-red-100 text-red-900'
                 };
         }
@@ -254,9 +259,9 @@ function AppManager() {
                 console.log("Application details:", appData);
 
                 // Check payment status after fetching application details
-                const ref = appData.transactionReference || appData.id;
+                const ref = appData.transactionReference || appData.transactionId || appData.orderId || appData.id || currentId;
                 if (ref) {
-                    await checkPaymentStatus(ref);
+                    await checkPaymentStatus(ref, appData);
                 }
             }
         } catch (error) {
@@ -357,8 +362,8 @@ function AppManager() {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => {
-                                const ref = orderDetails?.transactionReference || orderDetails?.id;
-                                if (ref) checkPaymentStatus(ref);
+                                const ref = orderDetails?.transactionReference || orderDetails?.transactionId || orderDetails?.orderId || orderDetails?.id || currentId;
+                                if (ref) checkPaymentStatus(ref, orderDetails);
                             }}
                             className="px-4 py-2 text-sm font-medium rounded-lg text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                         >

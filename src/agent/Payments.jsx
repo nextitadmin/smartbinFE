@@ -6,6 +6,18 @@ import api from '../api/axiosConfig';
 import PaymentNav from '../components/PaymentNav';
 import { exportToCSV } from '../utils/exportHelper';
 
+const DownloadIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-1.5 text-zinc-500">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    </svg>
+);
+
+const FilterIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-1.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+    </svg>
+);
+
 const PaymentReceipts = () => {
     // --- State ---
     const [payments, setPayments] = useState([]);
@@ -17,6 +29,14 @@ const PaymentReceipts = () => {
     const [notification, setNotification] = useState(null);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
+
+    // --- Filter panel state ---
+    const [showFilterPanel, setShowFilterPanel] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [serviceFilter, setServiceFilter] = useState('All');
+    const [paymentMethodFilter, setPaymentMethodFilter] = useState('All');
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
 
 
 
@@ -99,23 +119,87 @@ const PaymentReceipts = () => {
 
 
     // --- Computed Properties ---
+    const uniqueStatuses = useMemo(() => {
+        const statuses = payments.map(p => p.status).filter(Boolean);
+        const defaults = ['Successful', 'Pending', 'Failed'];
+        return [...new Set([...defaults, ...statuses])];
+    }, [payments]);
+
+    const uniqueServices = useMemo(() => {
+        const services = payments.map(p => p.service).filter(Boolean);
+        return [...new Set(services)];
+    }, [payments]);
+
+    const uniquePaymentMethods = useMemo(() => {
+        const methods = payments.map(p => p.paymentMethod).filter(Boolean);
+        return [...new Set(methods)];
+    }, [payments]);
+
     const filteredPayments = useMemo(() => {
-        if (!searchQuery) {
-            return payments;
+        let result = payments;
+
+        // 1. Search Query
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            result = result.filter(payment => {
+                return (
+                    payment.transactionId?.toLowerCase().includes(lowerQuery) ||
+                    payment.customerName?.toLowerCase().includes(lowerQuery) ||
+                    payment.service?.toLowerCase().includes(lowerQuery) ||
+                    payment.paymentMethod?.toLowerCase().includes(lowerQuery) ||
+                    payment.status?.toLowerCase().includes(lowerQuery) ||
+                    payment.date?.includes(lowerQuery) ||
+                    payment.amount?.toString().includes(lowerQuery)
+                );
+            });
         }
-        const lowerQuery = searchQuery.toLowerCase();
-        return payments.filter(payment => {
-            return (
-                payment.transactionId?.toLowerCase().includes(lowerQuery) ||
-                payment.customerName?.toLowerCase().includes(lowerQuery) ||
-                payment.service?.toLowerCase().includes(lowerQuery) ||
-                payment.paymentMethod?.toLowerCase().includes(lowerQuery) ||
-                payment.status?.toLowerCase().includes(lowerQuery) ||
-                payment.date?.includes(lowerQuery) ||
-                payment.amount?.toString().includes(lowerQuery)
-            );
-        });
-    }, [payments, searchQuery]);
+
+        // 2. Status Filter
+        if (statusFilter !== 'All') {
+            result = result.filter(p => (p.status || '').toLowerCase() === statusFilter.toLowerCase());
+        }
+
+        // 3. Service Filter
+        if (serviceFilter !== 'All') {
+            result = result.filter(p => (p.service || '').toLowerCase() === serviceFilter.toLowerCase());
+        }
+
+        // 4. Payment Method Filter
+        if (paymentMethodFilter !== 'All') {
+            result = result.filter(p => (p.paymentMethod || '').toLowerCase() === paymentMethodFilter.toLowerCase());
+        }
+
+        // 5. Date Range Filters
+        if (startDateFilter) {
+            result = result.filter(p => p.date && p.date >= startDateFilter);
+        }
+        if (endDateFilter) {
+            result = result.filter(p => p.date && p.date <= endDateFilter);
+        }
+
+        return result;
+    }, [payments, searchQuery, statusFilter, serviceFilter, paymentMethodFilter, startDateFilter, endDateFilter]);
+
+    const hasActiveFilters =
+        statusFilter !== 'All' ||
+        serviceFilter !== 'All' ||
+        paymentMethodFilter !== 'All' ||
+        Boolean(startDateFilter) ||
+        Boolean(endDateFilter);
+
+    const clearFilters = () => {
+        setStatusFilter('All');
+        setServiceFilter('All');
+        setPaymentMethodFilter('All');
+        setStartDateFilter('');
+        setEndDateFilter('');
+        setSearchQuery('');
+    };
+
+    // Reset to page 1 on filter change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, serviceFilter, paymentMethodFilter, startDateFilter, endDateFilter]);
 
     const sortedPayments = useMemo(() => {
         return [...filteredPayments].sort((a, b) => {
@@ -202,10 +286,9 @@ const PaymentReceipts = () => {
         }).format(Number(amount) || 0);
     };
 
-    // Placeholder Action Methods
+    // Action Methods
     const filterData = () => {
-        console.log("Filter action triggered");
-        setNotification({ type: 'error', message: 'Coming soon..' });
+        setShowFilterPanel(prev => !prev);
     };
 
     const exportData = () => {
@@ -214,18 +297,19 @@ const PaymentReceipts = () => {
             return;
         }
 
-        const exportRows = sortedPayments.map((p) => ({
+        const exportRows = sortedPayments.map((p, index) => ({
+            'S/N': index + 1,
             'Transaction ID': p.transactionId,
             'Customer Name': p.customerName,
             'Service': p.service,
-            'Amount': p.amount,
+            'Amount (NGN)': p.amount,
             'Date': p.date,
             'Payment Method': p.paymentMethod,
             'Status': p.status,
         }));
 
         exportToCSV(exportRows, 'agent_payments');
-        setNotification({ type: 'success', message: 'Payments exported successfully!' });
+        setNotification({ type: 'success', message: `Successfully exported ${exportRows.length} payment records!` });
     };
 
 
@@ -270,23 +354,102 @@ const PaymentReceipts = () => {
                                             className="w-full lg:w-[24rem] pl-10 pr-4 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent"
                                         />
                                     </div>
-                                    <div>
+                                    <div className="flex items-center space-x-2">
                                         <button
                                             onClick={filterData}
                                             type="button"
-                                            className="px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                            className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition cursor-pointer ${
+                                                showFilterPanel || hasActiveFilters
+                                                    ? 'bg-green-50 border-green-500 text-green-700 font-semibold'
+                                                    : 'border-zinc-300 text-zinc-700 bg-white hover:bg-zinc-50'
+                                            }`}
                                         >
-                                            Filter
+                                            <FilterIcon />
+                                            <span>Filter</span>
+                                            {hasActiveFilters && (
+                                                <span className="ml-1.5 w-2 h-2 rounded-full bg-green-600"></span>
+                                            )}
                                         </button>
                                         <button
                                             onClick={exportData}
                                             type="button"
-                                            className="px-4 py-2 mx-4 border border-zinc-300 lg:mx-0 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                            className="inline-flex items-center px-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition cursor-pointer shadow-xs"
+                                            title="Export payments history as CSV"
                                         >
-                                            Export
+                                            <DownloadIcon />
+                                            <span>Export</span>
                                         </button>
                                     </div>
                                 </div>
+
+                                {/* Filter Panel */}
+                                {showFilterPanel && (
+                                    <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 transition-all duration-300 ease-in-out">
+                                        {/* Status Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</label>
+                                            <select
+                                                value={statusFilter}
+                                                onChange={(e) => setStatusFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            >
+                                                <option value="All">All Statuses</option>
+                                                {uniqueStatuses.map(status => (
+                                                    <option key={status} value={status}>{status}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Service Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Service</label>
+                                            <select
+                                                value={serviceFilter}
+                                                onChange={(e) => setServiceFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            >
+                                                <option value="All">All Services</option>
+                                                {uniqueServices.map(service => (
+                                                    <option key={service} value={service}>{service}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Start Date Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date From</label>
+                                            <input
+                                                type="date"
+                                                value={startDateFilter}
+                                                onChange={(e) => setStartDateFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                            />
+                                        </div>
+
+                                        {/* End Date Filter */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date To</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="date"
+                                                    value={endDateFilter}
+                                                    onChange={(e) => setEndDateFilter(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 flex-1"
+                                                />
+                                                {hasActiveFilters && (
+                                                    <button
+                                                        onClick={clearFilters}
+                                                        type="button"
+                                                        className="px-3 text-zinc-600 hover:text-red-600 hover:bg-zinc-100 rounded-xl text-xs font-medium border border-zinc-200 transition cursor-pointer"
+                                                        title="Reset all filters"
+                                                    >
+                                                        Reset
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Table */}
                                 <div className="table-container border border-zinc-200 rounded-2xl">

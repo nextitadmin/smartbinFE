@@ -3,6 +3,7 @@ import api from '../api/axiosConfig';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/AgentSidebar';
 import Topbar from '../components/AgentTopBar';
+import { exportToCSV } from '../utils/exportHelper';
 
 const descriptions = {
     ACTIVATED: "Smart Bin has been successfully activated",
@@ -143,6 +144,40 @@ function AppManager() {
         }
     };
 
+    const handleExport = () => {
+        try {
+            const trackInfos = orderDetails.trackInfos || [];
+            if (trackInfos.length === 0) {
+                const singleRow = [{
+                    "Order ID": orderDetails.orderID || currentId,
+                    "Customer Name": orderDetails.customerName || 'N/A',
+                    "Destination": orderDetails.customerAddress || 'N/A',
+                    "Process Date": orderDetails.processDate ? formatDate(orderDetails.processDate) : 'N/A',
+                    "Status": 'N/A',
+                    "Event Date": 'N/A',
+                    "Event Description": 'N/A',
+                }];
+                exportToCSV(singleRow, `application_${orderDetails.orderID || currentId || 'details'}`);
+                return;
+            }
+
+            const exportRows = trackInfos.map((event, idx) => ({
+                "S/N": idx + 1,
+                "Order ID": orderDetails.orderID || currentId,
+                "Customer Name": orderDetails.customerName || 'N/A',
+                "Destination": orderDetails.customerAddress || 'N/A',
+                "Process Date": orderDetails.processDate ? formatDate(orderDetails.processDate) : 'N/A',
+                "Event Status": event.statusName || 'N/A',
+                "Event Date": event.date ? formatDate(event.date) : 'N/A',
+                "Event Description": event.description || getDiscriptions(event) || 'N/A',
+            }));
+
+            exportToCSV(exportRows, `application_timeline_${orderDetails.orderID || currentId || 'details'}`);
+        } catch (error) {
+            console.error("Export timeline error:", error);
+        }
+    };
+
     return (
 
         <div className="flex sans h-screen max-w-screen">
@@ -157,11 +192,23 @@ function AppManager() {
 
 
 
-                <div className='flex lg:flex-row flex-col items-center justify-between px-6 py-4 '>
-                    <div className=' text-xl text-zinc-800 cursor-pointer' onClick={() => handleBack()}>
+                <div className='flex lg:flex-row flex-col items-center justify-between px-6 py-4 gap-3'>
+                    <div className='text-xl text-zinc-800 cursor-pointer hover:text-green-700 transition' onClick={() => handleBack()}>
                         ← Back
                     </div>
-
+                    {orderDetails.orderID && (
+                        <button
+                            type="button"
+                            onClick={handleExport}
+                            className="inline-flex items-center px-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 hover:text-zinc-900 shadow-xs cursor-pointer transition"
+                            title="Export application tracking timeline"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-1.5 text-zinc-500">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                            </svg>
+                            <span>Export timeline</span>
+                        </button>
+                    )}
                 </div>
                 <section className="max-w-5xl mx-auto my-20 px-4 sm:px-6 lg:px-8">
                     {/* <h1 className="text-3xl font-bold text-center text-zinc-900 mb-6">

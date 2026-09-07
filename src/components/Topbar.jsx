@@ -298,9 +298,11 @@ const Topbar = () => {
 
 
                             <button
-
-                                className='flex items-center gap-2  text-zinc-700 font-semibold py-2 px-4 rounded-lg transition duration-300 ease-in-out'
-
+                                onClick={() => {
+                                    setViewProfileModal(false);
+                                    navigate("/service");
+                                }}
+                                className='flex items-center gap-2  text-zinc-700 font-semibold py-2 px-4 rounded-lg transition duration-300 ease-in-out hover:bg-zinc-100 cursor-pointer'
                             >
                                 View Profile
                             </button>

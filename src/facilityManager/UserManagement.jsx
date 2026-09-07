@@ -7,6 +7,7 @@ import BinAssignTable from '../components/BinAssignTable'
 import TenantDetailsSideBar from '../components/Tenantsright';
 import CsvUploader from '../components/CsvUploader';
 import api from '../api/axiosConfig';
+import { exportToCSV } from '../utils/exportHelper';
 
 const initialUsers = [
     {
@@ -243,6 +244,12 @@ const SearchIcon = () => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
     </svg>
 );
+
+const DownloadIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-1.5 text-zinc-500">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    </svg>
+);
 const XMarkIcon = ({ className = "h-5 w-5" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -363,6 +370,44 @@ const UserManagement = () => {
             message: `${feature} feature is coming soon! Stay tuned!`,
             duration: 3000,
         });
+    };
+
+    const handleExportData = () => {
+        if (!filteredUsers || filteredUsers.length === 0) {
+            setNotification({
+                type: 'error',
+                message: 'No users available to export.',
+                duration: 3000,
+            });
+            return;
+        }
+
+        try {
+            const exportRows = filteredUsers.map((user, index) => ({
+                "S/N": index + 1,
+                "Name": user.fullName || user.name || 'No Name',
+                "Bin Status": user.statusName || user.binStatus || '-',
+                "Bin ID": user.binId || '-',
+                "Customer Type": user.customerType || '-',
+                "Phone Number": user.phoneNo || user.phone || '-',
+                "Building": user.building || '-',
+                "Date Added": user.created || user.dateAdded || '-',
+            }));
+
+            exportToCSV(exportRows, "fm_tenants_directory");
+            setNotification({
+                type: 'success',
+                message: `Successfully exported ${exportRows.length} user records!`,
+                duration: 3000,
+            });
+        } catch (error) {
+            console.error("Export error:", error);
+            setNotification({
+                type: 'error',
+                message: error.message || 'An error occurred while exporting data.',
+                duration: 3000,
+            });
+        }
     };
 
 
@@ -503,8 +548,14 @@ const UserManagement = () => {
                                                     <span>Date added</span>
                                                     <ChevronDownIcon />
                                                 </button> */}
-                                                <button onClick={() => handleComingSoon('Export data')} className="hidden sm:inline-flex px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-xl hover:bg-zinc-50">
-                                                    Export data
+                                                <button
+                                                    type="button"
+                                                    onClick={handleExportData}
+                                                    className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-xl hover:bg-zinc-50 hover:text-zinc-900 transition shadow-xs cursor-pointer"
+                                                    title="Export user directory as CSV"
+                                                >
+                                                    <DownloadIcon />
+                                                    <span>Export data</span>
                                                 </button>
                                             </div>
                                         </div>

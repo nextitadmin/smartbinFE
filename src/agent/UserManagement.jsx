@@ -1,12 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../components/AgentSidebar';
 import Topbar from '../components/AgentTopBar';
 import SignUpModal from '../components/AgentSignUpModal';
 import EditUserModal from '../components/AgentEditUser';
 import CsvUploader from '../components/CsvUploader';
 import api from '../api/axiosConfig';
+import { exportToCSV } from '../utils/exportHelper';
 
 const devMode = false;
+
+const getUserDate = (user) => {
+    if (user.rawDate instanceof Date && !isNaN(user.rawDate.getTime())) {
+        return user.rawDate;
+    }
+    if (user.createdAt) {
+        const d = new Date(user.createdAt);
+        if (!isNaN(d.getTime())) return d;
+    }
+    if (user.dateAdded && typeof user.dateAdded === 'string') {
+        const parts = user.dateAdded.split('-');
+        if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            let year = parseInt(parts[2], 10);
+            if (year < 100) year += 2000;
+            const parsed = new Date(year, month, day);
+            if (!isNaN(parsed.getTime())) return parsed;
+        }
+    }
+    return null;
+};
 
 const fetchUsers = async () => {
     const getList = (res) => {
@@ -27,11 +50,12 @@ const fetchUsers = async () => {
         const name = item.fullName || item.name || item.businessName || item.companyName || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'No Name';
         const email = item.email || item.emailAddress || '-';
         const phoneNumber = item.phoneNumber || item.phoneNo || item.phone || '-';
-        const dateAddedRaw = item.createdAt || item.dateAdded || new Date();
-        const date = new Date(dateAddedRaw);
-        const dateAdded = isNaN(date.getTime()) 
-            ? 'N/A' 
-            : `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getFullYear()).slice(-2)}`;
+        const dateAddedRaw = item.createdAt || item.dateAdded || item.createdDate || item.date;
+        const date = dateAddedRaw ? new Date(dateAddedRaw) : null;
+        const isValidDate = date && !isNaN(date.getTime());
+        const dateAdded = isValidDate 
+            ? `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getFullYear()).slice(-2)}`
+            : (item.dateAdded || 'N/A');
 
         return {
             id: item._id || item.id,
@@ -39,7 +63,9 @@ const fetchUsers = async () => {
             email,
             customerType: type,
             phoneNumber,
-            dateAdded
+            dateAdded,
+            createdAt: item.createdAt || item.dateAdded || item.createdDate || item.date || null,
+            rawDate: isValidDate ? date : null,
         };
     };
 
@@ -84,6 +110,12 @@ const ChevronDownIcon = () => (
     </svg>
 );
 
+const DownloadIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-1.5 text-zinc-500">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    </svg>
+);
+
 const PlusIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -115,6 +147,15 @@ const UserManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [customerTypeFilter, setCustomerTypeFilter] = useState({ Resident: false, Corporate: false });
     const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [dateFilter, setDateFilter] = useState({
+        preset: 'all',
+        startDate: '',
+        endDate: '',
+    });
+    const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
+    const customerFilterRef = useRef(null);
+    const dateFilterRef = useRef(null);
+
     const [activeActionMenu, setActiveActionMenu] = useState(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -127,11 +168,24 @@ const UserManagement = () => {
     const [selectedUserType, setSelectedUserType] = useState('');
     const usersPerPage = 6;
 
-
-
     const clearNotification = () => {
         setNotification(null);
     };
+
+    // Close dropdowns on outside click
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (customerFilterRef.current && !customerFilterRef.current.contains(event.target)) {
+                setIsFilterOpen(false);
+            }
+            if (dateFilterRef.current && !dateFilterRef.current.contains(event.target)) {
+                setIsDateFilterOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Fetch users on mount
     useEffect(() => {
@@ -149,9 +203,11 @@ const UserManagement = () => {
 
         // Search filter
         if (searchTerm) {
+            const term = searchTerm.toLowerCase();
             result = result.filter(user =>
-                user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                user.email.toLowerCase().includes(searchTerm.toLowerCase())
+                (user.name && user.name.toLowerCase().includes(term)) ||
+                (user.email && user.email.toLowerCase().includes(term)) ||
+                (user.phoneNumber && user.phoneNumber.toLowerCase().includes(term))
             );
         }
 
@@ -161,9 +217,33 @@ const UserManagement = () => {
             result = result.filter(user => activeFilters.includes(user.customerType));
         }
 
+        // Date added filter
+        if (dateFilter.startDate || dateFilter.endDate) {
+            result = result.filter(user => {
+                const userDate = getUserDate(user);
+                if (!userDate) return false;
+
+                const userTime = userDate.getTime();
+
+                if (dateFilter.startDate) {
+                    const [y, m, d] = dateFilter.startDate.split('-').map(Number);
+                    const startTime = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+                    if (userTime < startTime) return false;
+                }
+
+                if (dateFilter.endDate) {
+                    const [y, m, d] = dateFilter.endDate.split('-').map(Number);
+                    const endTime = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+                    if (userTime > endTime) return false;
+                }
+
+                return true;
+            });
+        }
+
         setFilteredUsers(result);
         setCurrentPage(1); // Reset to first page on filter change
-    }, [searchTerm, customerTypeFilter, users]);
+    }, [searchTerm, customerTypeFilter, dateFilter, users]);
 
     // Pagination logic
     const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
@@ -227,14 +307,111 @@ const UserManagement = () => {
         });
     };
 
+    const handleExportData = () => {
+        if (!filteredUsers || filteredUsers.length === 0) {
+            setNotification({
+                type: 'error',
+                message: 'No users available to export.',
+                duration: 3000,
+            });
+            return;
+        }
+
+        try {
+            const exportRows = filteredUsers.map((user, index) => ({
+                "S/N": index + 1,
+                "Name": user.name || 'No Name',
+                "Email Address": user.email || '-',
+                "Customer Type": user.customerType || '-',
+                "Phone Number": user.phoneNumber || '-',
+                "Date Added": user.dateAdded || '-',
+            }));
+
+            exportToCSV(exportRows, "users_directory");
+            setNotification({
+                type: 'success',
+                message: `Successfully exported ${exportRows.length} user records!`,
+                duration: 3000,
+            });
+        } catch (error) {
+            console.error("Export error:", error);
+            setNotification({
+                type: 'error',
+                message: error.message || 'An error occurred while exporting data.',
+                duration: 3000,
+            });
+        }
+    };
+
     const handleFilterChange = (type) => {
         setCustomerTypeFilter(prev => ({ ...prev, [type]: !prev[type] }));
     };
 
+    const applyDatePreset = (preset) => {
+        const now = new Date();
+        const formatDateStr = (d) => {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        if (preset === 'today') {
+            const todayStr = formatDateStr(now);
+            setDateFilter({ preset: 'today', startDate: todayStr, endDate: todayStr });
+        } else if (preset === 'this_week') {
+            const startOfWeek = new Date(now);
+            const day = now.getDay();
+            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+            startOfWeek.setDate(diff);
+            setDateFilter({
+                preset: 'this_week',
+                startDate: formatDateStr(startOfWeek),
+                endDate: formatDateStr(now),
+            });
+        } else if (preset === 'this_month') {
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            setDateFilter({
+                preset: 'this_month',
+                startDate: formatDateStr(startOfMonth),
+                endDate: formatDateStr(now),
+            });
+        } else if (preset === 'last_30_days') {
+            const past30 = new Date(now);
+            past30.setDate(now.getDate() - 30);
+            setDateFilter({
+                preset: 'last_30_days',
+                startDate: formatDateStr(past30),
+                endDate: formatDateStr(now),
+            });
+        } else if (preset === 'all') {
+            setDateFilter({ preset: 'all', startDate: '', endDate: '' });
+        }
+    };
+
+    const getDateButtonLabel = () => {
+        if (dateFilter.preset === 'today') return 'Today';
+        if (dateFilter.preset === 'this_week') return 'This week';
+        if (dateFilter.preset === 'this_month') return 'This month';
+        if (dateFilter.preset === 'last_30_days') return 'Last 30 days';
+        if (dateFilter.startDate && dateFilter.endDate) {
+            if (dateFilter.startDate === dateFilter.endDate) return dateFilter.startDate;
+            return `${dateFilter.startDate} - ${dateFilter.endDate}`;
+        }
+        if (dateFilter.startDate) return `From ${dateFilter.startDate}`;
+        if (dateFilter.endDate) return `To ${dateFilter.endDate}`;
+        return 'Date added';
+    };
+
+    const hasActiveDateFilter = Boolean(dateFilter.startDate || dateFilter.endDate);
+    const hasAnyActiveFilter = customerTypeFilter.Resident || customerTypeFilter.Corporate || hasActiveDateFilter;
+
     const resetFilters = () => {
         setSearchTerm('');
         setCustomerTypeFilter({ Resident: false, Corporate: false });
+        setDateFilter({ preset: 'all', startDate: '', endDate: '' });
         setIsFilterOpen(false);
+        setIsDateFilterOpen(false);
     };
 
     const handleUploadComplete = (uploadedUsers) => {
@@ -247,6 +424,8 @@ const UserManagement = () => {
             const name = (user.name || `${user.firstName || ''} ${user.lastName || ''}`).trim() || 'Unknown User';
             const customerTypeRaw = user.customerType || user.customer_type || 'resident';
             const customerType = `${String(customerTypeRaw).charAt(0).toUpperCase()}${String(customerTypeRaw).slice(1).toLowerCase()}`;
+            const dateObj = user.createdAt || user.dateAdded ? new Date(user.createdAt || user.dateAdded) : today;
+            const validDate = !isNaN(dateObj.getTime()) ? dateObj : today;
 
             return {
                 id: user.id ?? `uploaded-${Date.now()}-${index}`,
@@ -255,6 +434,8 @@ const UserManagement = () => {
                 customerType,
                 phoneNumber: user.phoneNumber || user.companyPhoneNumber || '',
                 dateAdded: user.dateAdded || dateAdded,
+                rawDate: validDate,
+                createdAt: user.createdAt || user.dateAdded || today,
                 ...user,
             };
         });
@@ -310,43 +491,190 @@ const UserManagement = () => {
                                             />
                                         </div>
                                         <div className="flex items-center space-x-2">
-                                            {(customerTypeFilter.Resident || customerTypeFilter.Corporate) && (
-                                                <button onClick={resetFilters} className="px-4 py-2 text-sm font-medium text-green-700 rounded-xl hover:bg-zinc-50">
-                                                    Reset filter <span className="ml-1">X</span>
+                                            {hasAnyActiveFilter && (
+                                                <button onClick={resetFilters} className="px-4 py-2 text-sm font-medium text-green-700 rounded-xl hover:bg-zinc-50 flex items-center gap-1">
+                                                    Reset filter <span>&times;</span>
                                                 </button>
                                             )}
-                                            {(!customerTypeFilter.Resident && !customerTypeFilter.Corporate) && (
-                                                <button className="px-4 py-2 text-sm font-medium text-zinc-700 rounded-xl hover:bg-zinc-50/50">
-                                                    Filter by
-                                                </button>
+                                            {!hasAnyActiveFilter && (
+                                                <span className="px-3 py-2 text-sm font-medium text-zinc-500">
+                                                    Filter by:
+                                                </span>
                                             )}
-                                            <div className="relative">
-                                                <button onClick={() => setIsFilterOpen(!isFilterOpen)} className="flex items-center px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-xl hover:bg-zinc-50">
+                                            <div className="relative" ref={customerFilterRef}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setIsFilterOpen(!isFilterOpen);
+                                                        setIsDateFilterOpen(false);
+                                                    }}
+                                                    className={`flex items-center px-4 py-2 text-sm font-medium rounded-xl border transition ${
+                                                        activeFilterCount > 0
+                                                            ? 'bg-green-50 border-green-600 text-green-700 font-semibold'
+                                                            : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+                                                    }`}
+                                                >
                                                     <span>Customer type</span>
                                                     {activeFilterCount > 0 && <span className="ml-2 bg-green-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">{activeFilterCount}</span>}
                                                     <ChevronDownIcon />
                                                 </button>
                                                 {isFilterOpen && (
-                                                    <div className="absolute z-10 mt-2 w-48 bg-white rounded-xl shadow-lg border border-zinc-200 right-0">
+                                                    <div className="absolute z-20 mt-2 w-48 bg-white rounded-xl shadow-lg border border-zinc-200 right-0">
                                                         <div className="p-2">
-                                                            <label className="flex items-center space-x-3 p-2 hover:bg-zinc-100 rounded-xl">
+                                                            <label className="flex items-center space-x-3 p-2 hover:bg-zinc-100 rounded-xl cursor-pointer">
                                                                 <input type="checkbox" className="h-4 w-4 text-green-600 border-zinc-300 rounded focus:ring-green-500" checked={customerTypeFilter.Resident} onChange={() => handleFilterChange('Resident')} />
-                                                                <span>Residents</span>
+                                                                <span className="text-sm text-zinc-700">Residents</span>
                                                             </label>
-                                                            <label className="flex items-center space-x-3 p-2 hover:bg-zinc-100 rounded-xl">
+                                                            <label className="flex items-center space-x-3 p-2 hover:bg-zinc-100 rounded-xl cursor-pointer">
                                                                 <input type="checkbox" className="h-4 w-4 text-green-600 border-zinc-300 rounded focus:ring-green-500" checked={customerTypeFilter.Corporate} onChange={() => handleFilterChange('Corporate')} />
-                                                                <span>Corporates</span>
+                                                                <span className="text-sm text-zinc-700">Corporates</span>
                                                             </label>
                                                         </div>
                                                     </div>
                                                 )}
                                             </div>
-                                            <button onClick={() => handleComingSoon('Date added filter')} className="flex items-center px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-xl hover:bg-zinc-50">
-                                                <span>Date added</span>
-                                                <ChevronDownIcon />
-                                            </button>
-                                            <button onClick={() => handleComingSoon('Export data')} className="hidden sm:inline-flex px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-xl hover:bg-zinc-50">
-                                                Export data
+
+                                            {/* Date added filter dropdown */}
+                                            <div className="relative" ref={dateFilterRef}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setIsDateFilterOpen(!isDateFilterOpen);
+                                                        setIsFilterOpen(false);
+                                                    }}
+                                                    className={`flex items-center px-4 py-2 text-sm font-medium rounded-xl border transition ${
+                                                        hasActiveDateFilter
+                                                            ? 'bg-green-50 border-green-600 text-green-700 font-semibold'
+                                                            : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+                                                    }`}
+                                                >
+                                                    <span>{getDateButtonLabel()}</span>
+                                                    {hasActiveDateFilter && (
+                                                        <span className="ml-2 w-2 h-2 rounded-full bg-green-600"></span>
+                                                    )}
+                                                    <ChevronDownIcon />
+                                                </button>
+                                                {isDateFilterOpen && (
+                                                    <div className="absolute z-20 mt-2 w-72 sm:w-80 bg-white rounded-2xl shadow-xl border border-zinc-200 right-0 p-4 space-y-4">
+                                                        <div className="flex items-center justify-between pb-2 border-b border-zinc-100">
+                                                            <span className="text-xs font-semibold text-zinc-700 uppercase tracking-wider">Date added</span>
+                                                            {hasActiveDateFilter && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => applyDatePreset('all')}
+                                                                    className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline"
+                                                                >
+                                                                    Clear
+                                                                </button>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Quick Presets */}
+                                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => applyDatePreset('today')}
+                                                                className={`px-3 py-2 rounded-xl border text-left transition font-medium ${
+                                                                    dateFilter.preset === 'today'
+                                                                        ? 'bg-green-50 border-green-600 text-green-700 font-semibold'
+                                                                        : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+                                                                }`}
+                                                            >
+                                                                Today
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => applyDatePreset('this_week')}
+                                                                className={`px-3 py-2 rounded-xl border text-left transition font-medium ${
+                                                                    dateFilter.preset === 'this_week'
+                                                                        ? 'bg-green-50 border-green-600 text-green-700 font-semibold'
+                                                                        : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+                                                                }`}
+                                                            >
+                                                                This week
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => applyDatePreset('this_month')}
+                                                                className={`px-3 py-2 rounded-xl border text-left transition font-medium ${
+                                                                    dateFilter.preset === 'this_month'
+                                                                        ? 'bg-green-50 border-green-600 text-green-700 font-semibold'
+                                                                        : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+                                                                }`}
+                                                            >
+                                                                This month
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => applyDatePreset('last_30_days')}
+                                                                className={`px-3 py-2 rounded-xl border text-left transition font-medium ${
+                                                                    dateFilter.preset === 'last_30_days'
+                                                                        ? 'bg-green-50 border-green-600 text-green-700 font-semibold'
+                                                                        : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+                                                                }`}
+                                                            >
+                                                                Last 30 days
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Custom Range */}
+                                                        <div className="pt-2 border-t border-zinc-100 space-y-2">
+                                                            <span className="text-xs font-semibold text-zinc-600">Custom date range</span>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                <div>
+                                                                    <label className="block text-[11px] text-zinc-500 mb-1">From</label>
+                                                                    <input
+                                                                        type="date"
+                                                                        value={dateFilter.startDate}
+                                                                        onChange={(e) => {
+                                                                            setDateFilter(prev => ({
+                                                                                ...prev,
+                                                                                preset: 'custom',
+                                                                                startDate: e.target.value
+                                                                            }));
+                                                                        }}
+                                                                        className="w-full px-2.5 py-1.5 text-xs border border-zinc-300 rounded-lg focus:ring-1 focus:ring-green-500 focus:border-green-500 outline-none text-zinc-700"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-[11px] text-zinc-500 mb-1">To</label>
+                                                                    <input
+                                                                        type="date"
+                                                                        value={dateFilter.endDate}
+                                                                        onChange={(e) => {
+                                                                            setDateFilter(prev => ({
+                                                                                ...prev,
+                                                                                preset: 'custom',
+                                                                                endDate: e.target.value
+                                                                            }));
+                                                                        }}
+                                                                        className="w-full px-2.5 py-1.5 text-xs border border-zinc-300 rounded-lg focus:ring-1 focus:ring-green-500 focus:border-green-500 outline-none text-zinc-700"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex justify-end pt-2 border-t border-zinc-100">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setIsDateFilterOpen(false)}
+                                                                className="px-4 py-1.5 bg-green-700 text-white rounded-xl text-xs font-medium hover:bg-green-800 transition cursor-pointer"
+                                                            >
+                                                                Done
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={handleExportData}
+                                                className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-xl hover:bg-zinc-50 hover:text-zinc-900 transition shadow-xs cursor-pointer"
+                                                title="Export user directory as CSV"
+                                            >
+                                                <DownloadIcon />
+                                                <span>Export data</span>
                                             </button>
                                         </div>
                                     </div>
