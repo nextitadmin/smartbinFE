@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../api/axiosConfig.js";
 import useAuthStore from "../store/authStore";
 import useTokenStore from "../store/tokenStore";
@@ -9,6 +9,7 @@ const EmailVerification = () => {
   const [time, setTime] = useState(60);
   const inputs = useRef([]);
   const navigate = useNavigate();
+  const location = useLocation();
   const [notification, setNotification] = useState(null);
   const setToken = useAuthStore((state) => state.setToken);
   const setBearerToken = useTokenStore((state) => state.setBearerToken);
@@ -22,6 +23,12 @@ const EmailVerification = () => {
     setNotification(null);
   };
 
+
+  useEffect(() => {
+    if (location.state?.notification) {
+      setNotification(location.state.notification);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (notification) {
@@ -116,15 +123,24 @@ const EmailVerification = () => {
 
 
       if (data.success) {
-
         setBearerToken(data.data.token);
 
+        const verifyMsg = data.message || "Submitted successfully!";
         setNotification({
           type: "success",
-          message: "Submitted successfully!",
+          message: verifyMsg,
         });
 
-        navigate("/enternewpassword");
+        setTimeout(() => {
+          navigate("/enternewpassword", {
+            state: {
+              notification: {
+                type: "success",
+                message: verifyMsg,
+              },
+            },
+          });
+        }, 1200);
       } else {
         setNotification({
           type: "error",

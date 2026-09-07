@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../api/axiosConfig.js";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import useRouteStore from "../store/routeStore.js";
 //please work
 export default function Login() {
@@ -8,6 +8,7 @@ export default function Login() {
     const [notification, setNotification] = useState(null);
     const [startLogin, setStartLogin] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
 
     const routesState = useRouteStore((state) => state);
 
@@ -50,11 +51,17 @@ export default function Login() {
     };
 
     useEffect(() => {
+        if (location.state?.notification) {
+            setNotification(location.state.notification);
+        }
+    }, [location.state]);
+
+    useEffect(() => {
         if (notification) {
             const timer = setTimeout(() => {
                 clearNotification();
-            }, 5000);
-            return () => clearTimeout(timer);
+            }, 5000); // Hide after 5 seconds
+            return () => clearTimeout(timer); // Cleanup timer on component unmount or notification change
         }
     }, [notification]);
 

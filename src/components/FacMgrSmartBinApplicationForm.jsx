@@ -227,6 +227,7 @@ const SmartBinApplicationForm = ({ isOpen, onClose, onSubmitSuccess, initialFaci
         });
         setIsDisabled(true);
         setSelfRequest(true);
+        closeForm();
     };
 
     const closeForm = () => {

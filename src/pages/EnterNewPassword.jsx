@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import api from "../api/axiosConfig.js";
 import useAuthStore from "../store/authStore";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import useTokenStore from "../store/tokenStore.js";
 
 export default function ChangePassword() {
@@ -12,12 +12,19 @@ export default function ChangePassword() {
   const [notification, setNotification] = useState(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const storeUserType = useAuthStore((state) => state.userType);
   const storedUserType = storeUserType || localStorage.getItem("userType");
   const userType = storedUserType ? storedUserType.toLowerCase() : "";
 
   const clearNotification = () => setNotification(null);
+
+  useEffect(() => {
+    if (location.state?.notification) {
+      setNotification(location.state.notification);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (notification) {
@@ -85,15 +92,25 @@ export default function ChangePassword() {
       console.log("Data from password change response:", data);
 
       if (data.success) {
+        const successMsg = data.data?.message || data.message || "Password changed successfully!";
         setNotification({
           type: "success",
-          message:
-            data.data?.message || data.message || "Password changed successfully!",
+          message: successMsg,
         });
 
         localStorage.removeItem("userType");
         localStorage.removeItem("bearerToken");
-        navigate("/");
+
+        setTimeout(() => {
+          navigate("/", {
+            state: {
+              notification: {
+                type: "success",
+                message: successMsg,
+              },
+            },
+          });
+        }, 1500);
       } else {
         setNotification({
           type: "error",

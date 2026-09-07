@@ -7,6 +7,7 @@ import ServiceConfigNav from '../components/ServiceConfigNav';
 import useCorporateStore from '../store/useCorporateStore';
 import useAuthStore from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
+import { uploadFile } from '../utils/fileUpload';
 // --- Default Data Layer ---
 const defaultProfileData = {
     payerId: '',
@@ -41,26 +42,31 @@ function ProfilePage() {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [isChangingPassword, setIsChangingPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: string } | null
-    const Corporate = useCorporateStore.getState().corporateInfo;
+    const Corporate = useCorporateStore((state) => state.corporateInfo);
     const navigate = useNavigate();
     const setDashboard = useCorporateStore((state) => state.setCorporateInfo);
-    // --- Update Handlers ---
-
-
+    const { updateCorporateInfo, fetchCorporateInfo } = useCorporateStore();
 
     useEffect(() => {
-        setProfileData({
-            payerId: Corporate.payerID,
-            firstName: Corporate.firstName,
-            lastName: Corporate.lastName,
-            email: Corporate.emailAddress,
-            phone: Corporate.phoneNo,
-            profileImageUrl: Corporate.passport
-                ? Corporate.passport
-                : "/images/emptyimage.png",
-        });
+        fetchCorporateInfo?.();
     }, []);
+
+    useEffect(() => {
+        if (Corporate) {
+            setProfileData({
+                payerId: Corporate.payerID || '',
+                firstName: Corporate.firstName || '',
+                lastName: Corporate.lastName || '',
+                email: Corporate.emailAddress || '',
+                phone: Corporate.phoneNo || '',
+                profileImageUrl: Corporate.passport
+                    ? Corporate.passport
+                    : "/images/emptyimage.png",
+            });
+        }
+    }, [Corporate]);
 
 
     const handleProfileChange = (e) => {
@@ -82,31 +88,84 @@ function ProfilePage() {
         clearNotification();
     };
 
-    const handleImageChange = (e) => {
+    const handleImageChange = async (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setProfileData(prevData => ({
-                    ...prevData,
-                    profileImageUrl: reader.result,
-                }));
-            };
-            reader.readAsDataURL(file);
-            console.log('Selected image:', file.name);
-            // TODO: Add actual image upload logic here (e.g., prepare FormData for API)
-            clearNotification();
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setProfileData(prevData => ({
+                ...prevData,
+                profileImageUrl: reader.result,
+            }));
+        };
+        reader.readAsDataURL(file);
+
+        setIsUploadingImage(true);
+        clearNotification();
+
+        try {
+            // 1. Upload file to media storage to obtain hosted URL
+            const uploadResult = await uploadFile(file);
+            if (uploadResult && uploadResult.url) {
+                const uploadedUrl = uploadResult.url;
+
+                // 2. Patch corporate profile picture
+                const { data } = await api.patch('/corporate/profile-picture', {
+                    imageUrl: uploadedUrl,
+                });
+
+                if (data.success || data.succeeded) {
+                    setNotification({ type: 'success', message: data.message || 'Profile picture updated successfully!' });
+                    setProfileData(prevData => ({
+                        ...prevData,
+                        profileImageUrl: uploadedUrl,
+                    }));
+                    updateCorporateInfo?.('passport', uploadedUrl);
+                    fetchCorporateInfo?.();
+                } else {
+                    setNotification({ type: 'error', message: data.message || 'Failed to update profile picture' });
+                }
+            } else {
+                setNotification({ type: 'error', message: 'Failed to upload image' });
+            }
+        } catch (err) {
+            console.error('Error uploading profile picture:', err);
+            const errMsg = err.response?.data?.message || err.message || 'Error uploading profile picture';
+            setNotification({ type: 'error', message: errMsg });
+        } finally {
+            setIsUploadingImage(false);
+            e.target.value = '';
         }
     };
 
-    const handleDeleteImage = () => {
-        setProfileData(prevData => ({
-            ...prevData,
-            profileImageUrl: '/images/emptyimage.png',
-        }));
-        // TODO: Add API call to delete image on the server if needed
-        console.log('Image deleted (client-side)');
+    const handleDeleteImage = async () => {
+        setIsUploadingImage(true);
         clearNotification();
+
+        try {
+            const { data } = await api.patch('/corporate/profile-picture', {
+                imageUrl: '',
+            });
+
+            if (data.success || data.succeeded) {
+                setProfileData(prevData => ({
+                    ...prevData,
+                    profileImageUrl: '/images/emptyimage.png',
+                }));
+                setNotification({ type: 'success', message: data.message || 'Profile picture removed successfully!' });
+                updateCorporateInfo?.('passport', '');
+                fetchCorporateInfo?.();
+            } else {
+                setNotification({ type: 'error', message: data.message || 'Failed to remove profile picture' });
+            }
+        } catch (err) {
+            console.error('Error clearing profile picture:', err);
+            const errMsg = err.response?.data?.message || err.message || 'Error removing profile picture';
+            setNotification({ type: 'error', message: errMsg });
+        } finally {
+            setIsUploadingImage(false);
+        }
     };
 
     const clearNotification = () => {
@@ -232,7 +291,7 @@ function ProfilePage() {
                                             {/* Left Column - Image */}
                                             <div className="flex flex-col items-center  mb-8 md:mb-0 md:w-1/4">
                                                 <div className="relative mb-3">
-                                                    {profileData.profileImageUrl !== "" ? (
+                                                    {profileData.profileImageUrl && profileData.profileImageUrl !== "" && profileData.profileImageUrl !== "/images/emptyimage.png" ? (
                                                         <img
                                                             src={profileData.profileImageUrl}
                                                             alt="Profile image"
@@ -247,7 +306,15 @@ function ProfilePage() {
                                                             </svg>
                                                         </div>
                                                     )}
-                                                    <label htmlFor="profileImageInput" className="absolute bottom-0 right-0 bg-zinc-700 text-white p-1.5 rounded-full cursor-pointer hover:bg-zinc-600 transition-colors text-xs flex items-center justify-center size-8">
+                                                    {isUploadingImage && (
+                                                        <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center">
+                                                            <svg className="animate-spin h-7 w-7 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                            </svg>
+                                                        </div>
+                                                    )}
+                                                    <label htmlFor="profileImageInput" className={`absolute bottom-0 right-0 bg-zinc-700 text-white p-1.5 rounded-full cursor-pointer hover:bg-zinc-600 transition-colors text-xs flex items-center justify-center size-8 ${isUploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
                                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-5">
                                                             <path d="M12 9a3.75 3.75 0 1 0 0 7.5A3.75 3.75 0 0 0 12 9Z" />
                                                             <path fillRule="evenodd" d="M9.344 3.071a49.52 49.52 0 0 1 5.312 0c.967.052 1.83.585 2.332 1.39l.821 1.317c.24.383.645.643 1.11.71.386.054.77.113 1.152.177 1.432.239 2.429 1.493 2.429 2.909V18a3 3 0 0 1-3 3h-15a3 3 0 0 1-3-3V9.574c0-1.416.997-2.67 2.429-2.909.382-.064.766-.123 1.151-.178a1.56 1.56 0 0 0 1.11-.71l.822-1.315a2.942 2.942 0 0 1 2.332-1.39ZM6.75 12.75a5.25 5.25 0 1 1 10.5 0 5.25 5.25 0 0 1-10.5 0Zm12-1.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clipRule="evenodd" />
@@ -257,19 +324,22 @@ function ProfilePage() {
                                                         id="profileImageInput"
                                                         type="file"
                                                         accept="image/*"
+                                                        disabled={isUploadingImage}
                                                         className="hidden"
                                                         onChange={handleImageChange}
                                                     />
                                                 </div>
 
-                                                {(profileData.profileImageUrl !== "") && (
+                                                {(profileData.profileImageUrl && profileData.profileImageUrl !== "" && profileData.profileImageUrl !== "/images/emptyimage.png") && (
                                                     <button
                                                         type="button"
+                                                        disabled={isUploadingImage}
                                                         onClick={handleDeleteImage}
-                                                        className="text-sm text-red-600 hover:text-red-800 hover:underline"
+                                                        className="text-sm text-red-600 hover:text-red-800 hover:underline disabled:opacity-50"
                                                     >
                                                         Delete image
-                                                    </button>)}
+                                                    </button>
+                                                )}
                                             </div>
 
                                             {/* Right Column - Form Fields */}

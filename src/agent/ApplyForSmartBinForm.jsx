@@ -6,6 +6,7 @@ import api from '../api/axiosConfig';
 import Pay4ItButton from '../components/Pay4ItButton';
 import useAuthStore from '../store/authStore';
 import useAgentStore from '../store/useAgentStore';
+import { exportToCSV } from '../utils/exportHelper';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,18 @@ const CheckIcon = ({ className = 'h-5 w-5' }) => (
 const ChevronDownIcon = ({ className = 'h-5 w-5' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
         <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+    </svg>
+);
+
+const DownloadIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-1.5 text-zinc-500">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    </svg>
+);
+
+const FilterIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-1.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
     </svg>
 );
 
@@ -55,6 +68,13 @@ const SmartBinApplication = () => {
     const [sortColumn, setSortColumn] = useState('date');
     const [sortDirection, setSortDirection] = useState('dsc');
     const [currentPage, setCurrentPage] = useState(1);
+
+    // ── Filter panel state ──
+    const [showFilterPanel, setShowFilterPanel] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [customerTypeFilter, setCustomerTypeFilter] = useState('All');
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
 
     // ── Pagination — driven by meta.paging from the API ──
     const [totalItems, setTotalItems] = useState(0);
@@ -301,17 +321,65 @@ const SmartBinApplication = () => {
 
     // ─── Computed / sorted table data ─────────────────────────────────────────
 
+    const uniqueStatuses = useMemo(() => {
+        const statuses = applications.map(a => a.status).filter(Boolean);
+        const defaults = ['Pending', 'Approved', 'Delivered'];
+        return [...new Set([...defaults, ...statuses])];
+    }, [applications]);
+
+    const uniqueCustomerTypes = useMemo(() => {
+        const types = applications.map(a => a.customerType).filter(Boolean);
+        const defaults = ['Resident', 'Corporate'];
+        return [...new Set([...defaults, ...types])];
+    }, [applications]);
+
     const filteredApplications = useMemo(() => {
-        if (!searchQuery) return applications;
-        const lowerQuery = searchQuery.toLowerCase();
-        return applications.filter(
-            (app) =>
-                app.orderId?.toLowerCase().includes(lowerQuery) ||
-                app.address?.toLowerCase().includes(lowerQuery) ||
-                app.status?.toLowerCase().includes(lowerQuery) ||
-                app.date?.toLowerCase().includes(lowerQuery)
-        );
-    }, [applications, searchQuery]);
+        let result = applications;
+
+        // 1. Search Query
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            result = result.filter(
+                (app) =>
+                    app.orderId?.toLowerCase().includes(lowerQuery) ||
+                    app.customerName?.toLowerCase().includes(lowerQuery) ||
+                    app.customerType?.toLowerCase().includes(lowerQuery) ||
+                    app.address?.toLowerCase().includes(lowerQuery) ||
+                    app.status?.toLowerCase().includes(lowerQuery) ||
+                    app.date?.toLowerCase().includes(lowerQuery)
+            );
+        }
+
+        // 2. Status Filter
+        if (statusFilter !== 'All') {
+            result = result.filter(app => (app.status ?? '').toLowerCase() === statusFilter.toLowerCase());
+        }
+
+        // 3. Customer Type Filter
+        if (customerTypeFilter !== 'All') {
+            result = result.filter(app => (app.customerType ?? '').toLowerCase() === customerTypeFilter.toLowerCase());
+        }
+
+        // 4. Date Range Filters
+        if (startDateFilter) {
+            result = result.filter(app => app.date && app.date >= startDateFilter);
+        }
+        if (endDateFilter) {
+            result = result.filter(app => app.date && app.date <= endDateFilter);
+        }
+
+        return result;
+    }, [applications, searchQuery, statusFilter, customerTypeFilter, startDateFilter, endDateFilter]);
+
+    const hasActiveFilters = statusFilter !== 'All' || customerTypeFilter !== 'All' || Boolean(startDateFilter) || Boolean(endDateFilter);
+
+    const clearFilters = () => {
+        setStatusFilter('All');
+        setCustomerTypeFilter('All');
+        setStartDateFilter('');
+        setEndDateFilter('');
+        setSearchQuery('');
+    };
 
     const sortedApplications = useMemo(() => {
         return [...filteredApplications].sort((a, b) => {
@@ -323,6 +391,11 @@ const SmartBinApplication = () => {
             return sortDirection === 'dsc' ? cmp * -1 : cmp;
         });
     }, [filteredApplications, sortColumn, sortDirection]);
+
+    // Reset to page 1 on filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, customerTypeFilter, startDateFilter, endDateFilter]);
 
     // ─── Table helpers ────────────────────────────────────────────────────────
 
@@ -362,8 +435,88 @@ const SmartBinApplication = () => {
 
     // ─── Action handlers ──────────────────────────────────────────────────────
 
-    const filterData = () => setNotification({ type: 'error', message: 'Coming soon..' });
-    const exportData = () => setNotification({ type: 'error', message: 'Coming soon..' });
+    const filterData = () => {
+        setShowFilterPanel(prev => !prev);
+    };
+
+    const exportData = async () => {
+        try {
+            let dataToExport = sortedApplications;
+
+            if (totalItems > applications.length) {
+                try {
+                    const { data } = await api.get('/smartbin-applications', {
+                        params: { page: 1, size: totalItems },
+                    });
+                    if (data?.success && Array.isArray(data.data)) {
+                        let allRows = data.data.map((item, index) => ({
+                            id: item.id,
+                            sn: index + 1,
+                            orderId: item.orderID ?? '',
+                            date: item.requestDate?.slice(0, 10) ?? '',
+                            address: item.residentDetails ?? '',
+                            status: item.statusName ?? '',
+                            deliveredDate: item.deliveredDate ?? '',
+                            deliveredBy: item.deliveredBy ?? '',
+                            approvedDate: item.approvedDate ?? '',
+                            customerName: item.residentFullName ?? '',
+                            customerType: item.customerType ?? '',
+                        }));
+
+                        if (searchQuery) {
+                            const lowerQuery = searchQuery.toLowerCase();
+                            allRows = allRows.filter(app =>
+                                app.orderId?.toLowerCase().includes(lowerQuery) ||
+                                app.customerName?.toLowerCase().includes(lowerQuery) ||
+                                app.customerType?.toLowerCase().includes(lowerQuery) ||
+                                app.address?.toLowerCase().includes(lowerQuery) ||
+                                app.status?.toLowerCase().includes(lowerQuery) ||
+                                app.date?.toLowerCase().includes(lowerQuery)
+                            );
+                        }
+                        if (statusFilter !== 'All') {
+                            allRows = allRows.filter(app => (app.status ?? '').toLowerCase() === statusFilter.toLowerCase());
+                        }
+                        if (customerTypeFilter !== 'All') {
+                            allRows = allRows.filter(app => (app.customerType ?? '').toLowerCase() === customerTypeFilter.toLowerCase());
+                        }
+                        if (startDateFilter) {
+                            allRows = allRows.filter(app => app.date && app.date >= startDateFilter);
+                        }
+                        if (endDateFilter) {
+                            allRows = allRows.filter(app => app.date && app.date <= endDateFilter);
+                        }
+                        dataToExport = allRows;
+                    }
+                } catch (fetchErr) {
+                    console.warn("Could not fetch full dataset for export, falling back to local list", fetchErr);
+                }
+            }
+
+            if (!dataToExport || dataToExport.length === 0) {
+                setNotification({ type: 'error', message: "No applications available to export." });
+                return;
+            }
+
+            const exportRows = dataToExport.map((app, index) => ({
+                "S/N": index + 1,
+                "Customer Name": app.customerName || 'N/A',
+                "Customer Type": app.customerType || 'N/A',
+                "Order ID": app.orderId || 'N/A',
+                "Date": app.date || 'N/A',
+                "Address": app.address || 'N/A',
+                "Status": app.status || 'N/A',
+                "Approved Date": app.approvedDate || 'N/A',
+                "Delivered Date": app.deliveredDate || 'N/A',
+            }));
+
+            exportToCSV(exportRows, "smart_bin_applications");
+            setNotification({ type: 'success', message: `Successfully exported ${exportRows.length} applications!` });
+        } catch (error) {
+            console.error("Export error:", error);
+            setNotification({ type: 'error', message: error.message || "An error occurred during export." });
+        }
+    };
     const applyAction = () => setModal(true);
 
     const handleRowAction = (appId) => {
@@ -427,9 +580,7 @@ const SmartBinApplication = () => {
     };
 
     const cancelForm = () => {
-        setFormData(emptyForm);
-        setIsDisabled(true);
-        setSelfRequest(true);
+        closeForm();
     };
 
     const closeForm = () => {
@@ -681,11 +832,102 @@ const SmartBinApplication = () => {
                                         className="w-full lg:w-[24rem] pl-10 pr-4 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent"
                                     />
                                 </div>
-                                <div>
-                                    <button onClick={filterData} type="button" className="px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50">Filter</button>
-                                    <button onClick={exportData} type="button" className="px-4 py-2 mx-4 border border-zinc-300 lg:mx-0 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50">Export</button>
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        onClick={filterData}
+                                        type="button"
+                                        className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition cursor-pointer ${
+                                            showFilterPanel || hasActiveFilters
+                                                ? 'bg-green-50 border-green-500 text-green-700 font-semibold'
+                                                : 'border-zinc-300 text-zinc-700 bg-white hover:bg-zinc-50'
+                                        }`}
+                                    >
+                                        <FilterIcon />
+                                        <span>Filter</span>
+                                        {hasActiveFilters && (
+                                            <span className="ml-1.5 w-2 h-2 rounded-full bg-green-600"></span>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={exportData}
+                                        type="button"
+                                        className="inline-flex items-center px-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl text-zinc-700 bg-white hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition cursor-pointer shadow-xs"
+                                        title="Export applications as CSV"
+                                    >
+                                        <DownloadIcon />
+                                        <span>Export</span>
+                                    </button>
                                 </div>
                             </div>
+
+                            {/* ── Filter Panel ── */}
+                            {showFilterPanel && (
+                                <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 transition-all duration-300 ease-in-out">
+                                    {/* Status Filter */}
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</label>
+                                        <select
+                                            value={statusFilter}
+                                            onChange={(e) => setStatusFilter(e.target.value)}
+                                            className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                        >
+                                            <option value="All">All Statuses</option>
+                                            {uniqueStatuses.map((status) => (
+                                                <option key={status} value={status}>{status}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Customer Type Filter */}
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Customer Type</label>
+                                        <select
+                                            value={customerTypeFilter}
+                                            onChange={(e) => setCustomerTypeFilter(e.target.value)}
+                                            className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                        >
+                                            <option value="All">All Customer Types</option>
+                                            {uniqueCustomerTypes.map((type) => (
+                                                <option key={type} value={type}>{type}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Start Date */}
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date From</label>
+                                        <input
+                                            type="date"
+                                            value={startDateFilter}
+                                            onChange={(e) => setStartDateFilter(e.target.value)}
+                                            className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700"
+                                        />
+                                    </div>
+
+                                    {/* End Date */}
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date To</label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="date"
+                                                value={endDateFilter}
+                                                onChange={(e) => setEndDateFilter(e.target.value)}
+                                                className="w-full px-3 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 flex-1"
+                                            />
+                                            {hasActiveFilters && (
+                                                <button
+                                                    onClick={clearFilters}
+                                                    type="button"
+                                                    className="px-3 text-zinc-600 hover:text-red-600 hover:bg-zinc-100 rounded-xl text-xs font-medium border border-zinc-200 transition cursor-pointer"
+                                                    title="Reset all filters"
+                                                >
+                                                    Reset
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* ── Table ── */}
                             <div className="table-container border border-zinc-200 rounded-2xl">

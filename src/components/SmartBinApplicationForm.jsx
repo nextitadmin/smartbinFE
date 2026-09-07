@@ -132,6 +132,10 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
         });
         setIsDisabled(true);
         setSelfRequest(true);
+        setIsPaymentModalOpen(false);
+        if (onClose) {
+            onClose();
+        }
     };
 
     // --- Updated Flow: Submit Application First ---
@@ -641,14 +645,14 @@ const SmartBinApplicationForm = ({ onClose, onSubmitSuccess }) => {
                     <button
                         type="button"
                         onClick={cancelForm}
-                        className="px-5 py-2 bg-white border border-green-700 rounded-md shadow-sm text-sm font-medium text-green-700 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        className="px-5 py-2 bg-white border border-green-700 rounded-md shadow-sm text-sm font-medium text-green-700 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 cursor-pointer disabled:cursor-not-allowed"
                         disabled={isSubmitting} // Disable while submitting
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
-                        className="px-6 py-2 bg-green-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        className="px-6 py-2 bg-green-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 cursor-pointer disabled:cursor-not-allowed"
                         disabled={isSubmitting} // Disable while submitting
                     >
                         {isSubmitting ? 'Processing...' : 'Next'} {/* Show processing state */}

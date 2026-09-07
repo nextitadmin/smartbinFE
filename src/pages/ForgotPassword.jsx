@@ -7,6 +7,7 @@ import useAuthStore from "../store/authStore";
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [userType, setUserType] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
   const setToken = useAuthStore((state) => state.setToken);
@@ -84,6 +85,8 @@ export default function ForgotPassword() {
       return;
     }
 
+    setIsLoading(true);
+
     try {
       const response = await api.request(config);
       const { data } = response;
@@ -97,31 +100,47 @@ export default function ForgotPassword() {
         (data?.succeeded === true || data?.success === true || !!token);
 
       if (isSuccess) {
+        const rawMessage = data?.message || "Reset request successful.";
+        const displayMessage = (rawMessage.includes("|") ? rawMessage.split("|")[0] : rawMessage).trim() || "Verification code sent to your email.";
+
         setNotification({
           type: "success",
-          message: data?.message || "Reset request successful.",
+          message: displayMessage,
         });
 
         if (token) {
           setToken(token);
         }
         localStorage.setItem("email", email);
-        navigate("/passwordotp");
+
+        setTimeout(() => {
+          navigate("/passwordotp", {
+            state: {
+              notification: {
+                type: "success",
+                message: displayMessage,
+              },
+            },
+          });
+        }, 1500);
       } else {
+        setIsLoading(false);
+        const errMsg = data?.message || "Password reset request failed. Please try again later.";
         setNotification({
           type: "error",
-          message:
-            data?.message ||
-            "Password reset request failed. Please try again later.",
+          message: Array.isArray(errMsg) ? errMsg.join(", ") : errMsg,
         });
       }
     } catch (error) {
+      setIsLoading(false);
       console.error("Password reset error:", error);
+      const errData = error?.response?.data;
+      const errMsg = Array.isArray(errData?.message)
+        ? errData.message.join(", ")
+        : (errData?.message || error?.message || "Something went wrong. Please try again.");
       setNotification({
         type: "error",
-        message:
-          error?.response?.data?.message ||
-          "Something went wrong. Please try again.",
+        message: errMsg,
       });
     }
   };
@@ -251,9 +270,10 @@ export default function ForgotPassword() {
             {/* Submit */}
             <button
               type="submit"
-              className="w-full bg-green-700 text-white py-3 rounded-xl font-semibold hover:bg-green-800 transition"
+              disabled={isLoading}
+              className={`w-full bg-green-700 text-white py-3 rounded-xl font-semibold hover:bg-green-800 transition ${isLoading ? "opacity-60 cursor-not-allowed" : ""}`}
             >
-              Submit
+              {isLoading ? "Sending code..." : "Submit"}
             </button>
 
             {/* Forgot password */}
