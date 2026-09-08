@@ -43,6 +43,7 @@ const KYCApplication = () => {
 
     // --- State ---
     const [currentStage, setCurrentStage] = useState(1);
+    const [isLoadingStatus, setIsLoadingStatus] = useState(true);
     const [notification, setNotification] = useState(null);
     const [formData, setFormData] = useState({
         personal: {
@@ -96,15 +97,11 @@ const KYCApplication = () => {
                     const identityStatus = (identityVerificationStatus || '').toLowerCase();
                     const addressStatus = (addressVerificationStatus || '').toLowerCase();
 
-                    const isStatusPendingOrDone = (status) => {
-                        return status === 'submitted' || status === 'pending' || status === 'approved';
-                    };
-
-                    const isIdDone = hasSubmittedIdentity || isStatusPendingOrDone(identityStatus);
-                    const isAddrDone = hasSubmittedAddress || isStatusPendingOrDone(addressStatus);
-
                     const isIdRejected = identityStatus === 'rejected' || identityStatus === '0';
                     const isAddrRejected = addressStatus === 'rejected' || addressStatus === '0';
+
+                    const isIdDone = Boolean(hasSubmittedIdentity && !isIdRejected);
+                    const isAddrDone = Boolean(hasSubmittedAddress && !isAddrRejected);
 
                     // If user was directed here to reupload a specific item
                     if (reuploadItem === 'address_info' || reuploadItem === 'agency') {
@@ -117,7 +114,7 @@ const KYCApplication = () => {
                     }
 
                     // If both are submitted/pending and neither is rejected, redirect to status overview
-                    if (isIdDone && isAddrDone && !isIdRejected && !isAddrRejected) {
+                    if (isIdDone && isAddrDone) {
                         navigate('/newkycapplication');
                         return;
                     }
@@ -129,6 +126,8 @@ const KYCApplication = () => {
                 }
             } catch (error) {
                 console.log('KYC status check failed:', error);
+            } finally {
+                setIsLoadingStatus(false);
             }
         };
 
@@ -471,7 +470,12 @@ const KYCApplication = () => {
                     <Topbar />
                     <div className="font-sans">
                         <main className="flex items-start justify-center py-10 px-4">
-                            <div className=" md:p-10 rounded-lg w-full container mx-auto">
+                            {isLoadingStatus ? (
+                                <div className="flex flex-col items-center justify-center p-24 my-24">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-700 border-t-transparent"></div>
+                                </div>
+                            ) : (
+                                <div className=" md:p-10 rounded-lg w-full container mx-auto">
                                 {/* Header */}
                                 <div className="flex lg:flex-row flex-col justify-between items-center pb-4 mb-8">
                                     <div className='lg:mb-0 mb-8'>
@@ -877,6 +881,8 @@ const KYCApplication = () => {
                                     )}
                                 </div>
                             </div>
+                        )}
+
                             {notification && (
                                 <div
                                     className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 ${notification.type === 'success' ? 'bg-green-100 border border-green-400 text-green-700' : 'bg-red-100 border border-red-400 text-red-700'

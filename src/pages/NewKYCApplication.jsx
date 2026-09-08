@@ -15,6 +15,7 @@ function NewKycApplication() {
 
     // const title = 'Where is my Smart Bin?';
     const [kycStatus, setKycStatus] = useState(false);
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     const startkyc = () => {
@@ -24,14 +25,20 @@ function NewKycApplication() {
 
     const checkStatus = async () => {
         try {
-            const { data } = await api.get('/resident/kyc/status')
-            if ((data.succeeded || data.success) && data.data && data.data.hasSubmittedIdentity) {
-                setKycStatus(true);  
+            const { data } = await api.get('/resident/kyc/status');
+            const statusInfo = data?.data || data;
+            const succeeded = data?.succeeded || data?.success;
+            if (succeeded && statusInfo) {
+                const hasSubmitted = Boolean(statusInfo.hasSubmittedIdentity || statusInfo.hasSubmittedAddress);
+                setKycStatus(hasSubmitted);  
             } else {
                 setKycStatus(false); 
             }
         } catch (error) {
             console.log("error", error);
+            setKycStatus(false);
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -86,8 +93,12 @@ function NewKycApplication() {
 
                     <div className="flex flex-col">
                     {
-                        kycStatus ? (
-                        <KycStatusCard />
+                        loading ? (
+                            <div className="flex items-center justify-center p-16">
+                                <div className="animate-spin rounded-full h-10 w-10 border-4 border-green-700 border-t-transparent"></div>
+                            </div>
+                        ) : kycStatus ? (
+                            <KycStatusCard />
                         ) : (
                         <div className="max-w-xl w-full flex flex-col items-center justify-center text-center">
                             <img src="./images/documenticon.svg" alt="KYC Icon" className="my-4" />

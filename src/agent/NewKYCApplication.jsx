@@ -15,6 +15,7 @@ function NewKycApplication() {
 
     // const title = 'Where is my Smart Bin?';
     const [kycStatus, setKycStatus] = useState(false);
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     const startkyc = () => {
@@ -37,6 +38,9 @@ function NewKycApplication() {
             }
         } catch (error) {
             console.log("error", error);
+            setKycStatus(false);
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -91,7 +95,11 @@ function NewKycApplication() {
 
                         <div className="flex flex-col">
                             {
-                                kycStatus ? (
+                                loading ? (
+                                    <div className="flex items-center justify-center p-16">
+                                        <div className="animate-spin rounded-full h-10 w-10 border-4 border-green-700 border-t-transparent"></div>
+                                    </div>
+                                ) : kycStatus ? (
                                     <KycStatusCard endpoint="/agent/kyc/status" />
                                 ) : (
                                     <div className="max-w-xl w-full flex flex-col items-center justify-center text-center">

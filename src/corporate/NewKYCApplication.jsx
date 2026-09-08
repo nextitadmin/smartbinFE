@@ -15,6 +15,7 @@ function NewKycApplication() {
 
     // const title = 'Where is my Smart Bin?';
     const [kycStatus, setKycStatus] = useState(false);
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     const startkyc = () => {
@@ -23,32 +24,30 @@ function NewKycApplication() {
 
 
     const checkStatus = async () => {
-
-
         try {
             const response = await api.get('/corporate/kyc/status');
 
-            // Handle HTTP errors
             if (response.status !== 200) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const data = response.data;
-            if (data && data.data && data.data.hasSubmittedIdentity) {
-                setKycStatus(true);
+            const statusInfo = data?.data || data;
+            if (statusInfo) {
+                const hasSubmitted = Boolean(
+                    statusInfo.hasSubmittedIdentity || 
+                    statusInfo.hasSubmittedCorporateInformation || 
+                    statusInfo.hasSubmittedSignatories
+                );
+                setKycStatus(hasSubmitted);
             } else {
                 setKycStatus(false);
             }
-
-            // Handle API response structure errors
-
-
-
         } catch (error) {
             console.error('Error fetching KYC status:', error);
-
-            // Handle different error types
-
+            setKycStatus(false);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -104,7 +103,11 @@ function NewKycApplication() {
 
                         <div className="flex flex-col">
                             {
-                                kycStatus ? (
+                                loading ? (
+                                    <div className="flex items-center justify-center p-16">
+                                        <div className="animate-spin rounded-full h-10 w-10 border-4 border-green-700 border-t-transparent"></div>
+                                    </div>
+                                ) : kycStatus ? (
                                     <KycStatusCard />
                                 ) : (
                                     <div className="max-w-xl w-full flex flex-col items-center justify-center text-center">
