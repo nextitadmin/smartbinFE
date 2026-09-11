@@ -572,7 +572,7 @@ const SmartBinApplication = () => {
     const handlePayment = async (response) => {
 
         let ref, channel;
-        let amount = 10
+        let amount = pickUpAmount;
 
         if (selectedPaymentMethod === 'wallet') {
             ref = response.reference;
@@ -1017,7 +1017,7 @@ const SmartBinApplication = () => {
                                         <Pay4ItButton
                                             email={FacilityMgr?.emailAddress || "facility@email.com"}
                                             name={`${FacilityMgr?.firstName || ''} ${FacilityMgr?.lastName || ''}`.trim() || "Facility Manager"}
-                                            amount={pickUpAmount || 1000}
+                                            amount={pickUpAmount || 5000}
                                             description="Waste Pickup Payment"
                                             userType="Facility"
                                             onSuccess={(ref) => handlePayment({ reference: ref, channel: 'card' })}

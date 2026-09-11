@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import useAuthStore from '../store/authStore';
 import api from '../api/axiosConfig';
 import useResidentStore from '../store/useResidentStore';
+import { useNavigate } from 'react-router-dom';
 import Pay4ItButton from '../components/Pay4ItButton';
 
 const AlatIcon = () => null;
@@ -50,6 +51,7 @@ const CloseIcon = ({ className = 'w-5 h-5' }) => (
 );
 
 const Dashboard = () => {
+    const navigate = useNavigate();
     // Modal State
     const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -478,7 +480,13 @@ const Dashboard = () => {
                                                 <p className="text-zinc-700 font-light">Total Outstanding Bill</p>
                                                 <h2 className="text-green-700 text-3xl mt-1">{dashboardDetails.outstandingBill}</h2>
                                             </div>
-                                            <a href="#" className="text-zinc-800 underline text-sm">See all</a>
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate('/bills')}
+                                                className="text-zinc-800 hover:text-green-700 underline text-sm cursor-pointer focus:outline-none"
+                                            >
+                                                See all
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -562,8 +570,13 @@ const Dashboard = () => {
                                         </div>
                                         <p className="text-zinc-700 font-light">Next Waste Pickup Date</p>
                                         <h2 className="text-zinc-600 text-2xl mt-1">
-                                            {/* Simplified display for N/A or date */}
-                                            {dashboardDetails.nextPickupDate === "N/A" ? "N/A" : "Check Schedule"}
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate('/wastes')}
+                                                className="text-zinc-600 hover:text-green-700 underline cursor-pointer text-2xl font-normal text-left focus:outline-none"
+                                            >
+                                                Check Schedule
+                                            </button>
                                         </h2>
                                     </div>
                                 </div>
@@ -580,7 +593,13 @@ const Dashboard = () => {
                                             <p className="text-zinc-400 font-light mb-2">Your smart Bin has been allocated in inventory</p>
                                             <p className="text-zinc-900 text-sm mb-4">23rd July 2023 4:19PM</p>
                                         </div>
-                                        <a href="#" className="text-green-700 py-2 font-medium underline">Track Application</a>
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/applyforsmartbin')}
+                                            className="text-green-700 hover:text-green-800 py-2 font-medium underline cursor-pointer text-left focus:outline-none"
+                                        >
+                                            Track Application
+                                        </button>
                                     </div>
                                 </div>
                             </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
+import KycStatusCard from '../components/KycStatusCard';
 import api from "../api/axiosConfig.js"
 import useAuthStore from '../store/authStore';
 import useResidentStore from '../store/useResidentStore';
@@ -11,6 +12,7 @@ const KYCApplication = () => {
     // --- State ---
     const [currentStage, setCurrentStage] = useState(1);
     const [isLoadingStatus, setIsLoadingStatus] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [notification, setNotification] = useState(null);
     const [formData, setFormData] = useState({
         personal: {
@@ -61,6 +63,14 @@ const KYCApplication = () => {
         { value: 'Male', label: 'Male' },
         { value: 'Female', label: 'Female' }
     ];
+
+    const documentTypeOptions = [
+        { value: 'National ID', label: 'National ID' },
+        { value: "Voter's Card", label: "Voter's Card" },
+        { value: 'Passport Number', label: 'Passport Number' },
+        { value: "Driver's License", label: "Driver's License" }
+    ];
+    const idTypeOptions = documentTypeOptions;
 
 
 
@@ -181,13 +191,23 @@ const KYCApplication = () => {
             }
         }
         if (currentStage === 2) {
-            if (!formData.documents.idNumber || !formData.documents.file) {
-                setNotification({ type: 'error', message: 'Fill all the details' });
+            if (!formData.documents.idType) {
+                setNotification({ type: 'error', message: 'Please select a document type.' });
                 return;
             }
-            const ninRegex = /^\d{11}$/;
-            if (!ninRegex.test(formData.documents.idNumber)) {
-                setNotification({ type: 'error', message: 'NIN must be exactly 11 digits and contain only numbers.' });
+            if (!formData.documents.idNumber) {
+                setNotification({ type: 'error', message: 'Please enter your document ID number.' });
+                return;
+            }
+            if (formData.documents.idType === 'National ID') {
+                const ninRegex = /^\d{11}$/;
+                if (!ninRegex.test(formData.documents.idNumber)) {
+                    setNotification({ type: 'error', message: 'National ID (NIN) must be exactly 11 digits and contain only numbers.' });
+                    return;
+                }
+            }
+            if (!formData.documents.file && !formData.documents.fileName) {
+                setNotification({ type: 'error', message: 'Please upload your ID document.' });
                 return;
             }
         }
@@ -279,8 +299,15 @@ const KYCApplication = () => {
     );
 
     const handleDone = () => {
-        window.location.href = "/newkycapplication";
-    }
+        navigate('/newkycapplication', {
+            state: {
+                notification: {
+                    type: 'success',
+                    message: 'KYC application submitted successfully! Your application is under review.'
+                }
+            }
+        });
+    };
 
     const handleSubmit = async () => {
         const formatErrorMessage = (err, defaultMsg = "An error occurred.") => {
@@ -293,24 +320,134 @@ const KYCApplication = () => {
             return msg || defaultMsg;
         };
 
+        // Handle specific re-upload: ID documents
+        if (reuploadItem === 'id_docs') {
+            if (!formData.documents.idType) {
+                setNotification({ type: 'error', message: 'Please select a document type.' });
+                return;
+            }
+            if (!formData.documents.idNumber) {
+                setNotification({ type: 'error', message: 'Please enter your document ID number.' });
+                return;
+            }
+            if (formData.documents.idType === 'National ID') {
+                const ninRegex = /^\d{11}$/;
+                if (!ninRegex.test(formData.documents.idNumber)) {
+                    setNotification({ type: 'error', message: 'National ID (NIN) must be exactly 11 digits and contain only numbers.' });
+                    return;
+                }
+            }
+            if (!formData.documents.file && !formData.documents.fileName) {
+                setNotification({ type: 'error', message: 'Please upload an ID document.' });
+                return;
+            }
+
+            setIsSubmitting(true);
+            try {
+                let processedImageString = '';
+                if (formData.documents.file instanceof File) {
+                    const res = await uploadFile(formData.documents.file);
+                    processedImageString = res.url;
+                } else if (typeof formData.documents.file === 'string') {
+                    processedImageString = formData.documents.file;
+                }
+
+                const verificationPayload = {
+                    idType: formData.documents.idType,
+                    NinNo: formData.documents.idNumber,
+                    idDocument: processedImageString || ""
+                };
+
+                const verificationRes = await api.patch(
+                    '/resident/kyc/id-verification',
+                    verificationPayload
+                );
+
+                if (verificationRes.data.success || verificationRes.data.succeeded) {
+                    setNotification({ type: 'success', message: 'Identification documents submitted successfully!' });
+                    fetchResidentInfo();
+                    setCurrentStage(4);
+                } else {
+                    const errorMsg = Array.isArray(verificationRes.data.message)
+                        ? verificationRes.data.message.join(', ')
+                        : (verificationRes.data.message || "ID Verification failed");
+                    setNotification({ type: 'error', message: errorMsg });
+                }
+            } catch (err) {
+                console.error("Error submitting ID documents:", err);
+                setNotification({
+                    type: 'error',
+                    message: formatErrorMessage(err, "Failed to submit identification documents.")
+                });
+            } finally {
+                setIsSubmitting(false);
+            }
+            return;
+        }
+
+        // Handle specific re-upload: Address information
+        if (reuploadItem === 'address_info') {
+            if (!formData.address.buildingType || !formData.address.houseNumber || !formData.address.address || !formData.address.localGovernment) {
+                setNotification({ type: 'error', message: 'Please ensure all address details are filled correctly.' });
+                return;
+            }
+
+            setIsSubmitting(true);
+            try {
+                const addressPayload = {
+                    buildingType: formData.address.buildingType,
+                    houseNumber: formData.address.houseNumber,
+                    flatNumber: formData.address.flatNumber || "",
+                    address: formData.address.address,
+                    localGovernment: formData.address.localGovernment,
+                    closestLandmark: formData.address.closestLandmark || ""
+                };
+
+                const addressRes = await api.patch(
+                    '/resident/kyc/address',
+                    addressPayload
+                );
+
+                if (addressRes.data.success || addressRes.data.succeeded) {
+                    setNotification({ type: 'success', message: 'Address information submitted successfully!' });
+                    fetchResidentInfo();
+                    setCurrentStage(4);
+                } else {
+                    const errorMsg = Array.isArray(addressRes.data.message)
+                        ? addressRes.data.message.join(', ')
+                        : (addressRes.data.message || "Address update failed");
+                    setNotification({ type: 'error', message: errorMsg });
+                }
+            } catch (err) {
+                console.error("Error submitting address:", err);
+                setNotification({
+                    type: 'error',
+                    message: formatErrorMessage(err, "Failed to submit address information.")
+                });
+            } finally {
+                setIsSubmitting(false);
+            }
+            return;
+        }
+
+        // Full KYC Submission
         if (!formData.address.buildingType || !formData.address.houseNumber || !formData.address.address || !formData.address.localGovernment) {
             setNotification({ type: 'error', message: 'Please ensure all address details are filled correctly.' });
             return;
         }
 
+        setIsSubmitting(true);
+
         try {
             const file = formData.documents.file;
 
-            const uploadFileWrapper = async (file) => {
-                try {
-                    const res = await uploadFile(file);
-                    return res.url;
-                } catch (error) {
-                    console.error("Upload failed:", error.message);
-                    throw error;
-                }
+            let processedImageString = '';
+            if (file instanceof File) {
+                const res = await uploadFile(file);
+                processedImageString = res.url;
+            } else if (typeof file === 'string') {
+                processedImageString = file;
             }
-            const processedImageString = file ? await uploadFileWrapper(file) : null;
 
             const payload = {
                 personalInformation: {
@@ -321,6 +458,7 @@ const KYCApplication = () => {
                     lawmaCustomerType: "Existing" // Default type
                 },
                 identityInformation: {
+                    idType: formData.documents.idType,
                     NinNo: formData.documents.idNumber,
                     idDocument: processedImageString || ""
                 },
@@ -334,14 +472,25 @@ const KYCApplication = () => {
                 }
             };
 
-            const { data } = await api.post(
-                '/resident/kyc',
-                payload
-            );
+            let isSuccessful = false;
+            let successMessage = 'KYC application submitted successfully!';
 
-            if (data.succeeded || data.success) {
+            try {
+                const { data } = await api.post(
+                    '/resident/kyc',
+                    payload
+                );
+
+                if (data.succeeded || data.success) {
+                    isSuccessful = true;
+                    if (data.message && typeof data.message === 'string') {
+                        successMessage = data.message;
+                    }
+                }
+            } catch (postError) {
+                console.warn("POST /resident/kyc failed, attempting PATCH fallback:", postError);
+                // If POST failed because resident record already exists, attempt updating via PATCH endpoints
                 try {
-                    // Update personal info via PATCH
                     const personalPayload = {
                         firstName: formData.personal.firstName,
                         lastName: formData.personal.lastName,
@@ -349,13 +498,8 @@ const KYCApplication = () => {
                         gender: formData.personal.gender,
                         lawmaCustomerType: "Existing"
                     };
+                    await api.patch('/resident/kyc/personal-info', personalPayload).catch(e => console.warn("Personal info patch skipped:", e));
 
-                    await api.patch(
-                        '/resident/kyc/personal-info',
-                        personalPayload
-                    );
-
-                    // Update address via PATCH
                     const addressPayload = {
                         buildingType: formData.address.buildingType,
                         houseNumber: formData.address.houseNumber,
@@ -364,44 +508,34 @@ const KYCApplication = () => {
                         localGovernment: formData.address.localGovernment,
                         closestLandmark: formData.address.closestLandmark || ""
                     };
+                    await api.patch('/resident/kyc/address', addressPayload);
 
-                    await api.patch(
-                        '/resident/kyc/address',
-                        addressPayload
-                    );
-
-                    // Update ID verification via PATCH
                     const verificationPayload = {
+                        idType: formData.documents.idType,
                         NinNo: formData.documents.idNumber,
                         idDocument: processedImageString || ""
                     };
+                    await api.patch('/resident/kyc/id-verification', verificationPayload);
 
-                    const verificationRes = await api.patch(
-                        '/resident/kyc/id-verification',
-                        verificationPayload
-                    );
-
-                    if (verificationRes.data.success || verificationRes.data.succeeded) {
-                        setNotification({ type: 'success', message: 'Submitted successfully!' });
-                        setCurrentStage(4);
-                    } else {
-                        const errorMsg = Array.isArray(verificationRes.data.message) ? verificationRes.data.message.join(', ') : (verificationRes.data.message || "ID Verification failed");
-                        setNotification({ type: 'error', message: errorMsg });
-                    }
-                } catch (verificationError) {
-                    console.error("Error verifying ID documents / updating personal info:", verificationError);
-                    setNotification({
-                        type: 'error',
-                        message: formatErrorMessage(verificationError, "KYC submission update failed. Check console for details.")
-                    });
+                    isSuccessful = true;
+                } catch (patchError) {
+                    console.error("Patch fallback failed:", patchError);
+                    throw postError || patchError;
                 }
+            }
+
+            if (isSuccessful) {
+                setNotification({ type: 'success', message: successMessage });
+                fetchResidentInfo();
+                setCurrentStage(4);
             } else {
-                const errorMsg = Array.isArray(data.message) ? data.message.join(', ') : (data.message || "Error submitting");
-                setNotification({ type: 'error', message: errorMsg });
+                setNotification({ type: 'error', message: 'Failed to submit KYC application. Please try again.' });
             }
         } catch (error) {
-            console.log("Error creating KYC", error);
-            setNotification({ type: 'error', message: formatErrorMessage(error, "Error submitting. Check console for details.") });
+            console.log("Error submitting KYC", error);
+            setNotification({ type: 'error', message: formatErrorMessage(error, "Error submitting KYC. Please check details and try again.") });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -429,16 +563,18 @@ const KYCApplication = () => {
                                     <a href="#" className="text-sm text-green-700 hover:underline">Having issues? Contact Support</a>
                                 </div>
 
-                                {/* Progress Steps */}
-                                <div className="mb-10 px-2 md:px-6">
-                                    <div className="flex items-start justify-between">
-                                        <ProgressStep number={1} active={currentStage >= 1} completed={currentStage > 1} label="Personal Information" />
-                                        <ProgressConnector active={currentStage > 1} />
-                                        <ProgressStep number={2} active={currentStage >= 2} completed={currentStage > 2} label="Identification Documents" />
-                                        <ProgressConnector active={currentStage > 2} />
-                                        <ProgressStep number={3} active={currentStage >= 3} completed={currentStage > 3} label="Address Information" />
+                                {/* Progress Steps (Hidden on Stage 4) */}
+                                {currentStage < 4 && (
+                                    <div className="mb-10 px-2 md:px-6">
+                                        <div className="flex items-start justify-between">
+                                            <ProgressStep number={1} active={currentStage >= 1} completed={currentStage > 1} label="Personal Information" />
+                                            <ProgressConnector active={currentStage > 1} />
+                                            <ProgressStep number={2} active={currentStage >= 2} completed={currentStage > 2} label="Identification Documents" />
+                                            <ProgressConnector active={currentStage > 2} />
+                                            <ProgressStep number={3} active={currentStage >= 3} completed={currentStage > 3} label="Address Information" />
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
                                 {/* Form Stages */}
                                 <div>
@@ -511,9 +647,9 @@ const KYCApplication = () => {
                                             <h2 className="text-xl font-semibold text-zinc-700 mb-2">Identification Documents</h2>
                                             <p className="text-sm text-zinc-500 mb-6">Provide your identification details.</p>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                                                {/* <div >
+                                                <div>
                                                     <label htmlFor="idType" className="block text-sm font-medium text-zinc-700 mb-1">
-                                                        Select ID Type
+                                                        Select Document Type
                                                     </label>
                                                     <select
                                                         id="idType"
@@ -522,15 +658,23 @@ const KYCApplication = () => {
                                                         required
                                                         className="w-full p-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition duration-150 ease-in-out text-sm placeholder-zinc-400 pr-8 bg-white"
                                                     >
-                                                        <option value="">Select ID Type</option>
-                                                        {idTypeOptions.map(option => (
+                                                        <option value="">Select Document Type</option>
+                                                        {documentTypeOptions.map(option => (
                                                             <option key={option.value} value={option.value}>{option.label}</option>
                                                         ))}
                                                     </select>
-                                                </div> */}
-                                                <div className='md:col-span-2'>
+                                                </div>
+                                                <div>
                                                     <label htmlFor="idNumber" className="block text-sm font-medium text-zinc-700 mb-1">
-                                                        NIN
+                                                        {formData.documents.idType === 'National ID'
+                                                            ? 'National ID Number (NIN)'
+                                                            : formData.documents.idType === "Voter's Card"
+                                                            ? "Voter's Card Number"
+                                                            : formData.documents.idType === 'Passport Number'
+                                                            ? 'Passport Number'
+                                                            : formData.documents.idType === "Driver's License"
+                                                            ? "Driver's License Number"
+                                                            : 'Document Number'}
                                                     </label>
                                                     <input
                                                         type="text"
@@ -538,7 +682,17 @@ const KYCApplication = () => {
                                                         value={formData.documents.idNumber}
                                                         onChange={(e) => handleInputChange('documents', 'idNumber', e.target.value)}
                                                         required
-                                                        placeholder="NIN Number"
+                                                        placeholder={
+                                                            formData.documents.idType === 'National ID'
+                                                                ? 'Enter 11-digit NIN'
+                                                                : formData.documents.idType === "Voter's Card"
+                                                                ? "Enter Voter's Card Number"
+                                                                : formData.documents.idType === 'Passport Number'
+                                                                ? 'Enter Passport Number'
+                                                                : formData.documents.idType === "Driver's License"
+                                                                ? "Enter Driver's License Number"
+                                                                : 'Enter Document Number'
+                                                        }
                                                         className="w-full p-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition duration-150 ease-in-out text-sm placeholder-zinc-400"
                                                     />
                                                 </div>
@@ -681,47 +835,78 @@ const KYCApplication = () => {
                                     )}
 
                                     {currentStage === 4 && (
-                                        <div className="text-center py-12 lg:px-16 lg:pt-16 pb-4 bg-white rounded-lg shadow">
-                                            <div className="inline-block bg-green-100 p-4 rounded-full mb-4">
-                                                <svg className="w-12 h-12 text-green-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
+                                        <div className="space-y-6">
+                                            <div className="text-center py-10 lg:px-16 bg-white rounded-lg shadow">
+                                                <div className="inline-block bg-green-100 p-4 rounded-full mb-4">
+                                                    <svg className="w-12 h-12 text-green-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                </div>
+                                                <h2 className="text-2xl font-semibold text-zinc-800 mb-2">Congratulations!</h2>
+                                                <p className="text-zinc-600">Your KYC information has been submitted successfully.</p>
+                                                <p className="text-zinc-600 mt-1">We will review your details and get back to you shortly.</p>
                                             </div>
-                                            <h2 className="text-2xl font-semibold text-zinc-800 mb-3">Congratulations!</h2>
-                                            <p className="text-zinc-600">Your KYC information has been submitted successfully.</p>
-                                            <p className="text-zinc-600 mt-1">We will review your details and get back to you shortly.</p>
-                                            <button
-                                                type="button"
-                                                className="mt-8 inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                                                onClick={handleDone}
-                                            >
-                                                Done
-                                            </button>
+
+                                            {/* Live KYC Status Card embedded directly */}
+                                            <div className="bg-white p-6 rounded-lg shadow">
+                                                <h3 className="text-lg font-semibold text-zinc-800 mb-4">Application Status</h3>
+                                                <KycStatusCard endpoint="/resident/kyc/status" />
+                                            </div>
+
+                                            <div className="flex justify-end pt-2">
+                                                <button
+                                                    type="button"
+                                                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-sm"
+                                                    onClick={handleDone}
+                                                >
+                                                    View KYC Overview
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Navigation Buttons */}
-                                <div className={`flex bg-white mt-6 lg:px-16 lg:pb-10 p-4 rounded-b-lg shadow ${currentStage > 1 && currentStage < 4 ? 'justify-between' : 'justify-end'}`}>
-                                    {currentStage > 1 && currentStage < 4 && (
+                                {/* Navigation Buttons (Hidden on Stage 4) */}
+                                {currentStage < 4 && (
+                                    <div className={`flex bg-white mt-6 lg:px-16 lg:pb-10 p-4 rounded-b-lg shadow ${currentStage > 1 ? 'justify-between' : 'justify-end'}`}>
+                                        {currentStage > 1 && (
+                                            <button
+                                                onClick={prevStage}
+                                                type="button"
+                                                disabled={isSubmitting}
+                                                className="inline-flex items-center px-6 py-3 border border-zinc-300 text-sm font-medium rounded-lg text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 cursor-pointer"
+                                            >
+                                                Back
+                                            </button>
+                                        )}
                                         <button
-                                            onClick={prevStage}
+                                            onClick={
+                                                (reuploadItem === 'id_docs' && currentStage === 2) || currentStage === 3
+                                                    ? handleSubmit
+                                                    : nextStage
+                                            }
                                             type="button"
-                                            className="inline-flex items-center px-6 py-3 border border-zinc-300 text-sm font-medium rounded-lg text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                            disabled={isSubmitting}
+                                            className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                         >
-                                            Back
+                                            {isSubmitting ? (
+                                                <span className="flex items-center gap-2">
+                                                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Submitting...
+                                                </span>
+                                            ) : (
+                                                reuploadItem === 'id_docs' && currentStage === 2
+                                                    ? 'Submit Documents'
+                                                    : currentStage === 3
+                                                        ? (reuploadItem === 'address_info' ? 'Submit Address' : 'Submit KYC')
+                                                        : 'Next'
+                                            )}
                                         </button>
-                                    )}
-                                    {currentStage < 4 && (
-                                        <button
-                                            onClick={currentStage === 3 ? handleSubmit : nextStage}
-                                            type="button"
-                                            className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                                        >
-                                            {currentStage === 3 ? 'Submit KYC' : 'Next'}
-                                        </button>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 

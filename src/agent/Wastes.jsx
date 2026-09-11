@@ -348,17 +348,17 @@ const SmartBinApplication = () => {
             const response = await api.get("/agents/wallets");
 
             console.log("Response from fetch-amount:", response);
-            const data = response.data.data;
-            if (response.data.success) {
-                setPickUpAmount(data.amountToDebit);
-                setDebitType(data.debitType);
+            const data = response.data?.data || response.data;
+            if (response.data?.success || response.data?.succeeded) {
+                setPickUpAmount(5000);
+                setDebitType(data?.debitType);
                 console.log(debitType, " debit type");
-                console.log("Smart bin amount fetched:", data.amountToDebit);
+                console.log("Waste amount set:", 5000);
             } else {
-                console.error("Failed to fetch smart bin amount:", response.message);
+                console.error("Failed to fetch wallet info:", response.data?.message || response.message);
             }
         } catch (error) {
-            console.error("Error fetching smart bin amount:", error);
+            console.error("Error fetching wallet info:", error);
 
         }
     }
@@ -619,7 +619,7 @@ const SmartBinApplication = () => {
     const handlePayment = async (response) => {
 
         let ref, channel;
-        let amount = 10
+        let amount = pickUpAmount;
 
         if (selectedPaymentMethod === 'wallet') {
             ref = response.reference;
@@ -971,7 +971,7 @@ const SmartBinApplication = () => {
                                         <Pay4ItButton
                                             email={Agent?.emailAddress || "agent@email.com"}
                                             name={`${Agent?.firstName || ''} ${Agent?.lastName || ''}`.trim() || "Agent Manager"}
-                                            amount={pickUpAmount || 1000}
+                                            amount={pickUpAmount || 5000}
                                             description="Waste Pickup Payment"
                                             userType="Agent"
                                             onSuccess={(ref) => handlePayment({ reference: ref, channel: 'card' })}
