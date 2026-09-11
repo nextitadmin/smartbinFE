@@ -103,28 +103,30 @@ function KycStatusCard({ endpoint = '/resident/kyc/status' }) {
 
             const statusInfo = data.data || data;
             if (statusInfo) {
-                const isStatusActive = (status) => {
-                    const s = (status || '').toLowerCase();
-                    return s === 'submitted' || s === 'pending' || s === 'approved';
+                const resolveStatus = (hasSubmitted, verificationStatus) => {
+                    if (!hasSubmitted) return 'not_submitted';
+                    const s = (verificationStatus || '').toLowerCase();
+                    if (s === 'approved') return 'approved';
+                    if (s === 'rejected' || s === '0') return 'rejected';
+                    return 'submitted';
                 };
 
-                const hasSubmittedId = statusInfo.hasSubmittedIdentity || isStatusActive(statusInfo.identityVerificationStatus);
-                const hasSubmittedAddr = statusInfo.hasSubmittedAddress || isStatusActive(statusInfo.addressVerificationStatus);
+                const documentStatus = resolveStatus(
+                    Boolean(statusInfo.hasSubmittedIdentity),
+                    statusInfo.identityVerificationStatus
+                );
 
-                const documentStatus = (hasSubmittedId && statusInfo.identityVerificationStatus)
-                    ? statusInfo.identityVerificationStatus
-                    : (hasSubmittedId ? 'pending' : 'not_submitted');
-
-                const addressStatus = (hasSubmittedAddr && statusInfo.addressVerificationStatus)
-                    ? statusInfo.addressVerificationStatus
-                    : (hasSubmittedAddr ? 'pending' : 'not_submitted');
+                const addressStatus = resolveStatus(
+                    Boolean(statusInfo.hasSubmittedAddress),
+                    statusInfo.addressVerificationStatus
+                );
 
                 setKycData(prevData =>
                     prevData.map(item => {
                         if (item.id === 'id_docs') {
-                            return { ...item, status: documentStatus.toLowerCase() };
+                            return { ...item, status: documentStatus };
                         } else if (item.id === 'address_info') {
-                            return { ...item, status: addressStatus.toLowerCase() };
+                            return { ...item, status: addressStatus };
                         } else {
                             return item;
                         }

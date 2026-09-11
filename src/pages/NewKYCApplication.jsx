@@ -44,16 +44,10 @@ function NewKycApplication() {
             const statusInfo = data?.data || data;
             const succeeded = data?.succeeded || data?.success;
             if (succeeded && statusInfo) {
-                const isStatusActive = (status) => {
-                    const s = (status || '').toLowerCase();
-                    return s === 'submitted' || s === 'pending' || s === 'approved';
-                };
                 const hasSubmitted = Boolean(
                     statusInfo.hasSubmittedIdentity || 
                     statusInfo.hasSubmittedAddress ||
-                    statusInfo.hasSubmittedPersonalInformation ||
-                    isStatusActive(statusInfo.identityVerificationStatus) ||
-                    isStatusActive(statusInfo.addressVerificationStatus)
+                    statusInfo.hasSubmittedPersonalInformation
                 );
                 setKycStatus(hasSubmitted);  
             } else {
