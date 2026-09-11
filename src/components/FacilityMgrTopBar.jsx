@@ -49,9 +49,12 @@ const FacilityMgrTopBar = () => {
 
 
     const formatTime = (receivedDate) => {
+        if (!receivedDate) return '';
         const date = new Date(receivedDate);
         const now = new Date();
         const diffInMinutes = Math.floor((now - date) / 60000);
+        if (isNaN(diffInMinutes) || diffInMinutes < 0) return 'Just now';
+        if (diffInMinutes < 1) return 'Just now';
         if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
         else if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} hours ago`;
         else return `${Math.floor(diffInMinutes / 1440)} days ago`;
@@ -63,22 +66,28 @@ const FacilityMgrTopBar = () => {
         const fetchNotifications = async () => {
 
             try {
-                const { data } = await api.get("/notifications");
+                const response = await api.get("/notifications");
+                const resData = response.data;
+                const succeeded = resData?.success || resData?.succeeded;
 
-                if (data.succeeded) {
-                    const formattedNotifications = data.data.data.map(notification => ({
-                        id: notification.id,
-                        title: notification.notificationTitle,
-                        message: notification.notificationMessage,
-                        time: formatTime(notification.receivedDate),
-                        read: notification.isRead
+                if (succeeded) {
+                    const rawList = Array.isArray(resData.data)
+                        ? resData.data
+                        : (Array.isArray(resData.data?.data) ? resData.data.data : (Array.isArray(resData.data?.items) ? resData.data.items : []));
+
+                    const formattedNotifications = rawList.map(notification => ({
+                        id: notification._id || notification.id || notification.msgId,
+                        title: notification.title || notification.notificationTitle || "Notification",
+                        message: notification.text || notification.message || notification.notificationMessage || "",
+                        time: formatTime(notification.createdAt || notification.receivedDate || notification.updatedAt),
+                        read: Boolean(notification.isRead ?? notification.read ?? false)
                     }));
 
                     setNotifications(formattedNotifications);
 
                 }
-            } catch {
-                console.log("an error has occurred")
+            } catch (error) {
+                console.log("Error fetching notifications:", error);
             }
         }
 
@@ -93,22 +102,47 @@ const FacilityMgrTopBar = () => {
     );
 
     const handleRead = async (id) => {
+        const item = notifications.find(n => n.id === id);
+        if (item && item.read) return;
+
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
         try {
-            const payload = [
-                {
-                    msgId: id,
-                    isRead: true
-                }
-            ];
+            const response = await api.patch(`/notifications/${id}`, { isRead: true });
 
-            const { data } = await api.post("/Notification/edit-resident-msg", payload);
-
-            if (data.succeeded) {
-                console.log('Notification clicked set all notifications from the api to read');
+            if (response.status === 200 || response.data?.success || response.data?.succeeded) {
                 setRefreshNotifications(prev => !prev);
             }
         } catch (error) {
             console.error("Error marking message as read:", error);
+        }
+    };
+
+    const handleMarkAllAsRead = async () => {
+        const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+        if (unreadIds.length === 0) return;
+
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+
+        let readAllSuccess = false;
+        try {
+            const response = await api.patch('/notifications/read-all', { isRead: true });
+            if (response.data?.success || response.data?.succeeded) {
+                readAllSuccess = true;
+                setRefreshNotifications(prev => !prev);
+            }
+        } catch (err) {
+            console.warn("PATCH /notifications/read-all failed, falling back to individual updates:", err);
+        }
+
+        if (!readAllSuccess) {
+            try {
+                await Promise.allSettled(
+                    unreadIds.map(id => api.patch(`/notifications/${id}`, { isRead: true }))
+                );
+                setRefreshNotifications(prev => !prev);
+            } catch (error) {
+                console.error("Error marking notifications as read individually:", error);
+            }
         }
     };
 
@@ -204,15 +238,29 @@ const FacilityMgrTopBar = () => {
                 </div>
             </div>
             {viewNotificationModal && (
-                <div className="fixed inset-0 bg-black/20 z-50 font-sans flex lg:justify-end justify-center items-center lg:items-center min-h-screen overflow-y-auto">
+                <div
+                    className="fixed inset-0 bg-black/20 z-50 font-sans flex lg:justify-end justify-center items-center lg:items-center min-h-screen overflow-y-auto"
+                    onClick={() => setViewNotificationModal(false)}
+                >
                     <aside
+                        onClick={(e) => e.stopPropagation()}
                         className={`fixed top-0 right-0 z-70 lg:h-screen h-full lg:w-[550px] w-full bg-white flex flex-col transform transition-transform ease-in-out duration-500 ${viewNotificationModal ? 'translate-x-0' : 'translate-x-full'
                             }`}
                     >
                         {/* Header */}
                         <div className="p-6 border-b border-zinc-200">
                             <div className="flex justify-between items-center">
-                                <h2 className="text-lg font-semibold text-zinc-800">Notifications</h2>
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-lg font-semibold text-zinc-800">Notifications</h2>
+                                    {notifications.some(n => !n.read) && (
+                                        <button
+                                            onClick={handleMarkAllAsRead}
+                                            className="text-xs text-green-700 hover:text-green-800 font-medium underline cursor-pointer"
+                                        >
+                                            Mark all as read
+                                        </button>
+                                    )}
+                                </div>
                                 <button
                                     onClick={() => setViewNotificationModal(false)}
                                     className="text-zinc-500 hover:text-black text-2xl"
@@ -227,34 +275,51 @@ const FacilityMgrTopBar = () => {
                                     <button
                                         key={tab}
                                         className={`pb-2 transition-all duration-300 border-b-2 ${activeTab === tab
-                                            ? 'border-yellow-400 text-black'
-                                            : 'border-transparent text-zinc-500'
+                                            ? 'border-green-600 text-black font-semibold'
+                                            : 'border-transparent text-zinc-500 hover:text-zinc-700'
                                             }`}
                                         onClick={() => setActiveTab(tab)}
                                     >
                                         {tab}
+                                        {tab === 'Unread' && notifications.some(n => !n.read) && (
+                                            <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-red-600 text-white rounded-full">
+                                                {notifications.filter(n => !n.read).length}
+                                            </span>
+                                        )}
                                     </button>
                                 ))}
                             </div>
                         </div>
 
                         {/* Notifications List */}
-                        <div className="p-6 space-y-6 overflow-y-auto">
-                            {filteredNotifications.map((notification) => (
-                                <div key={notification.id} onClick={() => handleRead(notification.id)}>
-                                    <h3 className="font-semibold text-[16px] text-zinc-900 flex items-center">
-                                        {notification.title}
-
-                                        <span className="w-2 h-2 bg-zinc-300 rounded-full ml-2"></span>
-                                        <span className="ml-2 text-sm text-zinc-500">{notification.time}</span>
-                                    </h3>
-                                    <p className="text-sm text-zinc-700 mt-1">{notification.message}</p>
+                        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                            {filteredNotifications.length === 0 ? (
+                                <div className="text-center py-16 text-zinc-400 text-sm">
+                                    No {activeTab === 'All' ? '' : activeTab.toLowerCase()} notifications
                                 </div>
-                            ))}
+                            ) : (
+                                filteredNotifications.map((notification) => (
+                                    <div
+                                        key={notification.id}
+                                        onClick={() => handleRead(notification.id)}
+                                        className={`p-4 rounded-xl transition-all cursor-pointer border ${notification.read ? 'bg-white border-zinc-200 hover:bg-zinc-50' : 'bg-green-50/50 border-green-200 hover:bg-green-50'}`}
+                                    >
+                                        <div className="flex items-center justify-between mb-1">
+                                            <h3 className="font-semibold text-sm text-zinc-900 flex items-center gap-2">
+                                                {!notification.read && (
+                                                    <span className="w-2 h-2 bg-green-600 rounded-full flex-shrink-0"></span>
+                                                )}
+                                                {notification.title}
+                                            </h3>
+                                            <span className="text-xs text-zinc-400">{notification.time}</span>
+                                        </div>
+                                        <p className="text-sm text-zinc-600 pl-4">{notification.message}</p>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </aside>
                 </div>
-
             )}
 
             {viewProfileModal && (
