@@ -85,8 +85,21 @@ const SmartBinApplication = () => {
 
     // --- Computed Properties ---
     const uniqueStatuses = useMemo(() => {
-        const statuses = applications.map(a => a.status).filter(Boolean);
-        return [...new Set(statuses)];
+        const defaultStatuses = ['Pending', 'Approved'];
+        const appStatuses = applications.map(a => a.status).filter(Boolean);
+
+        const statusMap = new Map();
+        [...defaultStatuses, ...appStatuses].forEach(status => {
+            if (typeof status === 'string' && status.trim()) {
+                const key = status.trim().toLowerCase();
+                if (!statusMap.has(key)) {
+                    const formatted = status.trim().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                    statusMap.set(key, formatted);
+                }
+            }
+        });
+
+        return Array.from(statusMap.values());
     }, [applications]);
 
     const filteredApplications = useMemo(() => {
@@ -108,7 +121,7 @@ const SmartBinApplication = () => {
 
         // 2. Status Filter
         if (statusFilter !== 'All') {
-            result = result.filter(app => app.status === statusFilter);
+            result = result.filter(app => (app.status || '').toLowerCase() === statusFilter.toLowerCase());
         }
 
         // 3. Date Filters
@@ -327,7 +340,7 @@ const SmartBinApplication = () => {
                                         type="text"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Search members..."
+                                        placeholder="Search"
                                         className="w-full lg:w-[24rem] pl-10 pr-4 py-2 border border-zinc-300 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent"
                                     />
                                 </div>
@@ -335,9 +348,8 @@ const SmartBinApplication = () => {
                                     <button
                                         onClick={filterData}
                                         type="button"
-                                        className={`px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
-                                            showFilterPanel ? 'bg-green-50 border-green-300 text-green-700 font-semibold' : 'text-zinc-700 bg-white hover:bg-zinc-50'
-                                        }`}
+                                        className={`px-4 lg:mx-4 py-2 border border-zinc-300 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${showFilterPanel ? 'bg-green-50 border-green-300 text-green-700 font-semibold' : 'text-zinc-700 bg-white hover:bg-zinc-50'
+                                            }`}
                                     >
                                         Filter
                                     </button>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import KycStatusCard from '../components/KycStatusCard';
@@ -7,21 +7,36 @@ import api from '../api/axiosConfig';
 import useAuthStore from '../store/authStore';
 
 function NewKycApplication() {
-
-
-
-
-
-
-    // const title = 'Where is my Smart Bin?';
     const [kycStatus, setKycStatus] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [notification, setNotification] = useState(null);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const clearNotification = () => {
+        setNotification(null);
+    };
+
+    useEffect(() => {
+        if (location.state?.notification) {
+            setNotification(location.state.notification);
+            // Clear location state so notification does not reappear on reload
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
+
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => {
+                clearNotification();
+            }, 6000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
 
     const startkyc = () => {
         navigate('/kycapplication');
-    }
-
+    };
 
     const checkStatus = async () => {
         try {
@@ -29,7 +44,17 @@ function NewKycApplication() {
             const statusInfo = data?.data || data;
             const succeeded = data?.succeeded || data?.success;
             if (succeeded && statusInfo) {
-                const hasSubmitted = Boolean(statusInfo.hasSubmittedIdentity || statusInfo.hasSubmittedAddress);
+                const isStatusActive = (status) => {
+                    const s = (status || '').toLowerCase();
+                    return s === 'submitted' || s === 'pending' || s === 'approved';
+                };
+                const hasSubmitted = Boolean(
+                    statusInfo.hasSubmittedIdentity || 
+                    statusInfo.hasSubmittedAddress ||
+                    statusInfo.hasSubmittedPersonalInformation ||
+                    isStatusActive(statusInfo.identityVerificationStatus) ||
+                    isStatusActive(statusInfo.addressVerificationStatus)
+                );
                 setKycStatus(hasSubmitted);  
             } else {
                 setKycStatus(false); 
@@ -40,11 +65,11 @@ function NewKycApplication() {
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     useEffect(() => {
         checkStatus();
-    }, [])
+    }, []);
 
     // const trackOrder = () => {
     //     console.log("Tracking order:", orderIdInput || orderDetails.id);
@@ -142,9 +167,31 @@ function NewKycApplication() {
 
                 </section>
 
-
-
-
+                {notification && (
+                    <div
+                        className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg max-w-sm z-50 transition-all duration-300 ${
+                            notification.type === 'success'
+                                ? 'bg-green-100 border border-green-400 text-green-700'
+                                : 'bg-red-100 border border-red-400 text-red-700'
+                        }`}
+                        role={notification.type === 'error' ? 'alert' : 'status'}
+                    >
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium">{notification.message}</p>
+                            <button
+                                onClick={clearNotification}
+                                className={`ml-4 text-xl font-semibold leading-none ${
+                                    notification.type === 'success'
+                                        ? 'text-green-700 hover:text-green-800'
+                                        : 'text-red-700 hover:text-red-800'
+                                } focus:outline-none`}
+                                aria-label="Close notification"
+                            >
+                                &times;
+                            </button>
+                        </div>
+                    </div>
+                )}
 
             </div>
         </div>

@@ -324,17 +324,17 @@ const Wastes = () => {
             const succeeded = response.data?.succeeded || response.data?.success;
             if (succeeded && data) {
                 setWalletBalance(data.balance || 0);
-                if (data.amountToDebit) {
-                    setPickUpAmount(data.amountToDebit);
-                }
+                // Waste pickup standard fee is 5000; do not overwrite with data.amountToDebit
+                // which is 10,000 for Smart Bin purchase
+                setPickUpAmount(5000);
                 setDebitType(data.debitType || data.status || 'standard');
                 console.log(data.debitType || data.status || 'standard', " debit type");
-                console.log("Smart bin amount fetched:", data.amountToDebit || 3500);
+                console.log("Waste pickup amount:", 5000);
             } else {
-                console.error("Failed to fetch smart bin amount:", response.data?.message || 'Unknown error');
+                console.error("Failed to fetch wallet info:", response.data?.message || 'Unknown error');
             }
         } catch (error) {
-            console.error("Error fetching smart bin amount:", error);
+            console.error("Error fetching wallet info:", error);
         }
     };
 
@@ -350,7 +350,7 @@ const Wastes = () => {
     const handlePayment = async (response) => {
 
         let ref, channel;
-        let amount = 10
+        let amount = pickUpAmount;
 
         if (selectedPaymentMethod === 'wallet') {
             ref = response.reference;
@@ -361,7 +361,7 @@ const Wastes = () => {
 
 
         else if (selectedPaymentMethod === 'card') {
-            ref = response.data.reference;
+            ref = response.reference || response.data?.reference || response.tranref;
             channel = "card";
         }
         console.log("Payment response:", response);
@@ -405,7 +405,8 @@ const Wastes = () => {
 
             const response = await api.post("/wallets/charge", {
                 amount,
-
+                narration: "Waste Collection Payment",
+                paymentPurpose: "Waste Collection Payment"
             });
             const data = response.data;
 
@@ -457,8 +458,13 @@ const Wastes = () => {
                     address: pickupRequestData.address,
                     branch: residentInfo?.lga || "Main",
                     transactionReference: response.ref,
+                    transRef: response.ref,
                     description: otherReason || pickupRequestData.note,
-                    customerName: customerName
+                    customerName: customerName,
+                    amountPaid: response.amount || pickUpAmount,
+                    amount: response.amount || pickUpAmount,
+                    paymentChannel: response.channel || selectedPaymentMethod || "card",
+                    PaymentChannel: response.channel || selectedPaymentMethod || "card",
                 };
 
                 const { data } = await api.post("/waste-management/pickups", payload);
@@ -822,11 +828,14 @@ const Wastes = () => {
                                             amount={pickUpAmount}
                                             email={useResidentStore.getState().residentInfo?.emailAddress || useAuthStore.getState().email || "resident@email.com"}
                                             customerName={`${useResidentStore.getState().residentInfo?.firstName || ''} ${useResidentStore.getState().residentInfo?.lastName || ''}`.trim() || "Resident User"}
+                                            description="Waste Collection Payment"
                                             userType="resident"
+                                            customEndpoint="/wallets/charge"
+                                            customPayload={{ paymentPurpose: "Waste Collection Payment" }}
                                             onSuccess={(res) => {
                                                 console.log("Pay4It pickup success:", res);
                                                 const finalRef = res.reference || res.tranref;
-                                                handlePayment({ data: { reference: finalRef } });
+                                                handlePayment({ reference: finalRef, data: { reference: finalRef } });
                                             }}
                                             onClose={() => {
                                                 console.log("Pay4It window closed");
