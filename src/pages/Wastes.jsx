@@ -24,7 +24,7 @@ const Wastes = () => {
     const itemsPerPage = 6;
     const [otherReason, setOtherReason] = useState('');
     const [notification, setNotification] = useState(null);
-    const [pickUpAmount, setPickUpAmount] = useState(5000);
+    const [pickUpAmount, setPickUpAmount] = useState(100000);
     const [walletBalance, setWalletBalance] = useState(0);
     const [debitType, setDebitType] = useState(''); // 'wallet' or 'smartbin'
     const noteOptions = ['An Occasion', 'An Emergency', 'Other reasons'];
@@ -324,12 +324,12 @@ const Wastes = () => {
             const succeeded = response.data?.succeeded || response.data?.success;
             if (succeeded && data) {
                 setWalletBalance(data.balance || 0);
-                // Waste pickup standard fee is 5000; do not overwrite with data.amountToDebit
+                // Waste pickup standard fee is 100,000; do not overwrite with data.amountToDebit
                 // which is 10,000 for Smart Bin purchase
-                setPickUpAmount(5000);
+                setPickUpAmount(100000);
                 setDebitType(data.debitType || data.status || 'standard');
                 console.log(data.debitType || data.status || 'standard', " debit type");
-                console.log("Waste pickup amount:", 5000);
+                console.log("Waste pickup amount:", 100000);
             } else {
                 console.error("Failed to fetch wallet info:", response.data?.message || 'Unknown error');
             }
