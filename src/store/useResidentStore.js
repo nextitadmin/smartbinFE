@@ -7,6 +7,8 @@ const useResidentStore = create(
   persist(
     (set) => ({
       residentInfo: {
+        id: "",
+        applicationId: "",
         payerID: "",
         firstName: "",
         lastName: "",
@@ -36,6 +38,8 @@ const useResidentStore = create(
       clearResidentInfo: () =>
         set({
           residentInfo: {
+            id: "",
+            applicationId: "",
             payerID: "",
             firstName: "",
             lastName: "",
@@ -75,6 +79,8 @@ const useResidentStore = create(
 
             // Map ALL API response fields to match residentInfo structure
             const mappedInfo = {
+              id: data.id || data._id || data.applicationId || "",
+              applicationId: data.applicationId || data.id || data._id || "",
               payerID: data.payerId || "",
               firstName: data.firstName || "",
               lastName: data.lastName || "",

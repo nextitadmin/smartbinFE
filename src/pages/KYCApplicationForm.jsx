@@ -14,6 +14,12 @@ const KYCApplication = () => {
     const [isLoadingStatus, setIsLoadingStatus] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [notification, setNotification] = useState(null);
+    const [applicationId, setApplicationId] = useState(null);
+    const [isVerifyingNin, setIsVerifyingNin] = useState(false);
+    const [ninVerified, setNinVerified] = useState(false);
+    const [ninVerificationMessage, setNinVerificationMessage] = useState(null);
+    const [ninVerificationError, setNinVerificationError] = useState(null);
+    const [lastVerifiedNin, setLastVerifiedNin] = useState('');
     const [formData, setFormData] = useState({
         personal: {
             lastName: '',
@@ -105,9 +111,14 @@ const KYCApplication = () => {
 
     const checkStatus = async () => {
         try {
-            const { data } = await api.get('/resident/kyc/status')
-            if ((data.succeeded || data.success) && data.data) {
-                const { hasSubmittedIdentity, hasSubmittedAddress, identityVerificationStatus, addressVerificationStatus } = data.data;
+            const { data } = await api.get('/resident/kyc/status');
+            const statusInfo = data.data || data;
+            if ((data.succeeded || data.success) && statusInfo) {
+                const appId = statusInfo.applicationId || statusInfo.id || statusInfo._id || statusInfo.residentId || statusInfo.kycApplicationId;
+                if (appId) {
+                    setApplicationId(appId);
+                }
+                const { hasSubmittedIdentity, hasSubmittedAddress, identityVerificationStatus, addressVerificationStatus } = statusInfo;
                 const identityStatus = (identityVerificationStatus || '').toLowerCase();
                 const addressStatus = (addressVerificationStatus || '').toLowerCase();
 
@@ -150,6 +161,10 @@ const KYCApplication = () => {
 
     useEffect(() => {
         if (residentInfo) {
+            const appId = residentInfo.applicationId || residentInfo.id || residentInfo._id;
+            if (appId) {
+                setApplicationId(prev => prev || appId);
+            }
             setFormData(prev => ({
                 ...prev,
                 personal: {
@@ -181,6 +196,104 @@ const KYCApplication = () => {
         }));
     };
 
+    const verifyNin = async (ninToVerify, targetAppId) => {
+        let appId = targetAppId || applicationId || residentInfo?.applicationId || residentInfo?.id || residentInfo?._id;
+
+        if (!appId) {
+            try {
+                const statusRes = await api.get('/resident/kyc/status');
+                const statusData = statusRes.data?.data || statusRes.data;
+                appId = statusData?.applicationId || statusData?.id || statusData?._id || statusData?.residentId || statusData?.kycApplicationId;
+                if (appId) {
+                    setApplicationId(appId);
+                }
+            } catch (e) {
+                console.warn("Failed to fetch applicationId from /resident/kyc/status", e);
+            }
+        }
+
+        if (!appId) {
+            try {
+                const profileRes = await api.get('/residents/profile');
+                const profileData = profileRes.data?.data || profileRes.data;
+                appId = profileData?.applicationId || profileData?.id || profileData?._id || profileData?.residentId;
+                if (appId) {
+                    setApplicationId(appId);
+                }
+            } catch (e) {
+                console.warn("Failed to fetch applicationId from /residents/profile", e);
+            }
+        }
+
+        if (!appId) {
+            setNinVerificationError("Application ID not found. Unable to verify NIN.");
+            return;
+        }
+
+        setIsVerifyingNin(true);
+        setNinVerificationError(null);
+        setNinVerificationMessage(null);
+
+        try {
+            const { data } = await api.post(`/identities/${appId}/verify-nin`, {
+                nin: ninToVerify
+            });
+
+            if (data?.success || data?.succeeded) {
+                setNinVerified(true);
+                setNinVerificationMessage(data?.message || 'NIN verified successfully!');
+                setNotification({ type: 'success', message: data?.message || 'NIN verified successfully!' });
+
+                if (data?.data) {
+                    const ninData = data.data;
+                    if (ninData.firstName || ninData.lastName) {
+                        setFormData(prev => ({
+                            ...prev,
+                            personal: {
+                                ...prev.personal,
+                                firstName: prev.personal.firstName || ninData.firstName || '',
+                                lastName: prev.personal.lastName || ninData.lastName || '',
+                            }
+                        }));
+                    }
+                }
+            } else {
+                setNinVerified(false);
+                const errMsg = Array.isArray(data?.message) ? data.message.join(', ') : (data?.message || 'NIN verification failed');
+                setNinVerificationError(errMsg);
+                setNotification({ type: 'error', message: errMsg });
+            }
+        } catch (error) {
+            console.error("Error verifying NIN:", error);
+            setNinVerified(false);
+            const rawMsg = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to verify NIN';
+            const errMsg = Array.isArray(rawMsg) ? rawMsg.join(', ') : rawMsg;
+            setNinVerificationError(errMsg);
+            setNotification({ type: 'error', message: errMsg });
+        } finally {
+            setIsVerifyingNin(false);
+        }
+    };
+
+    const handleIdNumberChange = (value) => {
+        if (formData.documents.idType === 'National ID') {
+            const digitsOnly = value.replace(/\D/g, '').slice(0, 11);
+            handleInputChange('documents', 'idNumber', digitsOnly);
+
+            if (digitsOnly.length !== 11) {
+                setNinVerified(false);
+                setNinVerificationError(null);
+                setNinVerificationMessage(null);
+                setLastVerifiedNin('');
+            } else if (digitsOnly.length === 11 && digitsOnly !== lastVerifiedNin) {
+                setLastVerifiedNin(digitsOnly);
+                verifyNin(digitsOnly);
+            }
+        } else {
+            handleInputChange('documents', 'idNumber', value);
+        }
+    };
+
     const nextStage = () => {
         // Validation logic
         if (currentStage === 1) {
@@ -203,6 +316,14 @@ const KYCApplication = () => {
                 const ninRegex = /^\d{11}$/;
                 if (!ninRegex.test(formData.documents.idNumber)) {
                     setNotification({ type: 'error', message: 'National ID (NIN) must be exactly 11 digits and contain only numbers.' });
+                    return;
+                }
+                if (isVerifyingNin) {
+                    setNotification({ type: 'error', message: 'Please wait for NIN verification to complete.' });
+                    return;
+                }
+                if (ninVerificationError) {
+                    setNotification({ type: 'error', message: 'Please provide a valid verified NIN before proceeding.' });
                     return;
                 }
             }
@@ -334,6 +455,14 @@ const KYCApplication = () => {
                 const ninRegex = /^\d{11}$/;
                 if (!ninRegex.test(formData.documents.idNumber)) {
                     setNotification({ type: 'error', message: 'National ID (NIN) must be exactly 11 digits and contain only numbers.' });
+                    return;
+                }
+                if (isVerifyingNin) {
+                    setNotification({ type: 'error', message: 'Please wait for NIN verification to complete.' });
+                    return;
+                }
+                if (ninVerificationError) {
+                    setNotification({ type: 'error', message: 'Please provide a valid verified NIN before proceeding.' });
                     return;
                 }
             }
@@ -654,7 +783,13 @@ const KYCApplication = () => {
                                                     <select
                                                         id="idType"
                                                         value={formData.documents.idType}
-                                                        onChange={(e) => handleInputChange('documents', 'idType', e.target.value)}
+                                                        onChange={(e) => {
+                                                            handleInputChange('documents', 'idType', e.target.value);
+                                                            setNinVerified(false);
+                                                            setNinVerificationError(null);
+                                                            setNinVerificationMessage(null);
+                                                            setLastVerifiedNin('');
+                                                        }}
                                                         required
                                                         className="w-full p-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition duration-150 ease-in-out text-sm placeholder-zinc-400 pr-8 bg-white"
                                                     >
@@ -676,25 +811,81 @@ const KYCApplication = () => {
                                                             ? "Driver's License Number"
                                                             : 'Document Number'}
                                                     </label>
-                                                    <input
-                                                        type="text"
-                                                        id="idNumber"
-                                                        value={formData.documents.idNumber}
-                                                        onChange={(e) => handleInputChange('documents', 'idNumber', e.target.value)}
-                                                        required
-                                                        placeholder={
-                                                            formData.documents.idType === 'National ID'
-                                                                ? 'Enter 11-digit NIN'
-                                                                : formData.documents.idType === "Voter's Card"
-                                                                ? "Enter Voter's Card Number"
-                                                                : formData.documents.idType === 'Passport Number'
-                                                                ? 'Enter Passport Number'
-                                                                : formData.documents.idType === "Driver's License"
-                                                                ? "Enter Driver's License Number"
-                                                                : 'Enter Document Number'
-                                                        }
-                                                        className="w-full p-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition duration-150 ease-in-out text-sm placeholder-zinc-400"
-                                                    />
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            id="idNumber"
+                                                            value={formData.documents.idNumber}
+                                                            onChange={(e) => handleIdNumberChange(e.target.value)}
+                                                            required
+                                                            maxLength={formData.documents.idType === 'National ID' ? 11 : undefined}
+                                                            placeholder={
+                                                                formData.documents.idType === 'National ID'
+                                                                    ? 'Enter 11-digit NIN'
+                                                                    : formData.documents.idType === "Voter's Card"
+                                                                    ? "Enter Voter's Card Number"
+                                                                    : formData.documents.idType === 'Passport Number'
+                                                                    ? 'Enter Passport Number'
+                                                                    : formData.documents.idType === "Driver's License"
+                                                                    ? "Enter Driver's License Number"
+                                                                    : 'Enter Document Number'
+                                                            }
+                                                            className={`w-full p-3 border rounded-lg focus:ring-2 outline-none transition duration-150 ease-in-out text-sm placeholder-zinc-400 pr-10 ${
+                                                                formData.documents.idType === 'National ID' && ninVerified
+                                                                    ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+                                                                    : formData.documents.idType === 'National ID' && ninVerificationError
+                                                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                                                    : 'border-zinc-300 focus:ring-green-500 focus:border-green-500'
+                                                            }`}
+                                                        />
+                                                        {formData.documents.idType === 'National ID' && (
+                                                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                                {isVerifyingNin && (
+                                                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-700 border-t-transparent"></div>
+                                                                )}
+                                                                {!isVerifyingNin && ninVerified && (
+                                                                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                                                    </svg>
+                                                                )}
+                                                                {!isVerifyingNin && ninVerificationError && (
+                                                                    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                                    </svg>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {formData.documents.idType === 'National ID' && (
+                                                        <div className="mt-1.5 min-h-[20px]">
+                                                            {isVerifyingNin && (
+                                                                <p className="text-xs text-zinc-500 flex items-center gap-1">
+                                                                    <span>Verifying NIN...</span>
+                                                                </p>
+                                                            )}
+                                                            {!isVerifyingNin && ninVerified && (
+                                                                <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+                                                                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+                                                                    </svg>
+                                                                    <span>{ninVerificationMessage || 'NIN verified successfully'}</span>
+                                                                </p>
+                                                            )}
+                                                            {!isVerifyingNin && ninVerificationError && (
+                                                                <p className="text-xs text-red-600 font-medium flex items-center gap-1">
+                                                                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                                    </svg>
+                                                                    <span>{ninVerificationError}</span>
+                                                                </p>
+                                                            )}
+                                                            {!isVerifyingNin && !ninVerified && !ninVerificationError && formData.documents.idNumber?.length > 0 && formData.documents.idNumber?.length < 11 && (
+                                                                <p className="text-xs text-zinc-400">
+                                                                    {11 - formData.documents.idNumber.length} more {11 - formData.documents.idNumber.length === 1 ? 'digit' : 'digits'} needed to verify
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="md:col-span-2">
                                                     <label className="block text-sm font-medium text-zinc-700 mb-1">
