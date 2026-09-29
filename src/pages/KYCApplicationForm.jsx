@@ -196,47 +196,14 @@ const KYCApplication = () => {
         }));
     };
 
-    const verifyNin = async (ninToVerify, targetAppId) => {
-        let appId = targetAppId || applicationId || residentInfo?.applicationId || residentInfo?.id || residentInfo?._id;
-
-        if (!appId) {
-            try {
-                const statusRes = await api.get('/resident/kyc/status');
-                const statusData = statusRes.data?.data || statusRes.data;
-                appId = statusData?.applicationId || statusData?.id || statusData?._id || statusData?.residentId || statusData?.kycApplicationId;
-                if (appId) {
-                    setApplicationId(appId);
-                }
-            } catch (e) {
-                console.warn("Failed to fetch applicationId from /resident/kyc/status", e);
-            }
-        }
-
-        if (!appId) {
-            try {
-                const profileRes = await api.get('/residents/profile');
-                const profileData = profileRes.data?.data || profileRes.data;
-                appId = profileData?.applicationId || profileData?.id || profileData?._id || profileData?.residentId;
-                if (appId) {
-                    setApplicationId(appId);
-                }
-            } catch (e) {
-                console.warn("Failed to fetch applicationId from /residents/profile", e);
-            }
-        }
-
-        if (!appId) {
-            setNinVerificationError("Application ID not found. Unable to verify NIN.");
-            return;
-        }
-
+    const verifyNin = async (ninToVerify) => {
         setIsVerifyingNin(true);
         setNinVerificationError(null);
         setNinVerificationMessage(null);
 
         try {
-            const { data } = await api.post(`/identities/${appId}/verify-nin`, {
-                nin: ninToVerify
+            const { data } = await api.post('/identities/verify-nin', {
+                ninNo: ninToVerify
             });
 
             if (data?.success || data?.succeeded) {
@@ -244,42 +211,30 @@ const KYCApplication = () => {
                 setNinVerificationMessage(data?.message || 'NIN verified successfully!');
                 setNotification({ type: 'success', message: data?.message || 'NIN verified successfully!' });
 
-                if (data?.data) {
-                    const ninData = data.data;
-                    if (ninData.firstName || ninData.lastName) {
-                        setFormData(prev => ({
-                            ...prev,
-                            personal: {
-                                ...prev.personal,
-                                firstName: prev.personal.firstName || ninData.firstName || '',
-                                lastName: prev.personal.lastName || ninData.lastName || '',
-                            }
-                        }));
-                    }
+                const ninData = data?.data || data;
+                if (ninData && (ninData.firstName || ninData.lastName)) {
+                    setFormData(prev => ({
+                        ...prev,
+                        personal: {
+                            ...prev.personal,
+                            firstName: prev.personal.firstName || ninData.firstName || '',
+                            lastName: prev.personal.lastName || ninData.lastName || '',
+                        }
+                    }));
                 }
             } else {
                 setNinVerified(false);
                 const errMsg = Array.isArray(data?.message) ? data.message.join(', ') : (data?.message || 'NIN verification failed');
-                if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('application not found')) {
-                    setNinVerificationMessage('11-digit NIN recorded.');
-                    setNinVerificationError(null);
-                } else {
-                    setNinVerificationError(errMsg);
-                    setNotification({ type: 'error', message: errMsg });
-                }
+                setNinVerificationError(errMsg);
+                setNotification({ type: 'error', message: errMsg });
             }
         } catch (error) {
             console.error("Error verifying NIN:", error);
             setNinVerified(false);
             const rawMsg = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to verify NIN';
             const errMsg = Array.isArray(rawMsg) ? rawMsg.join(', ') : rawMsg;
-            if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('application not found')) {
-                setNinVerificationMessage('11-digit NIN recorded.');
-                setNinVerificationError(null);
-            } else {
-                setNinVerificationError(errMsg);
-                setNotification({ type: 'error', message: errMsg });
-            }
+            setNinVerificationError(errMsg);
+            setNotification({ type: 'error', message: errMsg });
         } finally {
             setIsVerifyingNin(false);
         }
