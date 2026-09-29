@@ -37,6 +37,23 @@ export default function CorporateOnbordForm() {
         setNotification(null);
     };
 
+    const formatErrorMessage = (errorObjOrMsg) => {
+        if (!errorObjOrMsg) return '';
+        if (typeof errorObjOrMsg === 'string') return errorObjOrMsg;
+        if (Array.isArray(errorObjOrMsg)) {
+            return errorObjOrMsg.map(item => typeof item === 'object' ? (item.message || JSON.stringify(item)) : item).join(', ');
+        }
+        if (typeof errorObjOrMsg === 'object') {
+            if (errorObjOrMsg.message) return formatErrorMessage(errorObjOrMsg.message);
+            const values = Object.values(errorObjOrMsg).flat();
+            if (values.length > 0) {
+                return values.map(item => typeof item === 'object' ? (item.message || JSON.stringify(item)) : item).join(', ');
+            }
+            return JSON.stringify(errorObjOrMsg);
+        }
+        return String(errorObjOrMsg);
+    };
+
 
 
     useEffect(() => {
@@ -85,25 +102,31 @@ export default function CorporateOnbordForm() {
     };
 
     const fetchData = async () => {
+        if (!formData.payerId || !formData.payerId.trim()) return;
         try {
-            const { data } = await api.get(`/payer/${formData.payerId}`);
-            if (data.success) {
-                setFormData({
-                    ...formData,
-                    firstName: data.data.firstName,
-                    lastName: data.data.lastName,
-                    email: data.data.email,
-                    phoneNumber: data.data.phoneNumber,
-                });
+            const { data } = await api.get(`/payer/${formData.payerId.trim()}`);
+            if (data?.success && data?.data) {
+                setFormData(prev => ({
+                    ...prev,
+                    firstName: data.data.firstName || prev.firstName,
+                    lastName: data.data.lastName || prev.lastName,
+                    email: data.data.email || prev.email,
+                    phoneNumber: data.data.phoneNumber || prev.phoneNumber,
+                    businessName: data.data.businessName || data.data.companyName || prev.businessName,
+                }));
             }
         } catch (error) {
-            console.log("Error fetching data")
+            console.log("Error fetching payer data", error);
         }
-    }
+    };
 
     useEffect(() => {
-        fetchData();
-    }, [formData.payerId])
+        if (!formData.payerId || !formData.payerId.trim()) return;
+        const delayDebounceFn = setTimeout(() => {
+            fetchData();
+        }, 500);
+        return () => clearTimeout(delayDebounceFn);
+    }, [formData.payerId]);
 
     // Handle form submission
     const handleSubmit = async (e) => {
@@ -114,34 +137,13 @@ export default function CorporateOnbordForm() {
             return;
         }
 
-        if (!formData.firstName || !formData.firstName.trim()) {
-            setNotification({ type: 'error', message: 'First name is required' });
+        const businessName = (formData.businessName || formData.companyName || '').trim();
+        if (!businessName) {
+            setNotification({ type: 'error', message: 'Business name is required' });
             return;
         }
 
-        if (!formData.lastName || !formData.lastName.trim()) {
-            setNotification({ type: 'error', message: 'Last name is required' });
-            return;
-        }
-
-        if (!formData.companyName || !formData.companyName.trim()) {
-            setNotification({ type: 'error', message: 'Company name is required' });
-            return;
-        }
-
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!formData.email || !emailRegex.test(formData.email.trim())) {
-            setNotification({ type: 'error', message: 'Please enter a valid email address' });
-            return;
-        }
-
-        const phoneClean = (formData.phoneNumber || '').trim().replace(/[\s\-()]/g, '');
-        if (!phoneClean || phoneClean.length < 8 || phoneClean.length > 15) {
-            setNotification({ type: 'error', message: 'Please enter a valid phone number' });
-            return;
-        }
-
-        if (!formData.lgaId || !formData.lgaId.trim()) {
+        if (!formData.lgaId || !String(formData.lgaId).trim()) {
             setNotification({ type: 'error', message: 'Please select a Local Government Area (LGA)' });
             return;
         }
@@ -158,36 +160,36 @@ export default function CorporateOnbordForm() {
 
         try {
             const payload = {
-                ...formData,
-                lgaId: String(formData.lgaId || ''),
+                payerId: formData.payerId.trim(),
+                businessName: businessName,
+                password: formData.password,
+                confirmPassword: formData.confirmPassword,
+                lgaId: String(formData.lgaId || '').trim(),
             };
 
             console.log('Corporate payload:', payload);
 
             const { data } = await api.post('/corporate/register', payload);
 
-            if (data.success) {
-                setNotification({ type: 'success', message: data.message || 'Submitted successfully!' });
+            if (data?.succeeded || data?.success) {
+                setNotification({ type: 'success', message: formatErrorMessage(data.message) || 'Submitted successfully!' });
                 navigate("/");
-            }
-            else {
-                setNotification({ type: 'error', message: data.message || "Error submitting" });
+            } else {
+                setNotification({ type: 'error', message: formatErrorMessage(data?.message) || "Error submitting" });
             }
 
         } catch (error) {
-            console.log("Error message is", error);
-            setNotification({ type: 'error', message: "Error creating new corporate" });
+            console.error("Error creating corporate:", error);
+            const errMsg = error.response?.data?.message || error.response?.data?.errors || error.message || "Error creating new corporate";
+            setNotification({ type: 'error', message: formatErrorMessage(errMsg) });
         }
     };
-
-    //   pattern="[A-Za-z\s]+"
 
     // Handle cancel action
     const handleCancel = () => {
         console.log("Form Cancelled");
         setFormData({
-
-
+            businessName: '',
             firstName: '',
             middleName: '',
             lastName: '',
@@ -198,7 +200,6 @@ export default function CorporateOnbordForm() {
             confirmPassword: '',
             lgaId: '',
         });
-        // setSubmittedData(null);
     };
 
     return (
@@ -256,7 +257,7 @@ export default function CorporateOnbordForm() {
                                     </NavLink>
                                 </div>
                                 <div className='lg:col-span-2'>
-                                    <label htmlFor="firstName" className="block text-sm font-medium text-zinc-700 mb-1">
+                                    <label htmlFor="businessName" className="block text-sm font-medium text-zinc-700 mb-1">
                                         Business Name
                                     </label>
                                     <input
@@ -266,8 +267,6 @@ export default function CorporateOnbordForm() {
                                         value={formData.businessName}
                                         onChange={handleInputChange}
                                         placeholder="Business Name"
-                                        pattern="[A-Za-z\s]+"
-                                        title="Please enter only letters and spaces"
                                         required
                                         className="w-full p-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-700 focus:border-transparent outline-none transition duration-150 ease-in-out"
                                     />
@@ -302,7 +301,6 @@ export default function CorporateOnbordForm() {
                                         placeholder="Middle name"
                                         pattern="[A-Za-z\s]+"
                                         title="Please enter only letters and spaces"
-                                        required
                                         className="w-full p-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-green-700 focus:border-transparent outline-none transition duration-150 ease-in-out"
                                     />
                                 </div>
@@ -430,7 +428,7 @@ export default function CorporateOnbordForm() {
                                     <label htmlFor="confirmPassword">Confirm Password</label>
 
                                     <input
-                                        type={showPassword ? 'text' : 'password'}
+                                        type={showConfirmPassword ? 'text' : 'password'}
                                         value={formData.confirmPassword}
                                         onChange={handleInputChange}
                                         name='confirmPassword'

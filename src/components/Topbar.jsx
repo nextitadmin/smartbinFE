@@ -193,17 +193,18 @@ const Topbar = () => {
 
 
     return (
-        <div className="w-full bg-white p-4 flex items-center justify-between">
-            <div className="flex items-center ">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6 mx-2">
+        <div className="w-full bg-white px-4 sm:px-6 py-3.5 flex items-center justify-between border-b border-zinc-200 min-w-0">
+            <div className="flex items-center min-w-0 mr-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5 sm:size-6 mr-2 text-zinc-600 flex-shrink-0">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                 </svg>
 
-                <p className="lg:text-sm text-[0.6rem]  text-zinc-500">{Resident?.address || "Complete your kyc registration"}</p>
-
+                <p className="text-xs sm:text-sm text-zinc-500 truncate max-w-[200px] sm:max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl">
+                    {Resident?.address || "Complete your kyc registration"}
+                </p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
                 <div className="relative inline-block  " onClick={() => { handleNotificationClick() }}>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 z-0 text-green-600">
                         <path fillRule="evenodd" d="M5.25 9a6.75 6.75 0 0 1 13.5 0v.75c0 2.123.8 4.057 2.118 5.52a.75.75 0 0 1-.297 1.206c-1.544.57-3.16.99-4.831 1.243a3.75 3.75 0 1 1-7.48 0 24.585 24.585 0 0 1-4.831-1.244.75.75 0 0 1-.298-1.205A8.217 8.217 0 0 0 5.25 9.75V9Zm4.502 8.9a2.25 2.25 0 1 0 4.496 0 25.057 25.057 0 0 1-4.496 0Z" clipRule="evenodd" />
