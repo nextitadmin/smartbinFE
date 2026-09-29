@@ -451,173 +451,163 @@ const Dashboard = () => {
 
     return (
         <div>
-            <div className="flex sans max-w-screen h-screen">
+            <div className="flex sans max-w-full h-screen overflow-hidden">
                 <Sidebar addkey="1" />
-                <div className=" bg-zinc-100 min-h-screen flex flex-col flex-1 overflow-y-auto  ">
+                <div className="bg-zinc-100 min-h-screen flex flex-col flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
                     <Topbar />
-                    <main className="p-8 space-y-6">
-                        <div className="flex flex-wrap -mx-3">
-                            {/* Outstanding Bill Card */}
-                            <div className="w-full sm:w-1/2 lg:w-1/3 px-3 mb-6">
-                                <div className="flex bg-white p-6 rounded-2xl  min-h-[230px]  w-full">
-                                    <div className=" items-start justify-between w-full">
-                                        <div className="mb-12">
-                                            <div className="bg-green-700 p-3 rounded-full w-12 h-12 flex items-center justify-center">
-                                                {/* SVG */}
-                                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                    <path d="M5.60817 16.4165C6.2915 15.6832 7.33317 15.7415 7.93317 16.5415L8.77484 17.6665C9.44984 18.5582 10.5415 18.5582 11.2165 17.6665L12.0582 16.5415C12.6582 15.7415 13.6998 15.6832 14.3832 16.4165C15.8665 17.9998 17.0748 17.4748 17.0748 15.2582V5.8665C17.0832 2.50817 16.2998 1.6665 13.1498 1.6665H6.84984C3.69984 1.6665 2.9165 2.50817 2.9165 5.8665V15.2498C2.9165 17.4748 4.13317 17.9915 5.60817 16.4165Z" fill="white" />
-                                                    <path fillRule="evenodd" clipRule="evenodd" d="M6.74656 9.16667H6.75405H6.74656Z" fill="white" />
-                                                    <path d="M6.74656 9.16667H6.75405" stroke="#007836" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                                    <path d="M9.08203 9.1665H13.6654" stroke="#007836" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                                    <path fillRule="evenodd" clipRule="evenodd" d="M6.74656 5.83317H6.75405H6.74656Z" fill="white" />
-                                                    <path d="M6.74656 5.83317H6.75405" stroke="#007836" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                                    <path d="M9.08203 5.8335H13.6654" stroke="#007836" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                                </svg>
-                                            </div>
-                                        </div>
-                                        <div className='flex flex-row justify-between items-center w-full mb-4'>
-                                            <div>
-                                                <p className="text-zinc-700 font-light">Total Outstanding Bill</p>
-                                                <h2 className="text-green-700 text-3xl mt-1">{dashboardDetails.outstandingBill}</h2>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => navigate('/bills')}
-                                                className="text-zinc-800 hover:text-green-700 underline text-sm cursor-pointer focus:outline-none"
-                                            >
-                                                See all
-                                            </button>
-                                        </div>
+                    <main className="p-4 sm:p-6 lg:p-6 xl:p-8 space-y-6 max-w-[1600px] w-full mx-auto">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+                            {/* Total Outstanding Bill Card */}
+                            <div className="bg-white p-5 lg:p-6 rounded-2xl min-h-[190px] xl:min-h-[210px] flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+                                <div className="bg-green-700 p-3 rounded-full w-11 h-11 flex items-center justify-center">
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M5.60817 16.4165C6.2915 15.6832 7.33317 15.7415 7.93317 16.5415L8.77484 17.6665C9.44984 18.5582 10.5415 18.5582 11.2165 17.6665L12.0582 16.5415C12.6582 15.7415 13.6998 15.6832 14.3832 16.4165C15.8665 17.9998 17.0748 17.4748 17.0748 15.2582V5.8665C17.0832 2.50817 16.2998 1.6665 13.1498 1.6665H6.84984C3.69984 1.6665 2.9165 2.50817 2.9165 5.8665V15.2498C2.9165 17.4748 4.13317 17.9915 5.60817 16.4165Z" fill="white" />
+                                        <path fillRule="evenodd" clipRule="evenodd" d="M6.74656 9.16667H6.75405H6.74656Z" fill="white" />
+                                        <path d="M6.74656 9.16667H6.75405" stroke="#007836" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        <path d="M9.08203 9.1665H13.6654" stroke="#007836" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                        <path fillRule="evenodd" clipRule="evenodd" d="M6.74656 5.83317H6.75405H6.74656Z" fill="white" />
+                                        <path d="M6.74656 5.83317H6.75405" stroke="#007836" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        <path d="M9.08203 5.8335H13.6654" stroke="#007836" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                </div>
+                                <div className="flex flex-row justify-between items-end w-full mt-4">
+                                    <div>
+                                        <p className="text-zinc-500 text-sm font-light">Total Outstanding Bill</p>
+                                        <h2 className="text-green-700 text-2xl xl:text-3xl font-semibold mt-1">{dashboardDetails.outstandingBill}</h2>
                                     </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/bills')}
+                                        className="text-zinc-800 hover:text-green-700 underline text-sm cursor-pointer focus:outline-none mb-1"
+                                    >
+                                        See all
+                                    </button>
                                 </div>
                             </div>
+
                             {/* Smart Bin Applications Card */}
-                            <div className="w-full sm:w-1/2 lg:w-1/3 px-3 mb-6">
-                                <div className="flex bg-white p-6 rounded-2xl  min-h-[230px]  w-full">
-                                    <div>
-                                        <div className="mb-12">
-                                            <div className="bg-green-700 text-white p-3 rounded-full w-12 h-12 flex items-center justify-center">
-                                                {/* SVG */}
-                                                <svg fill="none" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><g fill="#fff">
-                                                    <path d="m16 22.75h-8c-3.65 0-5.75-2.1-5.75-5.75v-10c0-3.65 2.1-5.75 5.75-5.75h8c3.65 0 5.75 2.1 5.75 5.75v10c0 3.65-2.1 5.75-5.75 5.75zm-8-20c-2.86 0-4.25 1.39-4.25 4.25v10c0 2.86 1.39 4.25 4.25 4.25h8c2.86 0 4.25-1.39 4.25-4.25v-10c0-2.86-1.39-4.25-4.25-4.25z" />
-                                                    <path d="m18.5 9.25h-2c-1.52 0-2.75-1.23-2.75-2.75v-2c0-.41.34-.75.75-.75s.75.34.75.75v2c0 .69.56 1.25 1.25 1.25h2c.41 0 .75.34.75.75s-.34.75-.75.75z" />
-                                                    <path d="m12 13.75h-4c-.41 0-.75-.34-.75-.75s.34-.75.75-.75h4c.41 0 .75.34.75.75s-.34.75-.75.75z" />
-                                                    <path d="m16 17.75h-8c-.41 0-.75-.34-.75-.75s.34-.75.75-.75h8c.41 0 .75.34.75.75s-.34.75-.75.75z" /></g>
-                                                </svg>
-                                            </div>
-                                        </div>
-                                        <p className="text-zinc-700 font-light">Smart Bin Applications</p>
-                                        <h2 className="text-green-700 text-3xl  mt-1 mb-4">{dashboardDetails.binApplications}</h2>
-                                    </div>
+                            <div className="bg-white p-5 lg:p-6 rounded-2xl min-h-[190px] xl:min-h-[210px] flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+                                <div className="bg-green-700 text-white p-3 rounded-full w-11 h-11 flex items-center justify-center">
+                                    <svg fill="none" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg">
+                                        <g fill="#fff">
+                                            <path d="m16 22.75h-8c-3.65 0-5.75-2.1-5.75-5.75v-10c0-3.65 2.1-5.75 5.75-5.75h8c3.65 0 5.75 2.1 5.75 5.75v10c0 3.65-2.1 5.75-5.75 5.75zm-8-20c-2.86 0-4.25 1.39-4.25 4.25v10c0 2.86 1.39 4.25 4.25 4.25h8c2.86 0 4.25-1.39 4.25-4.25v-10c0-2.86-1.39-4.25-4.25-4.25z" />
+                                            <path d="m18.5 9.25h-2c-1.52 0-2.75-1.23-2.75-2.75v-2c0-.41.34-.75.75-.75s.75.34.75.75v2c0 .69.56 1.25 1.25 1.25h2c.41 0 .75.34.75.75s-.34.75-.75.75z" />
+                                            <path d="m12 13.75h-4c-.41 0-.75-.34-.75-.75s.34-.75.75-.75h4c.41 0 .75.34.75.75s-.34.75-.75.75z" />
+                                            <path d="m16 17.75h-8c-.41 0-.75-.34-.75-.75s.34-.75.75-.75h8c.41 0 .75.34.75.75s-.34.75-.75.75z" />
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div className="mt-4">
+                                    <p className="text-zinc-500 text-sm font-light">Smart Bin Applications</p>
+                                    <h2 className="text-green-700 text-2xl xl:text-3xl font-semibold mt-1">{dashboardDetails.binApplications}</h2>
                                 </div>
                             </div>
+
                             {/* Available Balance Card */}
-                            <div className="w-full sm:w-1/2 lg:w-1/3 px-3 mb-6">
-                                <div className="flex bg-card  bg-cover rounded-2xl min-h-[230px] w-full">
-                                    <div className="flex p-6 rounded-2xl min-h-[230px] w-full bg-[linear-gradient(288.72deg,rgba(0,120,54,0.75)_0%,#007836_98.68%)]">
-                                        <div className="w-full">
-                                            <p className="text-white text-xs font-light ">Available Balance</p>
-                                            <div className="flex items-center">
-                                                <h2 className="text-white text-3xl font-sans mt-1 mr-6">
-                                                    {showBalance ? (walletBalance || '₦0') : '₦ ****'}
-                                                </h2>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowBalance(prev => !prev)}
-                                                    className="text-white opacity-75 hover:opacity-100 transition-opacity focus:outline-none cursor-pointer mt-1"
-                                                    aria-label={showBalance ? "Hide balance" : "Show balance"}
-                                                    title={showBalance ? "Hide balance" : "Show balance"}
-                                                >
-                                                    {showBalance ? (
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                                                            <circle cx="12" cy="12" r="3" />
-                                                        </svg>
-                                                    ) : (
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                            <path d="M17.94 17.94A10.948 10.948 0 0112 19c-5 0-9.27-3-11-7 1.06-2.45 2.92-4.49 5.23-5.82M1 1l22 22" strokeLinecap="round" strokeLinejoin="round" />
-                                                            <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" strokeLinecap="round" strokeLinejoin="round" />
-                                                        </svg>
-                                                    )}
-                                                </button>
-                                            </div>
-                                            <div className="mt-14  mb-2">
-                                                <button className="bg-white text-green-700 py-4 px-4 rounded-xl flex items-center " onClick={() => openModal("topup")} >
-                                                    Top up wallet
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Next Waste Pickup Date Card */}
-                            <div className="w-full sm:w-1/2 lg:w-1/3 px-3 mb-6">
-                                <div className="flex bg-white p-6 rounded-2xl  min-h-[230px]  w-full">
-                                    <div>
-                                        <div className="mb-12">
-                                            <div className="bg-green-700 p-3 rounded-full w-12 h-12 flex items-center justify-center">
-                                                {/* SVG */}
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="text-white" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                                                    <line x1="16" y1="2" x2="16" y2="6" />
-                                                    <line x1="8" y1="2" x2="8" y2="6" />
-                                                    <line x1="3" y1="10" x2="21" y2="10" />
-                                                </svg>
-                                            </div>
-                                        </div>
-                                        <p className="text-zinc-700 font-light">Next Waste Pickup Date</p>
-                                        <h2 className="text-zinc-600 text-2xl mt-1">
-                                            <button
-                                                type="button"
-                                                onClick={() => navigate('/wastes')}
-                                                className="text-zinc-600 hover:text-green-700 underline cursor-pointer text-2xl font-normal text-left focus:outline-none"
-                                            >
-                                                Check Schedule
-                                            </button>
-                                        </h2>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Smart Bin Status Card */}
-                            <div className="w-full sm:w-1/2 lg:w-1/3 px-3 mb-6">
-                                <div className=" bg-white p-6 rounded-2xl  min-h-[230px]  w-full">
-                                    <div>
-                                        <div className="flex  items-center justify-between mb-8 w-full">
-                                            <h3 className="text-xl text-zinc-800">Smart Bin Status</h3>
-                                            <button className="text-sky-700 bg-sky-100 px-2 py-1 rounded-lg text-sm">Inventory</button>
-                                        </div>
-                                        <div className="mb-5">
-                                            <p className="text-zinc-400 font-light mb-2">Your smart Bin has been allocated in inventory</p>
-                                            <p className="text-zinc-900 text-sm mb-4">23rd July 2023 4:19PM</p>
-                                        </div>
+                            <div className="bg-[linear-gradient(288.72deg,rgba(0,120,54,0.85)_0%,#007836_98.68%)] text-white p-5 lg:p-6 rounded-2xl min-h-[190px] xl:min-h-[210px] flex flex-col justify-between shadow-sm">
+                                <div>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-white/80 text-xs font-light">Available Balance</p>
                                         <button
                                             type="button"
-                                            onClick={() => navigate('/applyforsmartbin')}
-                                            className="text-green-700 hover:text-green-800 py-2 font-medium underline cursor-pointer text-left focus:outline-none"
+                                            onClick={() => setShowBalance(prev => !prev)}
+                                            className="text-white opacity-80 hover:opacity-100 transition-opacity focus:outline-none cursor-pointer"
+                                            aria-label={showBalance ? "Hide balance" : "Show balance"}
+                                            title={showBalance ? "Hide balance" : "Show balance"}
                                         >
-                                            Track Application
+                                            {showBalance ? (
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                                                    <circle cx="12" cy="12" r="3" />
+                                                </svg>
+                                            ) : (
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M17.94 17.94A10.948 10.948 0 0112 19c-5 0-9.27-3-11-7 1.06-2.45 2.92-4.49 5.23-5.82M1 1l22 22" strokeLinecap="round" strokeLinejoin="round" />
+                                                    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" strokeLinecap="round" strokeLinejoin="round" />
+                                                </svg>
+                                            )}
                                         </button>
                                     </div>
+                                    <h2 className="text-white text-2xl xl:text-3xl font-sans mt-2 font-semibold">
+                                        {showBalance ? (walletBalance || '₦0') : '₦ ****'}
+                                    </h2>
+                                </div>
+                                <div className="mt-4">
+                                    <button
+                                        className="bg-white text-green-700 py-2.5 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-zinc-50 transition-colors w-full sm:w-auto"
+                                        onClick={() => openModal("topup")}
+                                    >
+                                        <span>Top up wallet</span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
-                            {/* Subscription Fee Card */}
-                            <div className="w-full sm:w-1/2 lg:w-1/3 px-3 mb-6">
-                                <div className="flex bg-white p-6 rounded-2xl  min-h-[230px]  w-full">
-                                    <div className="w-full">
-                                        <p className="text-zinc-600 font-light mb-2">Estimated annual Subscription fee</p>
-                                        <h2 className="text-zinc-600 text-3xl mb-10">{dashboardDetails.estimatedSubscriptionFee}</h2>
-                                        <button className="bg-green-700 text-white p-4 rounded-xl w-2/3" onClick={() => setIsSubscriptionModalOpen(true)}>
-                                            Edit Subscription
-                                        </button>
+
+                            {/* Next Waste Pickup Date Card */}
+                            <div className="bg-white p-5 lg:p-6 rounded-2xl min-h-[190px] xl:min-h-[210px] flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+                                <div className="bg-green-700 p-3 rounded-full w-11 h-11 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="text-white" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                        <line x1="16" y1="2" x2="16" y2="6" />
+                                        <line x1="8" y1="2" x2="8" y2="6" />
+                                        <line x1="3" y1="10" x2="21" y2="10" />
+                                    </svg>
+                                </div>
+                                <div className="mt-4">
+                                    <p className="text-zinc-500 text-sm font-light">Next Waste Pickup Date</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/wastes')}
+                                        className="text-zinc-700 hover:text-green-700 underline cursor-pointer text-xl xl:text-2xl font-normal text-left focus:outline-none mt-1 block"
+                                    >
+                                        Check Schedule
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Smart Bin Status Card */}
+                            <div className="bg-white p-5 lg:p-6 rounded-2xl min-h-[190px] xl:min-h-[210px] flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+                                <div>
+                                    <div className="flex items-center justify-between w-full">
+                                        <h3 className="text-lg xl:text-xl font-medium text-zinc-800">Smart Bin Status</h3>
+                                        <span className="text-sky-700 bg-sky-100 px-2.5 py-1 rounded-lg text-xs font-semibold">Inventory</span>
                                     </div>
+                                    <div className="mt-3">
+                                        <p className="text-zinc-400 text-xs font-light">Your smart Bin has been allocated in inventory</p>
+                                        <p className="text-zinc-700 text-xs font-medium mt-1">23rd July 2023 4:19PM</p>
+                                    </div>
+                                </div>
+                                <div className="mt-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/applyforsmartbin')}
+                                        className="text-green-700 hover:text-green-800 text-sm font-medium underline cursor-pointer text-left focus:outline-none"
+                                    >
+                                        Track Application
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Subscription Fee Card */}
+                            <div className="bg-white p-5 lg:p-6 rounded-2xl min-h-[190px] xl:min-h-[210px] flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+                                <div>
+                                    <p className="text-zinc-500 text-sm font-light">Estimated annual Subscription fee</p>
+                                    <h2 className="text-zinc-700 text-2xl xl:text-3xl font-semibold mt-1">{dashboardDetails.estimatedSubscriptionFee}</h2>
+                                </div>
+                                <div className="mt-4">
+                                    <button
+                                        className="bg-green-700 hover:bg-green-800 text-white py-2.5 px-5 rounded-xl text-sm font-semibold transition-colors w-full sm:w-auto"
+                                        onClick={() => setIsSubscriptionModalOpen(true)}
+                                    >
+                                        Edit Subscription
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                        <section className="bg-white p-6 rounded-3xl flex flex-col items-center justify-center">
-                            {/* Chart data not available in new API response */}
+
+                        <section className="bg-white p-5 lg:p-6 rounded-2xl shadow-sm">
                             <BinDisposalLineChart data={chartDetails} />
                         </section>
                     </main>

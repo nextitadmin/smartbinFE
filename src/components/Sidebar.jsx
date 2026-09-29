@@ -45,8 +45,8 @@ const Sidebar = ({ addkey }) => {
 
             {/* Sidebar */}
             <aside
-                className={`fixed top-0 justify-between left-0 z-50 min-h-screen h-full lg:w-72 sm:max-w-1/4 bg-white  flex flex-col  p-4 transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0 w-72' : '-translate-x-full '
-                    } md:static `}
+                className={`fixed top-0 justify-between left-0 z-50 min-h-screen h-full w-64 xl:w-72 flex-shrink-0 bg-white border-r border-zinc-200 flex flex-col p-4 transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+                    } md:static`}
             >
 
                 <div>

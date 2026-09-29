@@ -67,9 +67,11 @@ const BinDisposalLineChart = ({ data }) => {
     };
 
     return (
-        <div className="bg-white p-4 rounded-lg  lg:w-full w-[95%] lg:h-96 h-72">
+        <div className="w-full">
             <h2 className="text-lg font-semibold text-zinc-700 mb-4">Bin Disposals Over Time</h2>
-            <Line data={chartData} options={options} />
+            <div className="relative w-full h-64 sm:h-72 lg:h-80">
+                <Line data={chartData} options={options} />
+            </div>
         </div>
     );
 };
