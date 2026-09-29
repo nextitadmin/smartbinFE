@@ -260,16 +260,26 @@ const KYCApplication = () => {
             } else {
                 setNinVerified(false);
                 const errMsg = Array.isArray(data?.message) ? data.message.join(', ') : (data?.message || 'NIN verification failed');
-                setNinVerificationError(errMsg);
-                setNotification({ type: 'error', message: errMsg });
+                if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('application not found')) {
+                    setNinVerificationMessage('11-digit NIN recorded.');
+                    setNinVerificationError(null);
+                } else {
+                    setNinVerificationError(errMsg);
+                    setNotification({ type: 'error', message: errMsg });
+                }
             }
         } catch (error) {
             console.error("Error verifying NIN:", error);
             setNinVerified(false);
             const rawMsg = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to verify NIN';
             const errMsg = Array.isArray(rawMsg) ? rawMsg.join(', ') : rawMsg;
-            setNinVerificationError(errMsg);
-            setNotification({ type: 'error', message: errMsg });
+            if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('application not found')) {
+                setNinVerificationMessage('11-digit NIN recorded.');
+                setNinVerificationError(null);
+            } else {
+                setNinVerificationError(errMsg);
+                setNotification({ type: 'error', message: errMsg });
+            }
         } finally {
             setIsVerifyingNin(false);
         }
@@ -316,14 +326,6 @@ const KYCApplication = () => {
                 const ninRegex = /^\d{11}$/;
                 if (!ninRegex.test(formData.documents.idNumber)) {
                     setNotification({ type: 'error', message: 'National ID (NIN) must be exactly 11 digits and contain only numbers.' });
-                    return;
-                }
-                if (isVerifyingNin) {
-                    setNotification({ type: 'error', message: 'Please wait for NIN verification to complete.' });
-                    return;
-                }
-                if (ninVerificationError) {
-                    setNotification({ type: 'error', message: 'Please provide a valid verified NIN before proceeding.' });
                     return;
                 }
             }
@@ -455,14 +457,6 @@ const KYCApplication = () => {
                 const ninRegex = /^\d{11}$/;
                 if (!ninRegex.test(formData.documents.idNumber)) {
                     setNotification({ type: 'error', message: 'National ID (NIN) must be exactly 11 digits and contain only numbers.' });
-                    return;
-                }
-                if (isVerifyingNin) {
-                    setNotification({ type: 'error', message: 'Please wait for NIN verification to complete.' });
-                    return;
-                }
-                if (ninVerificationError) {
-                    setNotification({ type: 'error', message: 'Please provide a valid verified NIN before proceeding.' });
                     return;
                 }
             }
@@ -1089,11 +1083,9 @@ const KYCApplication = () => {
                                                     Submitting...
                                                 </span>
                                             ) : (
-                                                reuploadItem === 'id_docs' && currentStage === 2
+                                                (reuploadItem === 'id_docs' && currentStage === 2) || currentStage === 3
                                                     ? 'Submit Documents'
-                                                    : currentStage === 3
-                                                        ? (reuploadItem === 'address_info' ? 'Submit Address' : 'Submit KYC')
-                                                        : 'Next'
+                                                    : 'Next'
                                             )}
                                         </button>
                                     </div>
